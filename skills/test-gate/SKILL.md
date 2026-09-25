@@ -28,6 +28,11 @@ the targeted gate. A batch gets the full suite. The CI run for the pushed commit
   changes behind `A|B|C|D`, one term per change, leaves out every test that no term names. That leftover set is
   where the breakage shows up, and adding one more term after each failure never covers it. The unfiltered run
   costs less than a red CI run plus a re-push.
+- **A change that REJECTS input the tool used to accept runs the whole accepted-input corpus.** A new diagnostic, a
+  tightened validation or a stricter parser is a targeted change with a global blast radius: every "this must be
+  accepted" sample, fixture and compatibility matrix is now a candidate red. Add that corpus to the change's own gate,
+  not only the landing gate. *Why: an implementer gated a tightening on its own tests; the landing gate found 15
+  compatibility samples it had broken.*
 - **The comprehensive gate will turn up tests that the targeted filters never loaded,** including tests that
   still encode behaviour someone deliberately changed. Fix the test so it asserts the new behaviour. Don't
   exclude it.
@@ -134,6 +139,9 @@ timing can pass locally and fail there.
   `gh run list --commit <sha> --json databaseId,status,conclusion` → `gh run watch <id> --exit-status`, and
   `gh run view <id> --log-failed` on a red run.
 - Until that run has finished green, report "local gates green; CI pending", never "all green".
+- A status lookup that FAILS (an API timeout, an empty or unknown conclusion) is **no verdict**: retry it, and report
+  it as its own outcome - never as red, never as green. *Why: a push script read a transient TLS timeout as an empty
+  conclusion and reported "CI is red" on a green run.*
 - A red CI run blocks further work. Attribute it by job, step and test, and land the fix on its own before the
   next change.
 - If behaviour can differ between Debug and Release, run a local Release leg before pushing. Better still,

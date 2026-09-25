@@ -15,7 +15,8 @@ traceability inventory instead of a one-shot report; replaced the six upstream v
 vocabulary that includes owner decisions and documented non-support; made citation checking mechanical (deferring
 to `spec-oracle`); required a spec-derived witness to close a row; put the adversarial refuter on closing verdicts
 as well as divergences; routed findings into clustered, tracked work items; added measured lessons from
-multi-month audits; dropped the smart-contract domain material and the bundled workflow script.
+multi-month audits; added the discriminating-witness rules and the never-document-wrong-behaviour rule for
+implementor-defined elements; dropped the smart-contract domain material and the bundled workflow script.
 
 ## What this is
 
@@ -114,6 +115,18 @@ output or a conformance case, whose expected value was **computed from the cited
 implementation, a legacy system or today's output. It must exercise the branch the rule governs. Reading the
 code closes nothing. It only produces a hypothesis that the witness confirms. Rows that are defective only because
 they lack a witness are cheap, bulk work. Batch them into a "witness round", separate from fixing defects.
+
+**A witness must discriminate the rule.** It fails for an implementation that gets THIS rule wrong - including one
+that ignores it. A negative case is illegal ONLY under the rule it witnesses; a generic or "not implemented" error
+witnesses nothing specific; a documented-choice case uses inputs on which another plausible choice differs; and no
+expected value leans on an undecided default. A rule with no observable consequence ("may", "undefined") closes by a
+recorded determination, not by a test that cannot fail. (`pr-test-analyzer` check 4 carries the same list.)
+
+**Never document wrong behaviour as the implementation's choice.** For an implementor-defined element whose current
+behaviour violates the standard, the documentation states the INTENDED, conforming choice (resolved by the standard
+where it controls, else by the precedence your project sets - e.g. a reference implementation), and the verdict is
+`DIVERGES` (the documentation says one thing, the implementation does another) with the defect that owns the fix. The
+row closes when the code catches up - never by rewriting the documentation to match the bug.
 
 **`NOT-IMPLEMENTED` and absence verdicts rest on the `searched` record.** List the patterns you tried, including
 synonyms for the standard's vocabulary, the dispatch tables, the callers and the base types, with the hit counts.

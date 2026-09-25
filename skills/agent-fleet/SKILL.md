@@ -82,8 +82,9 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
 
 *Why: un-checkpointed refuters lost 100 % of their decisions to a single session kill.*
 
-- **Never use `git stash` for WIP; commit it instead.** *Why: the stash stack is shared by every linked
-  worktree, so one agent's `stash pop` can take another agent's work.*
+- **Never use `git stash` for WIP; commit it instead** - and that includes the implicit stash of
+  `git rebase --autostash` / `git pull --autostash`. *Why: the stash stack is shared by every linked worktree, so one
+  agent's `stash pop` can take another agent's work.*
 - **Keep checkpoint files out of landings**: add them to `.gitignore` and unstage them explicitly before
   committing. *Why: a checkpoint that reaches main conflicts with the next agent's checkpoint.*
 - **Design workflow stages to read their inputs from disk** (`out-<slug>.json`). *Why: then a rewritten or
@@ -175,6 +176,12 @@ Run refuters in small chunks (~4 wide) that are checkpointed per item.
 *Why: the first agent's framing is contagious. Only an agent looking for a counter-example finds the
 well-formed-but-wrong result.* Refuters check the **substance** of the evidence (for example, was the expected
 value derived from the authority), not its format.
+- **Keep verdicts per claim AND per piece of evidence.** When one piece of evidence (a test, a golden) supports several
+  claims, a refuter's overturn of one claim must not withhold that evidence from the sibling claims it upheld, and
+  evidence the refuter never judged must never be recorded because its claim was upheld on something else. Key the
+  integration on (claim, evidence); withhold evidence from EVERY claim only when the refuter says the evidence itself is
+  invalid (for example, the test input is non-conforming). *Why: pooling overturns by claim silently dropped valid
+  evidence and recorded unjudged evidence, and each lander had to hand-check every row.*
 
 ## 11. Measure cost per unit and route to the cheapest lane
 

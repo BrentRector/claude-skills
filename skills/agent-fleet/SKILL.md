@@ -45,6 +45,11 @@ In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of
   than fixing it.*
 - **Every lead an agent reports carries its repro and code site.** *Why: otherwise the triager and the next
   implementer each find the same fact again.*
+- **Tell the implementer to ask the structural rules before editing.** When the repo encodes invariants as drift
+  tests, the brief says: run the rule query for the files you will touch (`engineering-standards/references/rule_index.py
+  <files>`, or the repo's own) and honor every specific rule it prints; the practices checker fails a brief that drops
+  the line. *Why: the rules live in the tests, so an agent that is not pointed at them learns each one only by tripping it
+  at the gate — a full gate cycle per rule.*
 - **Don't put a fact in a brief that you haven't verified in this session** (a spec clause number, an API name,
   a path). *Why: agents inherit a confident wrong citation and carry it into code.*
 - **Reconcile the returns against the expected worklist** before you act: which items came back, which came

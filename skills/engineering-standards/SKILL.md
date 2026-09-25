@@ -143,6 +143,12 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
   construction, or a type that cannot represent the invalid state beats a comment asking the reader to remember.
 - **Pin every collapse with a drift test.** When two copies become one, add a test that fails if a copy
   reappears; when a model restates what an engine decides, add a test that cross-checks them.
+- **Surface the drift rules BEFORE the edit, from one home.** Each structural test states its rule in its own doc
+  comment — that is the rule's only home. Generate an index from them and answer "which rules govern this file?" before
+  anyone edits it (`references/rule_index.py`: `--tests "<glob>"` regenerates the index, `--check` in CI fails when it
+  is stale or a test states no rule, `<file>` lists the governing rules). Never copy the rules into docs or skills.
+  *Why: 200+ drift tests whose rules lived only in the tests were rediscovered one red gate at a time; copying them
+  into a skill would have made a second copy of every rule to drift.*
 - **A guard that cannot fail is not a guard. Make every new check fail once, for the right reason.** Restore the
   defect or point it at an old revision before trusting its green.
   *Example: a test that verified a registry against the same reflection scan that populated it asked "did the

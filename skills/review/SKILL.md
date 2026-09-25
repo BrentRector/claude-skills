@@ -86,7 +86,10 @@ accurate (a comment that lies is worse than none) · idiomatic for the language 
 exercise every branch the change added · **no fixed time limit in a test**: an assertion that compares a stopwatch or
 elapsed-time reading against a ceiling is a finding - it measures the machine, not the code, and a loaded CI runner
 turns it red with no regression. Ask for the property instead: a work count through a test seam, an observed effect in
-place of a real sleep or timeout, completion, or a growth ratio of two readings taken in the same run.
+place of a real sleep or timeout, completion, or a growth ratio of two readings taken in the same run · **the
+structural rules that govern each changed file**: when the repo has invariant/drift tests, list the rules for every
+changed file (`engineering-standards/references/rule_index.py <file>`, or the repo's own query) and check the diff
+against each; a change that breaks one is a finding even when its test was edited to pass.
 
 **3. Performance.** Hot paths and allocation behavior · data-structure fit · algorithmic complexity over realistic
 input sizes (O(n^2) over a collection that grows with the user's data) · redundant I/O, N+1 queries, repeated

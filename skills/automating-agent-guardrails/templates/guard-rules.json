@@ -1,0 +1,41 @@
+{
+  "_comment": "Rules for guard_commands.py. Copy beside it as .claude/hooks/guard-rules.json and edit. Every rule needs block AND allow examples; `python .claude/hooks/guard_commands.py --selftest` proves them. Replace `bash scripts/land.sh` with your landing command and `main|master` with your protected branches.",
+  "rules": [
+    {
+      "id": "no-stash",
+      "scope": "repo",
+      "pattern": "\\bgit\\s+(?:-C\\s+\\S+\\s+)?stash\\b(?!\\s+(?:list|show)\\b)",
+      "reason": "the stash stack is shared by every linked worktree, so another agent's `git stash pop` can take your entry.",
+      "instead": "commit work in progress on your own branch (`git commit -m \"WIP: ...\"`); to compare against a clean tree, use `git worktree add --detach <path> <sha>`.",
+      "block": ["git stash", "git stash push -m wip", "git stash pop", "git -C . stash apply", "cd . && git stash"],
+      "allow": ["git stash list", "git stash show -p stash@{0}", "git status", "grep -rn stash docs", "git config --get rebase.autoStash"]
+    },
+    {
+      "id": "no-autostash",
+      "scope": "repo",
+      "pattern": "(?i)--autostash\\b|\\b(?:rebase|merge)\\.autostash[=\\s]+true\\b",
+      "reason": "`--autostash` uses the same shared stash stack as `git stash`.",
+      "instead": "commit work in progress first, then rebase or pull.",
+      "block": ["git rebase --autostash origin/main", "git pull --rebase --autostash", "git -c rebase.autoStash=true rebase origin/main"],
+      "allow": ["git rebase origin/main", "git pull --rebase --no-autostash", "git config --get rebase.autoStash"]
+    },
+    {
+      "id": "land-via-script",
+      "scope": "repo",
+      "pattern": "\\bgit\\s+(?:-C\\s+\\S+\\s+)?push\\b[^;&|\\n]*?(?:\\s|:|\\+)(?:refs/heads/)?(?:main|master)(?=$|[\\s;&|])|\\bgit\\s+(?:-C\\s+\\S+\\s+)?push\\b[^;&|\\n]*\\s--(?:all|mirror)\\b",
+      "reason": "this repository's protected branch is updated only by the landing script, which runs the full gate and waits for CI.",
+      "instead": "push your own branch (`git push origin HEAD:<your-branch>`) and land with `bash scripts/land.sh`.",
+      "block": ["git push origin main", "git push origin HEAD:main", "git push -q origin HEAD:refs/heads/main", "git push --force origin +master", "git push --all origin"],
+      "allow": ["git push origin HEAD:feature/x", "git push origin my-main-fix", "git push origin maintenance", "bash scripts/land.sh", "git log origin/main..HEAD"]
+    },
+    {
+      "id": "no-escapes-in-heredoc",
+      "target": "heredoc",
+      "pattern": "\\\\[nrtx0abfv\\\\'\"]",
+      "reason": "backslash escapes in a heredoc body get mangled between the tool input, the shell and the interpreter.",
+      "instead": "write the file with the Write tool and run it, or express the character without an escape (for example chr(10)).",
+      "block": ["python - <<'EOF'\nprint('a\\nb')\nEOF", "cat <<EOF > f.txt\ncol1\\tcol2\nEOF"],
+      "allow": ["python - <<'EOF'\nprint('plain')\nEOF", "printf 'a\\nb'", "cat <<EOF > out.txt\nhello\nEOF\necho 'a\\nb'"]
+    }
+  ]
+}

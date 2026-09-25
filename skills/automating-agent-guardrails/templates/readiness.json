@@ -1,0 +1,46 @@
+{
+  "_comment": "Config for readiness_check.py; copy to .claude/hooks/readiness.json. Delete a section you have not adopted (an absent section prints nothing). Paths are relative to the project directory. The recurring and ask_at_trigger entries are EXAMPLES: keep only the steps the owner named.",
+
+  "guard": {
+    "settings": ".claude/settings.json",
+    "script": ".claude/hooks/guard_commands.py",
+    "shell_tools": ["Bash", "PowerShell"]
+  },
+
+  "roles": {
+    "dir": ".claude/agents",
+    "required": ["implementer", "lander", "refuter", "analyst", "chore"],
+    "readonly": ["refuter", "analyst"],
+    "long_wait": ["implementer", "lander", "refuter", "analyst"]
+  },
+
+  "telemetry": {
+    "port": 4318,
+    "sink": ".claude/hooks/otlp_sink.py",
+    "report": ".claude/hooks/usage_report.py"
+  },
+
+  "lsp": [
+    {
+      "name": "C#",
+      "plugin": "csharp-lsp@claude-plugins-official",
+      "server": "csharp-ls",
+      "paths": ["~/.dotnet/tools/csharp-ls", "~/.dotnet/tools/csharp-ls.exe"],
+      "install": "dotnet tool install --global csharp-ls"
+    }
+  ],
+
+  "recurring": [
+    {
+      "id": "skill-doctor",
+      "command": "/skill-doctor",
+      "every_days": 7,
+      "why": "prunes skills and memory entries that no longer earn their context"
+    }
+  ],
+
+  "ask_at_trigger": [
+    {"step": "/code-review ultra", "trigger": "before pushing a landing that carries several commits (billed and owner-only: ask, never skip)"},
+    {"step": "claude plugin eval . --no-publish", "trigger": "before pushing an edit to a skill or agent definition (billed: ask)"}
+  ]
+}

@@ -8,9 +8,10 @@ tests Claude rather than the skill, and so it can't detect an edit that breaks t
 
 ## What it covers
 
-Sixteen cases: one or two for each of the ten skills and one for each of the four agents. Each case is a small
+Seventeen cases: one or two for each of the eleven skills and one for each of the four agents. Each case is a small
 scenario, written inline in its `prompt.md`, that can only be handled correctly by following that skill's rule.
-The scores below come from the last full run (3 runs per arm, 2026-09-25).
+The scores below come from the last full run (3 runs per arm, 2026-09-25), except
+`automating-agent-guardrails-guard-design`, which was added later and measured on its own (2 runs per arm).
 
 | Case | Covers | The rule it checks | WITH | W/OUT |
 |---|---|---|---|---|
@@ -30,6 +31,7 @@ The scores below come from the last full run (3 runs per arm, 2026-09-25).
 | `agent-silent-failure-hunter` | silent-failure-hunter | Ranks the silent default price above the crash; findings carry `Harm: silent wrong answer` | 1.00 | 0.50 |
 | `agent-type-design-analyzer` | type-design-analyzer | Replaces the kind enum with its per-kind fields by a closed hierarchy; findings carry a `Smell:` classification | 0.83 | 0.50 |
 | `agent-comment-analyzer` | comment-analyzer | Rejects a citation that answers a different question and finds the governing clause; findings carry `Scenario:`/`Evidence:` | 1.00 | 0.50 |
+| `automating-agent-guardrails-guard-design` | automating-agent-guardrails | A guard hook for "no stash / land main only via the script" fails OPEN on its own errors (`ON-ERROR: ALLOW`) and scopes the push rule to this repository (`OTHER-REPO: ALLOWED`) | 1.00 | 0.50 |
 
 The WITH score is the mean over 3 runs of the fraction of scored graders that passed. W/OUT is the same score with
 no plugin loaded.
@@ -78,7 +80,7 @@ test-gate-preexisting-red-blocks-merge 1.00  0.00  +1.00  6    $0.44
   `engineering-standards`, `variant-analysis`, `spec-oracle`, `spec-compliance-audit`, `dotnet-engineering` and
   `agent-fleet`. On natural phrasing those skills fired only some of the time, and a run where the skill does not
   fire measures nothing. The rest use natural phrasing and fired in every run: review, test-gate, both roslyn
-  cases, cloud sessions, and the four agent cases ("use a specialist … reviewer if you have one"). Those also guard
+  cases, cloud sessions, agent guardrails, and the four agent cases ("use a specialist … reviewer if you have one"). Those also guard
   each skill's `description`. The names `engineering-standards` and `variant-analysis` hint at the answer a little,
   which makes the baseline those two cases must beat harder, not easier.
 - **Graders.** Most graders are deterministic regexes over the final message, often on a forced last line such as
@@ -134,3 +136,8 @@ Two graders were also removed from kept cases because the agent did not produce 
 silent-failure-hunter, and a `drift test` phrase on type-design-analyzer. An `llm` grader on pr-test-analyzer was
 replaced by trace regexes after the default haiku judge passed a baseline answer that its own rubric should have
 failed.
+
+One kept grader passes the baseline too: `OTHER-REPO: ALLOWED` in `automating-agent-guardrails-guard-design`. Asked
+directly about another repository, Claude scopes the rule correctly, although the baseline builder that was never
+asked did not. It stays as a regression guard; the case's delta comes from `ON-ERROR: ALLOW` (W/OUT 0/2: the baseline
+fails closed).

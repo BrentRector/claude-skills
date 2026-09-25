@@ -62,6 +62,7 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 |---|---|---|
 | [`agent-fleet`](skills/agent-fleet/) | dispatching many parallel subagents on a long campaign | One self-contained input per agent; checkpoint to disk; fresh agents from checkpoints; concurrency and token budgets; land finished work first; adversarial refuters; cost per unit decides the lane. |
 | [`claude-cloud-sessions`](skills/claude-cloud-sessions/) | running work in Claude Code cloud sessions | Environment setup scripts and snapshots; multi-repo sessions and hooks; private-repo access; launch surfaces and **billing** (measured, including where it differs from the docs); stopping cleanly before a credit runs out. Includes a setup-script template. |
+| [`automating-agent-guardrails`](skills/automating-agent-guardrails/) | agents keep breaking a project's rules, or when setting up guard hooks, role agents, a session-start readiness check, cost telemetry or LSP navigation | Guard hooks on every shell tool that fail open, are scoped to the repo and prove each rule with a self-test in CI; role definitions with model, effort, turn cap, 1-hour cache and read-only hooks in the role itself, proven by a smoke dispatch after restart; a readiness check every session (OK / REPAIRED / N/A / TODO / ASK-OWNER) where anything needing your permission becomes a question; local per-agent cost telemetry. Includes the scripts and templates. |
 
 `engineering-standards` is the bar every other skill applies in its own context — each has a short *Standards*
 section saying how.
@@ -87,7 +88,9 @@ Specialist reviewers the `review` skill adds when a change calls for them:
 - **Reviewing:** `review` runs the four dimensions with the specialist `agents/`; a confirmed defect hands off to
   `variant-analysis`, which sweeps for its siblings (using `roslyn-analysis` for compiler-accurate C# queries).
 - **At scale:** `agent-fleet` runs many agents on a long campaign without losing work to limits, and
-  `claude-cloud-sessions` covers running that work in Claude Code cloud sessions.
+  `claude-cloud-sessions` covers running that work in Claude Code cloud sessions. `automating-agent-guardrails` turns
+  the rules those agents must follow into hooks and role definitions, and checks at every session start that they
+  are in force.
 
 ## Adapting to your project
 

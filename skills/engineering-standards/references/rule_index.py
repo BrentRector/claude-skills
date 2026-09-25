@@ -151,6 +151,8 @@ def main():
     ap.add_argument("--path-helper", action="append", default=[])
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args()
+    if a.check and a.targets:
+        ap.error("--check verifies the index; file paths ask the per-file query — use one or the other")
     root = repo_root(a.root)
     rows = index(root, a.tests, a.path_helper)
     text = render(rows, "rule_index.py")

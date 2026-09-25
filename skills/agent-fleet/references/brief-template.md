@@ -40,6 +40,9 @@ don't paste the brief into the prompt. The prompt is one line: *"Read and follow
 ## Ground rules
 - Write only inside your worktree or `{SCRATCH}`. Never write in the repo root of the shared checkout.
 - Every lead you report carries its repro and code site (file:line).
+- Before editing a file, list the structural rules that govern it ({RULE_QUERY} — e.g.
+  `rule_index.py --tests "<glob>" <files>` from `engineering-standards`, or the repo's own query) and honor every
+  specific rule it prints. Delete this line only if the repo has no structural (drift) tests.
 
 ## Report (60 lines or fewer, at the allocated path)
 Status (DONE / SPLIT / BLOCKED) · one section per item: what changed, the root cause, and the evidence (gate

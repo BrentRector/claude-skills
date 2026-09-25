@@ -88,7 +88,7 @@ elapsed-time reading against a ceiling is a finding - it measures the machine, n
 turns it red with no regression. Ask for the property instead: a work count through a test seam, an observed effect in
 place of a real sleep or timeout, completion, or a growth ratio of two readings taken in the same run · **the
 structural rules that govern each changed file**: when the repo has invariant/drift tests, list the rules for every
-changed file (`engineering-standards/references/rule_index.py <file>`, or the repo's own query) and check the diff
+changed file (`engineering-standards/references/rule_index.py --tests "<glob of your drift tests>" <file>`, or the repo's own query) and check the diff
 against each; a change that breaks one is a finding even when its test was edited to pass.
 
 **3. Performance.** Hot paths and allocation behavior · data-structure fit · algorithmic complexity over realistic

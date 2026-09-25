@@ -1,0 +1,26 @@
+{
+  "name": "brentrector-claude-skills",
+  "owner": {
+    "name": "Brent Rector"
+  },
+  "metadata": {
+    "description": "Engineering-discipline skills for Claude Code, distilled from long-running production work: a production engineering bar, adversarial code review, spec-driven correctness, test gates that can't lie, multi-agent campaigns, and cloud sessions.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "brent-tools",
+      "description": "Engineering-standards, review, spec-oracle, test-gate, agent-fleet and claude-cloud-sessions skills",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/engineering-standards",
+        "./skills/review",
+        "./skills/spec-oracle",
+        "./skills/test-gate",
+        "./skills/agent-fleet",
+        "./skills/claude-cloud-sessions"
+      ]
+    }
+  ]
+}

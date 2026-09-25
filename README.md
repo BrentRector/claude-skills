@@ -95,6 +95,15 @@ Most skills end with **Project hooks** (and each skill's README says what a proj
 and wins on conflict — no fork needed. For example, a `## Review rules` block can add a spec-conformance reviewer,
 and a `## Testing` section records gate commands and baseline counts.
 
+## Regression evals
+
+[`evals/`](evals/README.md) is a `claude plugin eval` suite with one or two cases per skill and one per agent. Each
+case runs with the plugin and with no plugin at all, and it is kept only if the plugin arm scores higher. That makes
+it a regression test: a skill edit that stops changing Claude's behavior shows up as a shrinking Δ. To run it:
+`claude plugin eval . -j 4 --no-publish --threshold 0`. A skill change ships with its eval; see the
+[evals README](evals/README.md) for the rule, how to read the delta, and the cases dropped because Claude already
+passed them without the plugin.
+
 ## Credits and licenses
 
 This repository is MIT-licensed ([LICENSE](LICENSE)) **except** where a directory says otherwise:

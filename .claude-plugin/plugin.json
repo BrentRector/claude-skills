@@ -1,0 +1,28 @@
+{
+  "name": "brent-tools",
+  "version": "1.1.0",
+  "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet and claude-cloud-sessions",
+  "author": {
+    "name": "Brent Rector"
+  },
+  "repository": "https://github.com/BrentRector/claude-skills",
+  "license": "MIT",
+  "skills": [
+    "./skills/engineering-standards",
+    "./skills/review",
+    "./skills/variant-analysis",
+    "./skills/spec-oracle",
+    "./skills/spec-compliance-audit",
+    "./skills/test-gate",
+    "./skills/dotnet-engineering",
+    "./skills/roslyn-analysis",
+    "./skills/agent-fleet",
+    "./skills/claude-cloud-sessions"
+  ],
+  "agents": [
+    "./agents/comment-analyzer.md",
+    "./agents/pr-test-analyzer.md",
+    "./agents/silent-failure-hunter.md",
+    "./agents/type-design-analyzer.md"
+  ]
+}

@@ -83,7 +83,10 @@ or contract, not a convenient paraphrase of it · paired and sibling functions a
 the two arms of a dispatch) · error handling fails loudly; no silent no-op, swallowed exception or default that
 masks bad input · boundary values, empty/null, overflow, concurrency, resource lifetime · comments and docs are
 accurate (a comment that lies is worse than none) · idiomatic for the language and its current version · tests
-exercise every branch the change added.
+exercise every branch the change added · **no fixed time limit in a test**: an assertion that compares a stopwatch or
+elapsed-time reading against a ceiling is a finding - it measures the machine, not the code, and a loaded CI runner
+turns it red with no regression. Ask for the property instead: a work count through a test seam, an observed effect in
+place of a real sleep or timeout, completion, or a growth ratio of two readings taken in the same run.
 
 **3. Performance.** Hot paths and allocation behavior · data-structure fit · algorithmic complexity over realistic
 input sizes (O(n^2) over a collection that grows with the user's data) · redundant I/O, N+1 queries, repeated

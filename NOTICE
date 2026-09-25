@@ -1,0 +1,26 @@
+brentrector-claude-skills
+Copyright (c) Brent Rector. Licensed under the MIT License (see LICENSE), except as noted below.
+
+----------------------------------------------------------------------------------------------------------------
+
+Third-party material
+
+The following files are modified versions of files from the pr-review-toolkit plugin in
+anthropics/claude-plugins-official (https://github.com/anthropics/claude-plugins-official,
+path plugins/pr-review-toolkit/agents/), Copyright Anthropic, licensed under the Apache License,
+Version 2.0:
+
+  agents/silent-failure-hunter.md   (from agents/silent-failure-hunter.md)
+  agents/pr-test-analyzer.md        (from agents/pr-test-analyzer.md)
+  agents/type-design-analyzer.md    (from agents/type-design-analyzer.md)
+  agents/comment-analyzer.md        (from agents/comment-analyzer.md)
+
+Each modified file carries a notice at its top stating that it was changed and summarizing the changes.
+These files, as modified, remain available under the Apache License, Version 2.0. A copy of the License is in
+LICENSES/Apache-2.0.txt and at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and limitations under the License.
+
+The upstream plugin ships no NOTICE file of its own.

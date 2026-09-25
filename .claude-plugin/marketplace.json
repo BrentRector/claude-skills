@@ -5,21 +5,31 @@
   },
   "metadata": {
     "description": "Engineering-discipline skills for Claude Code, distilled from long-running production work: a production engineering bar, adversarial code review, spec-driven correctness, test gates that can't lie, multi-agent campaigns, and cloud sessions.",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "plugins": [
     {
       "name": "brent-tools",
-      "description": "Engineering-standards, review, spec-oracle, test-gate, agent-fleet and claude-cloud-sessions skills",
+      "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet and claude-cloud-sessions",
       "source": "./",
       "strict": false,
       "skills": [
         "./skills/engineering-standards",
         "./skills/review",
+        "./skills/variant-analysis",
         "./skills/spec-oracle",
+        "./skills/spec-compliance-audit",
         "./skills/test-gate",
+        "./skills/dotnet-engineering",
+        "./skills/roslyn-analysis",
         "./skills/agent-fleet",
         "./skills/claude-cloud-sessions"
+      ],
+      "agents": [
+        "./agents/comment-analyzer.md",
+        "./agents/pr-test-analyzer.md",
+        "./agents/silent-failure-hunter.md",
+        "./agents/type-design-analyzer.md"
       ]
     }
   ]

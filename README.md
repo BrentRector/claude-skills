@@ -13,17 +13,51 @@ projects. Each skill encodes rules that were learned the expensive way; the *why
 
 ## Skills
 
+**The bar**
+
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`engineering-standards`](skills/engineering-standards/SKILL.md) | writing, changing, designing or reviewing production code | The bar: commercial-grade, decades-maintainable code. No god classes; one mechanism per job; one rule in one place; fix the root cause, never paper over; **every bug is a pattern** — sweep its siblings; implement the complete feature (tests verify, they don't scope); re-architect when the right structure demands it, even if the build breaks on the way. |
-| [`review`](skills/review/SKILL.md) | reviewing a diff, branch or PR | Four dimensions (architecture · full code · performance · duplication/efficiency) as parallel reviewers; every finding carries a concrete failure scenario; an adversarial skeptic tries to refute each one; confirmed bugs trigger a sibling sweep. |
-| [`spec-oracle`](skills/spec-oracle/SKILL.md) | behavior is governed by a written standard (language standards, RFCs, file formats, ECMA-335 …) | The spec is the only oracle; derive the expected result *before* reading the code; every citation checked mechanically; the failure modes of plausible-but-wrong citations. Includes a small generic citation checker. |
-| [`test-gate`](skills/test-gate/SKILL.md) | before every commit, merge or push | Tiered gates; read the verdict line, not the exit code; filters that silently match nothing (`dotnet test --filter`, `pytest -k`, `jest -t`); confirm new tests actually ran; CI for the exact pushed commit is the final word. |
-| [`agent-fleet`](skills/agent-fleet/SKILL.md) | dispatching many parallel subagents on a long campaign | One self-contained input per agent; checkpoint to disk; fresh agents from checkpoints; concurrency and token budgets; land finished work first; adversarial refuters; cost per unit decides the lane. |
-| [`claude-cloud-sessions`](skills/claude-cloud-sessions/SKILL.md) | running work in Claude Code cloud sessions | Environment setup scripts and snapshot semantics; multi-repo sessions and hooks; private-repo access; launch surfaces and **billing** (measured, including where it differs from the docs); stopping cleanly before a credit runs out. Includes a setup-script template. |
+| [`engineering-standards`](skills/engineering-standards/SKILL.md) | writing, changing, designing or reviewing production code | Commercial-grade, decades-maintainable code. No god classes; one mechanism per job; one rule in one place; fix the root cause, never paper over; **every bug is a pattern**; implement the complete feature (tests verify, they don't scope); re-architect when the right structure demands it, even if the build breaks on the way. |
 
-`engineering-standards` is the bar the other five apply in their own context — each has a short *Standards*
+**Finding defects**
+
+| Skill | Use it when | What it enforces |
+|---|---|---|
+| [`review`](skills/review/SKILL.md) | reviewing a diff, branch or PR | Four dimensions (architecture · full code · performance · duplication/efficiency) as parallel reviewers, plus specialist agents; every finding carries a concrete failure scenario; an adversarial skeptic tries to refute each one; confirmed bugs trigger a sibling sweep. |
+| [`variant-analysis`](skills/variant-analysis/SKILL.md) | right after any defect is confirmed | Name the mechanism, not the symptom; textual, structural (Roslyn, ANTLR, tree-sitter, Semgrep) and semantic queries; "which arm of the dispatch did you fix?"; a probe per candidate; a sweep report in which zero hits is evidence. |
+
+**Specs and standards**
+
+| Skill | Use it when | What it enforces |
+|---|---|---|
+| [`spec-oracle`](skills/spec-oracle/SKILL.md) | behavior is governed by a written standard (language standards, RFCs, file formats, ECMA-335 …) | The spec is the only oracle; derive the expected result *before* reading the code; every citation checked mechanically. Includes a small generic citation checker. |
+| [`spec-compliance-audit`](skills/spec-compliance-audit/SKILL.md) | auditing a whole implementation against a whole standard | A rule catalog, one agent per rule/subject, a verdict vocabulary, refuters on every closing verdict, a traceability inventory whose GAP count is the progress metric. |
+
+**Testing and .NET**
+
+| Skill | Use it when | What it enforces |
+|---|---|---|
+| [`test-gate`](skills/test-gate/SKILL.md) | before every commit, merge or push | Tiered gates; read the verdict line, not the exit code; filters that silently match nothing; confirm new tests actually ran; CI for the exact pushed commit is the final word. |
+| [`dotnet-engineering`](skills/dotnet-engineering/SKILL.md) | .NET / C# work | Latest .NET and C#, strong types, warnings as errors; `dotnet test` filter traps; test gaps and smells; BenchmarkDotNet with a witness; binlog failure analysis; trimming/Native AOT; NuGet trusted publishing. |
+| [`roslyn-analysis`](skills/roslyn-analysis/SKILL.md) | C# duplication review, sibling sweeps, mechanical refactors, verifying built assemblies | Structural clone detection, symbol sweeps (every implementation/override/reference), a safe rewriter harness (dry-run, preserves encoding and line endings, refuses unparseable output), metadata-only assembly and IL inspection. |
+
+**Running agents at scale**
+
+| Skill | Use it when | What it enforces |
+|---|---|---|
+| [`agent-fleet`](skills/agent-fleet/SKILL.md) | dispatching many parallel subagents on a long campaign | One self-contained input per agent; checkpoint to disk; fresh agents from checkpoints; concurrency and token budgets; land finished work first; adversarial refuters; cost per unit decides the lane. |
+| [`claude-cloud-sessions`](skills/claude-cloud-sessions/SKILL.md) | running work in Claude Code cloud sessions | Environment setup scripts and snapshots; multi-repo sessions and hooks; private-repo access; launch surfaces and **billing** (measured, including where it differs from the docs); stopping cleanly before a credit runs out. Includes a setup-script template. |
+
+`engineering-standards` is the bar every other skill applies in its own context — each has a short *Standards*
 section saying how.
+
+## Agents
+
+Specialist reviewers the `review` skill adds when a change calls for them:
+[`silent-failure-hunter`](agents/silent-failure-hunter.md) (swallowed errors, fallbacks, silent wrong answers),
+[`pr-test-analyzer`](agents/pr-test-analyzer.md) (scope, oracle, discovery and strength of tests),
+[`type-design-analyzer`](agents/type-design-analyzer.md) (god classes, stringly-typed state, illegal states),
+[`comment-analyzer`](agents/comment-analyzer.md) (comments whose claims or citations don't hold).
 
 ## Adapting to your project
 
@@ -31,11 +65,16 @@ Every skill ends with **Project hooks**: your repo's `CLAUDE.md` supplies its co
 and wins on conflict — no fork needed. For example, a `## Review rules` block can add a spec-conformance reviewer,
 and a `## Testing` section records gate commands and baseline counts.
 
-## Credits
+## Credits and licenses
+
+This repository is MIT-licensed ([LICENSE](LICENSE)) **except** where a directory says otherwise:
+
+| Path | Adapted from | License |
+|---|---|---|
+| `skills/spec-compliance-audit/`, `skills/variant-analysis/` | [trailofbits/skills](https://github.com/trailofbits/skills) | **CC-BY-SA 4.0** — the `LICENSE` in each directory covers it; adaptations stay share-alike |
+| `agents/` | [anthropics/claude-plugins-official](https://github.com/anthropics/claude-plugins-official) `pr-review-toolkit` | Apache-2.0 — see [NOTICE](NOTICE) and [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt) |
+| `skills/dotnet-engineering/` | [dotnet/skills](https://github.com/dotnet/skills) | MIT — see its `references/THIRD-PARTY-NOTICES.md` |
+| `skills/roslyn-analysis/` | [glennawatson/CSharpAgentSkills](https://github.com/glennawatson/CSharpAgentSkills) (approach; helper code rewritten after vetting) | MIT — see its `references/THIRD-PARTY-NOTICES.md` |
 
 The review skill's triage step and two-axis (scale × consequence) calibration come from
 [carlymr/carlys-claude-skills](https://github.com/carlymr/carlys-claude-skills).
-
-## License
-
-MIT — see [LICENSE](LICENSE).

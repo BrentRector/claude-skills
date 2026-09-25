@@ -95,6 +95,21 @@ mechanisms doing one job · recomputing what an earlier stage already resolved �
 one place (the usual reason a single case fails while its siblings pass - the extraction *is* the fix) · anything a
 single canonical implementation should absorb. This is the dimension most often skipped; do not skip it.
 
+### Specialist agents
+
+This plugin ships four specialist reviewers in `agents/`. Launch them **alongside** the dimension agents, in the
+same message, when the change matches; their findings use the same format and go through the same Step 6
+skeptic.
+
+| Agent | Add it when the change touches... |
+|---|---|
+| `silent-failure-hunter` | error handling, catch blocks, fallbacks, default/sentinel returns, retries, `?.`/`??`, "not implemented" or "unsupported" arms, test filters or gates - or whenever consequence is *high* |
+| `pr-test-analyzer` | tests, goldens or fixtures, or any behavioral change (checks scope, where expected values came from, and that new tests actually run) |
+| `type-design-analyzer` | new or reshaped types, enums, interfaces or module boundaries |
+| `comment-analyzer` | comments, docstrings or citations of a spec, RFC, issue or design doc - especially ones justifying an omission |
+
+They sharpen Full code review and Architecture; they do not replace any dimension.
+
 ### What every finding must carry
 
 ```

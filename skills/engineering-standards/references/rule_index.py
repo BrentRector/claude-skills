@@ -96,7 +96,10 @@ def paths_of(text, top_dirs, helpers):
 
 def index(root, globs, helpers):
     top_dirs = [d.name for d in root.iterdir() if d.is_dir() and not d.name.startswith(".")] + [".github"]
-    files = sorted({pathlib.Path(p).resolve() for g in globs for p in glob.glob(str(root / g), recursive=True)})
+    # sort on the repo-relative POSIX string: Path ordering is case-insensitive on Windows and case-sensitive elsewhere,
+    # which would make the generated index differ between a developer machine and CI
+    files = sorted({pathlib.Path(p).resolve() for g in globs for p in glob.glob(str(root / g), recursive=True)},
+                   key=lambda p: p.relative_to(root).as_posix())
     rows = []
     for f in files:
         parts = set(f.relative_to(root).parts)

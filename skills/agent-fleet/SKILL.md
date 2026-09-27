@@ -136,6 +136,16 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   each item is still fixed at its root and checkpointed separately.
   *Why: separate implementers on the same files produced merge conflicts and composition defects that neither
   could see.*
+- **Compute the groups from code sites; don't pick them by hand.** Resolve every open defect's named code sites
+  (paths, `Type.Member`, type names) to real source files, give each note a PRIMARY file (its heaviest site, ties
+  to the more specific file), and cluster notes by it: cap ~5 per cluster, split larger ones by harm, absorb a
+  singleton into a cluster whose file it also names. Rank clusters by SUMMED harm and fill each slot with the
+  top cluster of a subsystem not already in flight. `references/fix_clusters.py` does this over a directory of
+  front-matter notes (`--notes`, `--src`, `--ext`, `--harm`); it is a view recomputed each run, never a second
+  list to maintain.
+  *Why: hand-picked groups (a lead plus keyword siblings) carried 1–3 notes each and split one file's defects
+  across two implementers who then edited it separately; computed clusters turned 411 open defects into 125
+  groups (42 of five), so a six-slot wave carried ~25–30 fixes instead of ~10, each file read and gated once.*
 - **Fill parallel slots with one group per subsystem**, not the next N items down the rank list.
   *Why: consecutive items in one area serialize on conflicts.*
 - **Cluster leads by root cause before dispatching.** *Why: one mechanism, one fix, one agent.*

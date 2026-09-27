@@ -31,7 +31,9 @@ A campaign run under the skill looks like this:
    ids allocated to it. The agent's prompt is a single line: *"Read and follow `{SCRATCH}/briefs/<file>`."*
 2. **Dispatch within the concurrency budget**: by default 1 lander, a handful of implementers (~3–6) and one
    read-only chunk about 4 wide. Each implementer gets a *group* of related items (same files or rule family),
-   and parallel slots get one group per subsystem.
+   and parallel slots get one group per subsystem. The groups are computed, not hand-picked:
+   [`references/fix_clusters.py`](references/fix_clusters.py) clusters open defects by the source file their
+   code sites name, so every defect in one file is fixed in one pass.
 3. **Agents checkpoint after every unit**: implementers make a WIP commit and update `STATUS.md`
    (`DONE` / `NEXT` / `BLOCKED` / `GATE` / ids used); workflow stages append one JSON line per decided item and skip
    items already on disk when they start.
@@ -116,4 +118,5 @@ Every rule in the skill carries its own *Why*. The main ones:
 |---|---|
 | [`SKILL.md`](SKILL.md) | The rules Claude follows, each with its reason |
 | [`references/brief-template.md`](references/brief-template.md) | Copy-and-fill dispatch brief carrying the checkpoint, STOP, turn-cap, blocking-gate and report rules |
+| [`references/fix_clusters.py`](references/fix_clusters.py) | Groups open defect notes by the source files their code sites name, ranked by summed harm, so each implementer fixes one file's defects in one pass |
 | `README.md` | This page |

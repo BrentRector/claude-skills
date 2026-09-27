@@ -103,7 +103,7 @@ The readiness check asks these as questions at session start. None of them happe
 | [`templates/settings.json`](templates/settings.json) | The SessionStart and PreToolUse hook registrations |
 | [`templates/readiness.json`](templates/readiness.json) | Readiness check config with every section |
 | [`templates/session_start.py`](templates/session_start.py) | SessionStart hook: your project probe plus the readiness check |
-| [`templates/agents/`](templates/agents/) | Implementer, lander, refuter, analyst and chore role definitions |
+| [`templates/agents/`](templates/agents/) | Implementer, lander, refuter and analyst (judgment, top model) and chore and locator (mechanical, cheaper model: `chore` writes, `locator` is read-only) role definitions. Each role carries its own model; never pass one per call, which overrides it |
 | [`templates/CLAUDE-guardrails.md`](templates/CLAUDE-guardrails.md) | The `CLAUDE.md` section that makes Claude act on blocks and ASK-OWNER lines |
 | `README.md` | This page |
 

@@ -91,6 +91,8 @@ Every rule in the skill carries its own *Why*. The main ones:
 | Compute the groups by file (`fix_clusters.py`) | Hand-picked groups carried 1–3 items and split one file's defects across implementers; computed per-file clusters turned 411 open defects into 125 groups, so a six-slot wave carries ~25–30 fixes instead of ~10. |
 | One-call orientation (`orient.py`) before reading source | Across 7 implementer transcripts, 63 % of tool calls were reads/searches and 15 % of turns came before the first edit, re-deriving what earlier fixes had learned. Cutting ~25 of ~200 turns saves ~15 % of an implementer's tokens. |
 | Never chain after a build/test verdict; parallel calls instead of a chaining ban | A chain's exit status is its last command's, so `test && git commit` commits on an unread verdict. A blanket ban adds turns, which are the quadratic cost. |
+| The model follows the role, never a per-call model | A per-call model overrides the role's frontmatter: "top model on every agent" ran the cheap chore role on the top tier, and a 30-lookup code-site pass ran on the top-tier analyst. |
+| A premium model is a per-item escalation, not a lane | Where it draws the same weekly pool faster, and its usage row is only a ceiling on its share, a premium lane buys similar results for more quota. |
 | Central id allocation | Five id collisions in one day each cost a renumbering pass; parallel landers overwrote each other's reports. |
 | Pinned read-only worktree; frozen tree during a fleet | A landing that rebuilds the main tree swaps binaries under running probes. |
 | Never poll a fleet's output directory | An adversarial stage 2 only removes confidence, so an early read is biased upward. One early merge moved 10 of 55 results. |

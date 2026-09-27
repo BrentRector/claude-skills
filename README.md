@@ -11,6 +11,16 @@ projects. Each skill encodes rules that were learned the expensive way; the *why
 /plugin install brent-tools@brentrector-claude-skills
 ```
 
+## What's new in 1.5.0
+
+- **The model follows the role** (`agent-fleet` §11, `automating-agent-guardrails` §2). Judgment roles run the top
+  everyday tier. Mechanical roles run a cheaper one, and there's a new read-only mechanical role template,
+  [`locator.md`](skills/automating-agent-guardrails/templates/agents/locator.md), for code-site lookups and
+  measurements. Never pass a model per call: it overrides the role's own.
+- **A premium model is an exception, not a lane.** On plans where a premium model draws the regular weekly limit
+  faster, and its usage-page row is only a ceiling on its share, it is never free capacity.
+- `fix_clusters.py` takes several extensions (`--ext .cs,.g4`) and counts bare file names as code sites.
+
 ## What's new in 1.4.0
 
 Four changes to how a fleet of agents fixes defects, each measured on a live campaign:

@@ -14,7 +14,7 @@ The input is a directory of issue notes, one Markdown file per item, each starti
     ...prose that names code sites: src/Parser/Lexer.cs, Lexer.ReadNumber, TokenBuffer ...
 
 Usage:
-    python fix_clusters.py --notes docs/issues --src src --ext .cs
+    python fix_clusters.py --notes docs/issues --src src --ext .cs,.g4   # several extensions: grammars are code sites too
     python fix_clusters.py --notes docs/issues --src src --ext .py --max 4 --json clusters.json
     python fix_clusters.py ... --harm "wrong_answer=8,crashes=4,rejects_valid_input=2,accepts_invalid_input=1"
     python fix_clusters.py ... --open-status open --kind defect --skip-flag blocked
@@ -46,9 +46,9 @@ def frontmatter(text):
     return out
 
 
-def source_index(src, ext, root):
+def source_index(src, exts, root):
     idx = collections.defaultdict(list)
-    for p in src.rglob(f"*{ext}"):
+    for ext, p in ((e, p) for e in exts for p in src.rglob(f"*{e}")):
         rel = p.relative_to(root).as_posix()
         if any(part in ("bin", "obj", "node_modules", ".git", "__pycache__") for part in p.parts):
             continue
@@ -62,9 +62,13 @@ def source_index(src, ext, root):
     return idx
 
 
-def sites(text, idx, ext):
+def sites(text, idx, exts):
+    """Code sites a note names. Paths and BARE file names both count (`src/a/Lexer.cs`, `Lexer.cs#ReadNumber`):
+    notes often name their site in prose that way, and missing the bare form left half of one campaign's
+    'unsited' notes unclusterable although they named their file."""
     c = collections.Counter()
-    for m in re.finditer(r"[\w./-]+" + re.escape(ext) + r"\b", text):
+    alt = "|".join(re.escape(e) for e in exts)
+    for m in re.finditer(r"[\w./-]+(?:" + alt + r")\b", text):
         path = m.group(0).lstrip("./")
         for cands in idx.values():
             for rel in cands:
@@ -76,7 +80,7 @@ def sites(text, idx, ext):
             break
     for m in re.finditer(r"\b([A-Z][A-Za-z0-9]+)\.([A-Z][A-Za-z0-9]+)\b", text):
         partial = f"{m.group(1)}.{m.group(2)}"
-        if partial in idx and idx[partial] and idx[partial][0].endswith(f"/{partial}{ext}"):
+        if partial in idx and idx[partial] and any(idx[partial][0].endswith(f"/{partial}{e}") for e in exts):
             c[idx[partial][0]] += 2
         elif m.group(1) in idx:
             c[idx[m.group(1)][0]] += 2
@@ -90,7 +94,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--notes", required=True, help="directory of issue notes (*.md with front matter)")
     ap.add_argument("--src", required=True, help="source root to resolve code sites against")
-    ap.add_argument("--ext", default=".cs", help="source file extension (default .cs)")
+    ap.add_argument("--ext", default=".cs", help="source file extension(s), comma-separated (default .cs; e.g. .cs,.g4)")
     ap.add_argument("--max", type=int, default=5, help="cluster size cap (default 5)")
     ap.add_argument("--harm", default="wrong_answer=8,crashes=4,rejects_valid_input=2,accepts_invalid_input=1",
                     help="comma list of front-matter boolean flags and their weights")
@@ -104,7 +108,8 @@ def main():
 
     root = pathlib.Path.cwd()
     src = pathlib.Path(a.src).resolve()
-    idx = source_index(src, a.ext, root if src.is_relative_to(root) else src)
+    exts = [e.strip() for e in a.ext.split(",") if e.strip()]
+    idx = source_index(src, exts, root if src.is_relative_to(root) else src)
     weights = {k.strip(): int(v) for k, v in (p.split("=") for p in a.harm.split(",") if p)}
     notes = []
     for p in sorted(pathlib.Path(a.notes).glob("*.md")):
@@ -115,7 +120,7 @@ def main():
         if any(f.get(s) == "true" for s in a.skip_flag):
             continue
         notes.append({"id": f.get("id", p.stem), "harm": sum(w for k, w in weights.items() if f.get(k) == "true"),
-                      "title": f.get("title", "")[:140], "sites": sites(t, idx, a.ext)})
+                      "title": f.get("title", "")[:140], "sites": sites(t, idx, exts)})
 
     popularity = collections.Counter(fl for n in notes for fl in n["sites"])
     unsited = [n for n in notes if not n["sites"]]

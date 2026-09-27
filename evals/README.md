@@ -8,11 +8,11 @@ tests Claude rather than the skill, and so it can't detect an edit that breaks t
 
 ## What it covers
 
-Eighteen cases: one or two for each of the eleven skills and one for each of the four agents. Each case is a small
+Nineteen cases: one to three for each of the eleven skills and one for each of the four agents. Each case is a small
 scenario, written inline in its `prompt.md`, that can only be handled correctly by following that skill's rule.
-The scores below come from the last full run (3 runs per arm, 2026-09-25), except two cases added later and
-measured on their own: `automating-agent-guardrails-guard-design` (2 runs per arm) and `agent-fleet-file-clusters`
-(3 runs per arm, 2026-09-27).
+The scores below come from the last full run (3 runs per arm, 2026-09-25), except three cases added later and
+measured on their own: `automating-agent-guardrails-guard-design` (2 runs per arm), and `agent-fleet-file-clusters`
+and `agent-fleet-orientation` (3 runs per arm, 2026-09-27).
 
 | Case | Covers | The rule it checks | WITH | W/OUT |
 |---|---|---|---|---|
@@ -28,6 +28,7 @@ measured on their own: `automating-agent-guardrails-guard-design` (2 runs per ar
 | `roslyn-analysis-safe-rewriter` | roslyn-analysis | Uses the bundled `rewrite-template.cs` harness (dry run by default) for a mechanical rewrite | 1.00 | 0.00 |
 | `agent-fleet-brief-limits` | agent-fleet | Uses the measured turn cap (~150–160) and a graceful STOP file in a dispatch brief | 1.00 | 0.50 |
 | `agent-fleet-file-clusters` | agent-fleet | Assigns defects to implementer slots by COMPUTED per-file clusters ranked by summed harm, naming the bundled `fix_clusters.py` | 1.00 | 0.00 |
+| `agent-fleet-orientation` | agent-fleet | Tells implementers to orient with the bundled `orient.py --notes …` (outline, covering tests, what earlier fixes learned) before reading source | 1.00 | 0.00 |
 | `claude-cloud-sessions-multi-repo-hooks` | claude-cloud-sessions | Explains that multi-repo sessions start in `/home/user` and load no repo hooks, and fixes it with a user-level hook shim | 1.00 | 0.00 |
 | `agent-pr-test-analyzer` | pr-test-analyzer | Checks determinism: names a work-count or growth-ratio replacement for a Stopwatch ceiling (`Check:` findings) | 1.00 | 0.00 |
 | `agent-silent-failure-hunter` | silent-failure-hunter | Ranks the silent default price above the crash; findings carry `Harm: silent wrong answer` | 1.00 | 0.50 |

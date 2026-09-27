@@ -82,8 +82,12 @@ by the number you added.
 1. **Redirect the full output to a file.** Never `| tail -N` it: that drops the failing test's name, which is
    the one thing you need. Then grep the file for the summary (`Passed!|Failed!|Total:`,
    `=== .* passed`, `Tests: `) and for crashes (`crash|abort|Segmentation|OutOfMemory|Failed: *[1-9]`).
-2. **Never `&&`-chain `git commit` or `git push` onto a test run or its pipe.** In `test | tail && git push`,
-   the exit code is `tail`'s. Read the verdict, then commit in a separate command.
+2. **Never chain anything after a test or build run** with `&&`, `||` or `;`, and above all never `git commit`
+   or `git push`. In `test | tail && git push`, the exit code is `tail`'s. Run the gate alone to a log, read the
+   verdict, then take the next step in a separate command. To keep the status in the same call, append
+   `; echo "EXIT=$?"` (read-only commands on the log may follow that). This is cheap to enforce with a guard hook
+   (`automating-agent-guardrails`, rule `no-chain-after-verdict`); a prose rule alone was broken after it was
+   written.
 3. **Never edit source while a gate is running.** Legs that compile from the working tree will pick up
    half-made edits and report failures that aren't real. Staging first doesn't protect you. Work on docs or the
    commit message while it runs.

@@ -11,6 +11,24 @@ projects. Each skill encodes rules that were learned the expensive way; the *why
 /plugin install brent-tools@brentrector-claude-skills
 ```
 
+## What's new in 1.4.0
+
+Four changes to how a fleet of agents fixes defects, each measured on a live campaign:
+
+- **Fix groups are computed** (`agent-fleet` §7, [`fix_clusters.py`](skills/agent-fleet/references/fix_clusters.py)).
+  Open defects cluster by the source file their code sites name, so one implementer fixes all of one file's
+  defects in one pass. 411 open defects became 125 clusters, so a six-agent wave carries ~25–30 fixes instead of ~10.
+- **Orientation is one call** (`agent-fleet` §2, [`orient.py`](skills/agent-fleet/references/orient.py)). Before
+  reading any source, an implementer gets each file's outline, the tests that cover it and what earlier fixes
+  learned about it, all derived fresh from the tree, the notes and git. Reads and searches were 63 % of implementer
+  tool calls; the estimate is ~15 % fewer tokens per implementer.
+- **No command chained after a build or test** (`agent-fleet` §1, `test-gate`), enforced by a new guard rule,
+  `no-chain-after-verdict` (`automating-agent-guardrails`). A chain's exit status is its last command's, so
+  `npm test && git push` acts on a verdict nobody read. It's deliberately not a blanket chaining ban: independent
+  commands go as parallel tool calls in one turn, because extra turns are the quadratic cost.
+- **Two new regression evals** (`agent-fleet-file-clusters`, `agent-fleet-orientation`) prove the skill changes
+  what Claude does.
+
 ## How skills work
 
 A **skill** is a folder with a `SKILL.md`: YAML frontmatter (a `name` and a `description` of when to use it) followed by

@@ -29,6 +29,8 @@ A campaign run under the skill looks like this:
    a script into `{SCRATCH}/briefs/<wave>-<slug>.md`. Each brief holds only that agent's slice, an apply-ready
    contract (code sites, repro, governing rule, gate command), the "worthless even if well-formed" bar, and the
    ids allocated to it. The agent's prompt is a single line: *"Read and follow `{SCRATCH}/briefs/<file>`."*
+   The brief's first instruction is to orient with [`references/orient.py`](references/orient.py) on the files
+   its items name, before reading any source.
 2. **Dispatch within the concurrency budget**: by default 1 lander, a handful of implementers (~3–6) and one
    read-only chunk about 4 wide. Each implementer gets a *group* of related items (same files or rule family),
    and parallel slots get one group per subsystem. The groups are computed, not hand-picked:
@@ -86,6 +88,9 @@ Every rule in the skill carries its own *Why*. The main ones:
 | Land finished work first; batch 4–6 clusters | Ready work once sat behind a serialized lander when the limit hit. A landing is mostly fixed cost, so per-cluster cost roughly halves from 1 to 5 clusters. |
 | The lander gates the whole suite | The tests no implementer's filter names are exactly the ones that go red in CI. |
 | Group related fixes per implementer | Separate implementers on the same files produced merge conflicts and composition defects neither could see. |
+| Compute the groups by file (`fix_clusters.py`) | Hand-picked groups carried 1–3 items and split one file's defects across implementers; computed per-file clusters turned 411 open defects into 125 groups, so a six-slot wave carries ~25–30 fixes instead of ~10. |
+| One-call orientation (`orient.py`) before reading source | Across 7 implementer transcripts, 63 % of tool calls were reads/searches and 15 % of turns came before the first edit, re-deriving what earlier fixes had learned. Cutting ~25 of ~200 turns saves ~15 % of an implementer's tokens. |
+| Never chain after a build/test verdict; parallel calls instead of a chaining ban | A chain's exit status is its last command's, so `test && git commit` commits on an unread verdict. A blanket ban adds turns, which are the quadratic cost. |
 | Central id allocation | Five id collisions in one day each cost a renumbering pass; parallel landers overwrote each other's reports. |
 | Pinned read-only worktree; frozen tree during a fleet | A landing that rebuilds the main tree swaps binaries under running probes. |
 | Never poll a fleet's output directory | An adversarial stage 2 only removes confidence, so an early read is biased upward. One early merge moved 10 of 55 results. |
@@ -100,6 +105,15 @@ Every rule in the skill carries its own *Why*. The main ones:
   quality bar, and the brief template leaves the gate commands, id ranges and paths as placeholders for you to
   fill. The repo-wide convention (see the [top-level README](../../README.md#adapting-to-your-project)) is that your
   `CLAUDE.md` supplies commands and tightens rules, and wins on conflict.
+- **The two dispatch tools.** Both read a directory of issue notes, one Markdown file per item with front matter
+  (`id`, `status`, harm flags such as `wrong_answer: true`), and both write nothing into your tree:
+  ```
+  python references/fix_clusters.py --notes docs/issues --src src --ext .cs --json clusters.json
+  python references/orient.py src/Parser/Lexer.cs --notes docs/issues --tests tests --cite "RFC\s?\d+"
+  ```
+  `fix_clusters.py` picks what each implementer gets: one cluster of co-located defects per slot, the
+  highest-harm cluster first. `orient.py` is the first line of each implementer's brief. Its LEARNED section is
+  only as good as your closed notes, so have every fix record its code site and mechanism in the note.
 - **Prerequisites.** Git with worktree support (implementers and pinned analysis probes each use a worktree),
   a subagent or workflow tool, and a shell that can run `timeout`, `tail` and `grep` for the blocking-gate pattern.
 - **Composes with:**
@@ -119,4 +133,5 @@ Every rule in the skill carries its own *Why*. The main ones:
 | [`SKILL.md`](SKILL.md) | The rules Claude follows, each with its reason |
 | [`references/brief-template.md`](references/brief-template.md) | Copy-and-fill dispatch brief carrying the checkpoint, STOP, turn-cap, blocking-gate and report rules |
 | [`references/fix_clusters.py`](references/fix_clusters.py) | Groups open defect notes by the source files their code sites name, ranked by summed harm, so each implementer fixes one file's defects in one pass |
+| [`references/orient.py`](references/orient.py) | One-call orientation for the files an implementer will change: outline with line numbers, cited spec references, covering tests, what closed notes learned about each file, open notes naming it, recent commits |
 | `README.md` | This page |

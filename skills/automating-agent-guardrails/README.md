@@ -99,7 +99,7 @@ The readiness check asks these as questions at session start. None of them happe
 | [`scripts/readiness_check.py`](scripts/readiness_check.py) | Session-start readiness check; `--hook`, `--ci`, `--stamp`, `--enable-telemetry`, `--selftest` |
 | [`scripts/otlp_sink.py`](scripts/otlp_sink.py) | Loopback OTLP/HTTP-JSON receiver; `--ensure`, `--status`, `--stop` |
 | [`scripts/usage_report.py`](scripts/usage_report.py) | Tokens and cost per agent, skill, model; `--keys`, `--selftest` |
-| [`templates/guard-rules.json`](templates/guard-rules.json) | Example rules: no stash, no autostash, land via script, no escapes in heredocs |
+| [`templates/guard-rules.json`](templates/guard-rules.json) | Example rules: no stash, no autostash, land via script, no escapes in heredocs, and no command chained after a build or test run (`no-chain-after-verdict`: the chain's exit status is its last command's, so `npm test && git push` acts on an unread verdict; `; echo "EXIT=$?"` is the allowed way to keep the status) |
 | [`templates/settings.json`](templates/settings.json) | The SessionStart and PreToolUse hook registrations |
 | [`templates/readiness.json`](templates/readiness.json) | Readiness check config with every section |
 | [`templates/session_start.py`](templates/session_start.py) | SessionStart hook: your project probe plus the readiness check |

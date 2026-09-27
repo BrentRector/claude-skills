@@ -30,6 +30,15 @@ In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of
 - **Split a job that will not fit. Never extend it.** *Why: same curve.*
 - **Resuming a long transcript is often more expensive than starting fresh.** *Why: the resumed agent re-reads
   its entire history on every new turn.*
+- **Command chaining: targeted rules, not a ban.** (a) Never chain anything after a VERDICT command (build, test,
+  gate, a landing script) with `&&`, `||` or `;`: run it alone to a log and read its summary line; to keep the
+  status in the same call, append `; echo "EXIT=$?"`. (b) Don't join steps that must stop on failure with `;`,
+  and don't `cd` inside a chain (use absolute paths or `git -C`). (c) Send INDEPENDENT commands as parallel tool
+  calls in ONE turn. (d) Short `&&` chains of read-only or fail-fast steps are fine. Enforce (a) with a guard
+  hook (`automating-agent-guardrails`, rule `no-chain-after-verdict`).
+  *Why: a chain's exit status is its last command's, so `test && git commit` commits on a verdict nobody read.
+  But a blanket "never chain" rule turns every chain into extra turns, and turns are the quadratic cost; parallel
+  tool calls get the separation without the turns.*
 
 ## 2. Inputs: one agent, one self-contained input file
 
@@ -43,6 +52,18 @@ In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of
   repro, the governing rule, and the gate command.
   *Why: search and read turns are the largest share of implementer tokens. Rediscovering a subsystem costs more
   than fixing it.*
+- **Give every implementer ONE-CALL ORIENTATION, derived fresh — don't let each wave re-survey the same files.**
+  The brief says: before reading any source, run `references/orient.py <the files your items name> --notes <issue
+  dir> --cite "<spec-ref regex>"`. Per file it prints the outline with line numbers, the spec references it cites,
+  the tests that name it, what CLOSED notes learned about it (their code sites, mechanisms and traps, newest
+  first), the open notes naming it, and its last commits. Then the agent reads only the line ranges it needs.
+  It is derived from the tree, the notes and git on every run, so it never goes stale and nobody maintains it; the
+  knowledge accrues because every fix's note records its code site and mechanism (require that in the report).
+  If you keep a brief checker, make it fail a brief without the orient line. Don't pre-generate "codebase maps"
+  with agents instead: they cost a fleet to write and go stale at the next landing.
+  *Why: measured over 7 implementer transcripts (1,401 turns), 63 % of tool calls were reads or searches, and
+  15 % of turns and 43 % of tool-result bytes came before the first edit, re-deriving what earlier fixes had
+  already learned. Cutting ~25 of ~200 turns is ~15 % of an implementer's tokens on the quadratic cost curve.*
 - **Every lead an agent reports carries its repro and code site.** *Why: otherwise the triager and the next
   implementer each find the same fact again.*
 - **Tell the implementer to ask the structural rules before editing.** When the repo encodes invariants as drift

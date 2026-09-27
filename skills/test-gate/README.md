@@ -62,7 +62,9 @@ targeted gate, a batch gets the full suite, and the CI run for the pushed commit
 - **Undiscovered tests pass by never running.** A wrong attribute, a missing `test_` prefix or a non-public class
   prints nothing red.
 - **The exit code is not the verdict.** `| tail -N` drops the failing test's name, and in
-  `test | tail && git push` the exit code is `tail`'s.
+  `test | tail && git push` the exit code is `tail`'s. So nothing is chained after a test or build run: it runs
+  alone to a log, the verdict line is read, and the next step is a separate command (`; echo "EXIT=$?"` keeps
+  the status in the same call). The `automating-agent-guardrails` skill ships a guard rule that enforces this.
 - **Don't edit source while a gate runs**, and run rebuilding legs one at a time: legs that compile from the
   working tree pick up half-made edits, and a rebuild in the middle of a `--no-build` leg leaves it with no
   verdict.

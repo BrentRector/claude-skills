@@ -147,7 +147,11 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
 - **Implementers gate narrowly** (their own tests plus drift and unit checks) at low process priority.
   *Why: when many implementers run the full suite, they triple the lander's gate time.*
 - **Fill a freed implementer slot in the same turn it frees**, from a standing queue of apply-ready contracts.
-  *Why: idle slots behind landings once held a fix lane under 15 % utilization for days.*
+  Make it mechanical: run the fix lane as a **rolling wave** (`references/rolling-wave.js`), never as a barrier
+  of "N implementers, then one train". N workers pull groups from one queue, so a slot refills the moment its
+  agent returns. A lander train starts as soon as enough branches (4–6) are ready, and trains are serialized.
+  *Why: idle slots behind landings once held a fix lane under 15 % utilization for days, and under a wave
+  barrier every finished slot waits for the slowest group of its wave.*
 - **Watch CI for every pushed head.** A red run is a blocking fix, landed alone.
 
 ## 7. Group related fixes for each implementer
@@ -167,6 +171,17 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   *Why: hand-picked groups (a lead plus keyword siblings) carried 1–3 notes each and split one file's defects
   across two implementers who then edited it separately; computed clusters turned 411 open defects into 125
   groups (42 of five), so a six-slot wave carried ~25–30 fixes instead of ~10, each file read and gated once.*
+- **A file with more open items than the cluster cap gets SAME-FILE SUCCESSORS**, not a second independent group.
+  The second cluster declares its predecessor (`after`). It waits for the predecessor to return, merges its
+  branch, and orients from the predecessor's handoff notes (its report's "for the next implementer" section and
+  checkpoint file) instead of re-surveying the file. The predecessor's branch is held from the trains and lands
+  THROUGH the successor, which contains it; if the successor produces nothing landable, the predecessor lands
+  alone. The same chaining works across one technological area (a runtime file, then its emitter). A dispatch
+  check can refuse two groups on one primary file that are not linked this way.
+  *Why: orientation (reading and searching before the first edit) was about half of every implementer's tokens,
+  so two groups that each orient on the same file pay that twice. The cap exists because cost grows with the
+  square of a transcript's turns. That is also why the successor is a FRESH agent that inherits the context,
+  not a longer transcript that inherits the cost.*
 - **Fill parallel slots with one group per subsystem**, not the next N items down the rank list.
   *Why: consecutive items in one area serialize on conflicts.*
 - **Cluster leads by root cause before dispatching.** *Why: one mechanism, one fix, one agent.*

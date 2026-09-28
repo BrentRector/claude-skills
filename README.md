@@ -11,6 +11,17 @@ projects. Each skill encodes rules that were learned the expensive way; the *why
 /plugin install brent-tools@brentrector-claude-skills
 ```
 
+## What's new in 1.6.0
+
+- **The fix lane is a rolling wave** (`agent-fleet` §6, [`rolling-wave.js`](skills/agent-fleet/references/rolling-wave.js)).
+  Implementers pull groups from one queue, so a freed slot refills the moment its agent returns, and lander trains
+  start as soon as enough branches are ready. There's no "wave, then train" barrier where finished slots wait for the
+  slowest group.
+- **Same-file successors** (`agent-fleet` §7). When a file has more open defects than one cluster holds, the next
+  cluster runs after the first, merges its branch, and orients from its handoff notes instead of re-reading the file.
+  The first branch lands through the second. Orientation was about half of every implementer's tokens, so a file's
+  context is now paid once. The successor is a fresh agent, because cost grows with the square of a transcript's turns.
+
 ## What's new in 1.5.0
 
 - **The model follows the role** (`agent-fleet` §11, `automating-agent-guardrails` §2). Judgment roles run the top

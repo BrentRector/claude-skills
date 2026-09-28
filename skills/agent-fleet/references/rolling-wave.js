@@ -1,0 +1,157 @@
+export const meta = {
+  name: 'rolling-wave',
+  description: 'Rolling fix lane: implementer groups run N at a time from one queue (a freed slot refills at once), same-file successors inherit their predecessor\'s branch, and lander trains start as branches finish',
+  whenToUse: 'The standard fix-lane dispatch for an agent fleet (agent-fleet SKILL §6-§7).',
+  phases: [
+    { title: 'Implement', detail: 'one implementer per group, isolated worktrees, rolling pool' },
+    { title: 'Land', detail: 'serialized lander trains over ready branches' },
+  ],
+}
+
+// A reference Workflow script. Adapt the args to your repository; nothing below is project-specific.
+//
+// args: {
+//   wave:            label for this queue (used in agent labels and train names),
+//   specPattern:     path of each group's pre-rendered dispatch spec, with {letter} substituted
+//                    (lower-cased), e.g. "<scratch>/specs/w12-{letter}.txt",
+//   stopFile:        graceful-stop flag file checked before every step,
+//   implementerAgent, landerAgent: the agent types to use (judgment roles),
+//   model:           optional model alias for those roles (omit to inherit),
+//   landerBrief:     path of the lander's brief,
+//   landCommand:     the ONLY command that may put a commit on the main branch (e.g. a CI-gated push script),
+//   manifestPattern: where each train's manifest is written, with {train} substituted,
+//   concurrency (6), train_size (5), min_final_train (3),
+//   idBlocks:        one block of orchestrator-allocated ids per train, e.g. ["ID-101..ID-105", "ID-106..ID-110"],
+//   groups:          [{ letter, lead, notes, after? }]   // after = the letter of a same-file predecessor
+// }
+const W = args.wave
+const CONC = args.concurrency || 6
+const TRAIN = args.train_size || 5
+const MIN_FINAL = args.min_final_train || 3
+const opt = extra => (args.model ? { ...extra, model: args.model } : extra)
+const IMPL_SCHEMA = {
+  type: 'object',
+  properties: {
+    status: { type: 'string', enum: ['DONE', 'SPLIT', 'DISCHARGED', 'BLOCKED'] },
+    branch: { type: 'string' }, worktree: { type: 'string' }, base: { type: 'string' }, head: { type: 'string' },
+    report: { type: 'string' }, gate_verdict: { type: 'string' },
+    items_landed: { type: 'array', items: { type: 'string' } },
+    leads: { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+  required: ['status', 'branch', 'worktree', 'report', 'gate_verdict', 'summary'],
+}
+
+// SAME-FILE SUCCESSORS: a group with `after` runs only once its predecessor has returned. It merges the
+// predecessor's branch and orients from its handoff notes instead of re-surveying the file. The predecessor's
+// branch is HELD from the trains and lands through the successor (which contains it); if the successor yields
+// nothing landable, the predecessor lands alone.
+const queue = [...args.groups]
+const results = []
+const byLetter = {}
+const held = {}
+const buffer = []
+const trains = []
+let trainNo = 0
+let landChain = Promise.resolve()
+let running = 0
+let wake = () => {}
+
+const hasSuccessorQueued = letter => queue.some(g => g.after === letter)
+const landable = r => r.status === 'DONE' || ((r.status === 'DISCHARGED' || r.status === 'SPLIT') && r.head && r.head !== r.base)
+
+function successorNote(g) {
+  if (!g.after) return ''
+  const p = byLetter[g.after]
+  if (!p || !(p.head && p.head !== p.base)) {
+    return `Your predecessor group ${g.after} produced no branch (status ${p ? p.status : 'never ran'}); start from the main branch as usual. `
+  }
+  return `SAME-FILE SUCCESSOR: your predecessor group ${g.after} (${p.notes}) returned ${p.status} on branch ${p.branch} ` +
+    `(worktree ${p.worktree}, head ${p.head}, report ${p.report}). FIRST merge that branch into yours, then read that report's ` +
+    `handoff section ("for the next implementer") and its checkpoint file as your orientation for the shared file; do not ` +
+    `re-survey it. Its items land through YOUR branch (list them as landed-via-predecessor). `
+}
+
+function runGroup(g) {
+  const spec = args.specPattern.replace('{letter}', g.letter.toLowerCase())
+  return agent(
+    `You are the ${W} fix-lane implementer for group ${g.letter} (${g.notes}). ` + successorNote(g) +
+    `Your dispatch spec is ${spec} — read it whole and follow it exactly. ` +
+    `Before EACH new step check for ${args.stopFile}; if it exists, checkpoint-commit, write your checkpoint file and report, and return status SPLIT. ` +
+    `YOUR LAST ACTION MUST BE THE StructuredOutput CALL — never end on a report file or a summary message, or your finished branch is stranded: ` +
+    `status, your actual branch, worktree path, base sha, head sha, report path, gate verdict line, items landed, and new leads (text only; do not allocate ids).`,
+    opt({ label: `impl-${g.letter}-${g.lead}`, phase: 'Implement', agentType: args.implementerAgent, isolation: 'worktree', schema: IMPL_SCHEMA })
+  ).then(r => r ? { ...r, letter: g.letter, lead: g.lead, notes: g.notes } : { letter: g.letter, lead: g.lead, notes: g.notes, status: 'NO-RESULT' })
+}
+
+function land(batch) {
+  const n = trainNo++
+  const label = n === 0 ? `${W}` : `${W}${String.fromCharCode(97 + n)}`
+  const manifest = JSON.stringify(batch.map(r => ({
+    group: r.letter, lead: r.lead, notes: r.notes, status: r.status, report: r.report, worktree: r.worktree,
+    branch: r.branch, base: r.base, head: r.head, leads: r.leads || [],
+  })), null, 1)
+  const ids = (args.idBlocks || [])[n] || 'none — ask the orchestrator'
+  log(`train ${label}: landing ${batch.map(r => r.letter).join(' ')}`)
+  return agent(
+    `You are the train-${label} LANDER. Read ${args.landerBrief} whole and follow it. ` +
+    `First write ${args.manifestPattern.replace('{train}', label)} with exactly this JSON:\n${manifest}\n` +
+    `An earlier train of this queue may have just landed: fetch, rebase onto the current main branch before gating, and ` +
+    `confirm main has not moved again before you land (rebase and re-gate if it has). Number any sequential log entry from ` +
+    `the CURRENT top. New leads get ids from ${ids} (use in order; return the unused). ` +
+    `Before EACH new step check for ${args.stopFile}; if it exists, checkpoint and return. ` +
+    `Land ONLY through: ${args.landCommand}. Final text: the landed sha (or why not), groups landed/dropped with reasons, ids used.`,
+    opt({ label: `lander-train${label}`, phase: 'Land', agentType: args.landerAgent, isolation: 'worktree' })
+  ).then(t => { trains.push({ train: label, groups: batch.map(r => r.letter), result: t }); return t })
+}
+
+function onResult(g, r) {
+  results.push(r)
+  byLetter[r.letter] = r
+  if (landable(r)) {
+    if (hasSuccessorQueued(r.letter)) { held[r.letter] = r; log(`${r.letter}: ${r.status}; held — lands through its successor`) }
+    else buffer.push(r)
+  }
+  if (g.after && held[g.after]) {
+    if (!landable(r)) buffer.push(held[g.after])
+    delete held[g.after]
+  }
+  log(`${r.letter}: ${r.status}; ${buffer.length} branch(es) ready, ${queue.length} group(s) queued`)
+  if (buffer.length >= TRAIN) {
+    const batch = buffer.splice(0, buffer.length)
+    landChain = landChain.then(() => land(batch))
+  }
+}
+
+function nextEligible() {
+  const i = queue.findIndex(g => !g.after || byLetter[g.after])
+  return i < 0 ? null : queue.splice(i, 1)[0]
+}
+
+async function worker() {
+  while (queue.length > 0) {
+    let g = nextEligible()
+    if (!g) {
+      if (running === 0) g = queue.shift()          // its predecessor never ran: start it fresh
+      else { await new Promise(res => { const prev = wake; wake = () => { prev(); res() } }); continue }
+    }
+    running++
+    const r = await runGroup(g)
+    running--
+    onResult(g, r)
+    const w = wake; wake = () => {}; w()
+  }
+}
+
+phase('Implement')
+await parallel(Array.from({ length: Math.min(CONC, queue.length) }, () => () => worker()))
+for (const k of Object.keys(held)) { buffer.push(held[k]); delete held[k] }
+
+if (buffer.length >= MIN_FINAL) {
+  const batch = buffer.splice(0, buffer.length)
+  landChain = landChain.then(() => land(batch))
+} else if (buffer.length > 0) {
+  log(`holding ${buffer.map(r => r.letter).join(' ')} for the next queue's first train (${buffer.length} < ${MIN_FINAL})`)
+}
+await landChain
+return { results, trains, held: buffer }

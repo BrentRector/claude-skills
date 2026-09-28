@@ -89,6 +89,8 @@ Every rule in the skill carries its own *Why*. The main ones:
 | The lander gates the whole suite | The tests no implementer's filter names are exactly the ones that go red in CI. |
 | Group related fixes per implementer | Separate implementers on the same files produced merge conflicts and composition defects neither could see. |
 | Compute the groups by file (`fix_clusters.py`) | Hand-picked groups carried 1–3 items and split one file's defects across implementers; computed per-file clusters turned 411 open defects into 125 groups, so a six-slot wave carries ~25–30 fixes instead of ~10. |
+| A rolling wave (`rolling-wave.js`), not "N implementers, then one train" | Under a wave barrier every finished slot waits for the slowest group; a queue refills a slot the moment its agent returns, and trains start as branches finish. |
+| Same-file successors for a file with more defects than one cluster holds | Orientation was about half of every implementer's tokens. Two independent groups on one file pay it twice; a successor merges the first branch and starts from its handoff notes. It is a fresh agent because cost grows with the square of a transcript's turns. |
 | One-call orientation (`orient.py`) before reading source | Across 7 implementer transcripts, 63 % of tool calls were reads/searches and 15 % of turns came before the first edit, re-deriving what earlier fixes had learned. Cutting ~25 of ~200 turns saves ~15 % of an implementer's tokens. |
 | Never chain after a build/test verdict; parallel calls instead of a chaining ban | A chain's exit status is its last command's, so `test && git commit` commits on an unread verdict. A blanket ban adds turns, which are the quadratic cost. |
 | The model follows the role, never a per-call model | A per-call model overrides the role's frontmatter: "top model on every agent" ran the cheap chore role on the top tier, and a 30-lookup code-site pass ran on the top-tier analyst. |
@@ -135,5 +137,6 @@ Every rule in the skill carries its own *Why*. The main ones:
 | [`SKILL.md`](SKILL.md) | The rules Claude follows, each with its reason |
 | [`references/brief-template.md`](references/brief-template.md) | Copy-and-fill dispatch brief carrying the checkpoint, STOP, turn-cap, blocking-gate and report rules |
 | [`references/fix_clusters.py`](references/fix_clusters.py) | Groups open defect notes by the source files their code sites name, ranked by summed harm, so each implementer fixes one file's defects in one pass |
+| [`references/rolling-wave.js`](references/rolling-wave.js) | Reference Workflow script for the fix lane: a rolling pool of implementers over a queue of groups, same-file successors (`after`) that inherit their predecessor's branch and handoff notes, and serialized lander trains started as branches finish. Agent types, spec paths, stop file and landing command are args |
 | [`references/orient.py`](references/orient.py) | One-call orientation for the files an implementer will change: outline with line numbers, cited spec references, covering tests, what closed notes learned about each file, open notes naming it, recent commits |
 | `README.md` | This page |

@@ -1,6 +1,6 @@
 {
   "name": "brent-tools",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, claude-cloud-sessions and automating-agent-guardrails",
   "author": {
     "name": "Brent Rector"

@@ -23,6 +23,8 @@ export const meta = {
 //   landCommand:     the ONLY command that may put a commit on the main branch (e.g. a CI-gated push script),
 //   manifestPattern: where each train's manifest is written, with {train} substituted,
 //   concurrency (6), train_size (5), min_final_train (3),
+//   implementerCeilingMin (240): an implementer that has not returned after this many minutes is recorded as
+//                    STALLED and the wave moves on without it (its model call can hang; see "A stalled agent"),
 //   idBlocks:        one block of orchestrator-allocated ids per train, e.g. ["ID-101..ID-105", "ID-106..ID-110"],
 //   authorization:   the human's direction for THIS fleet, quoted verbatim: who, when, their exact words, and the
 //                    scope (e.g. "Repository owner, 2026-01-05 09:45: 'start the next wave' - groups A-F"),
@@ -35,6 +37,18 @@ const CONC = args.concurrency || 6
 const TRAIN = args.train_size || 5
 const MIN_FINAL = args.min_final_train || 3
 const opt = extra => (args.model ? { ...extra, model: args.model } : extra)
+const CEILING_MIN = args.implementerCeilingMin === undefined ? 240 : args.implementerCeilingMin
+
+// A model call can HANG: measured, an implementer that had finished and gated its work never produced another
+// token, and the wave's final train waited on it (a workflow cannot stop one of its own agents). The ceiling is the
+// backstop that lets the wave move on; stall_watch.py is what notices within minutes. The hung agent keeps running
+// in the background, but its commits are on its branch, so the orchestrator can finish or land it from there.
+function withCeiling(p, minutes, onTimeout) {
+  if (!minutes) return p
+  let t
+  const timer = new Promise(res => { t = setTimeout(() => res(onTimeout()), minutes * 60000) })
+  return Promise.race([p.finally(() => clearTimeout(t)), timer])
+}
 // AUTHORIZATION: a workflow agent takes the session's LATEST user message as its request. When the fleet is launched
 // in a later turn than the human's direction (so the latest message is about something else), agents that cannot see
 // the direction correctly decline the work and return BLOCKED. So every prompt carries the direction verbatim.
@@ -92,14 +106,18 @@ function successorNote(g) {
 
 function runGroup(g) {
   const spec = args.specPattern.replace('{letter}', g.letter.toLowerCase())
-  return agent(
+  return withCeiling(agent(
     AUTH + `You are the ${W} fix-lane implementer for group ${g.letter} (${g.notes}). ` + successorNote(g) +
     `Your dispatch spec is ${spec} — read it whole and follow it exactly. ` +
     `Before EACH new step check for ${args.stopFile}; if it exists, checkpoint-commit, write your checkpoint file and report, and return status SPLIT. ` +
     `YOUR LAST ACTION MUST BE THE StructuredOutput CALL — never end on a report file or a summary message, or your finished branch is stranded: ` +
     `status, your actual branch, worktree path, base sha, head sha, report path, gate verdict line, items landed, and new leads (text only; do not allocate ids).`,
     opt({ label: `impl-${g.letter}-${g.lead}`, phase: 'Implement', agentType: args.implementerAgent, isolation: 'worktree', schema: IMPL_SCHEMA })
-  ).then(r => r ? { ...r, letter: g.letter, lead: g.lead, notes: g.notes } : { letter: g.letter, lead: g.lead, notes: g.notes, status: 'NO-RESULT' })
+  ).then(r => r ? { ...r, letter: g.letter, lead: g.lead, notes: g.notes } : { letter: g.letter, lead: g.lead, notes: g.notes, status: 'NO-RESULT' }),
+  CEILING_MIN, () => {
+    log(`${g.letter}: no return after ${CEILING_MIN} min; recorded STALLED, the wave moves on`)
+    return { letter: g.letter, lead: g.lead, notes: g.notes, status: 'STALLED' }
+  })
 }
 
 function land(batch) {

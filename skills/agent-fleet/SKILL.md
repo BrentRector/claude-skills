@@ -174,6 +174,21 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   the still-running agents' transcripts to the NEW session's directory while the workflow journal stays in the old
   one; a watchdog reading the old directory saw 20+ minutes of silence for that reason alone. Restarting a live
   fleet duplicates its work and races its worktrees.*
+- **Run `references/stall_watch.py <workflow transcript dir>` in the background next to EVERY fleet workflow.** It
+  exits, and so wakes the orchestrator, the moment a pending agent's transcript has been silent:
+  - more than 10 minutes while waiting on the MODEL (its last record is not an open tool call), or
+  - more than 12 minutes INSIDE one tool call.
+  It reads each record's own timestamp, not file times. *Why, measured over 150 transcripts (~27,800
+  silences): model waits were under 94 s at the 99.9th percentile; tool calls peaked at 585 s. A model call CAN
+  hang: two implementers in one wave stopped producing tokens after a successful tool result, one of them after it
+  had finished and gated all its work. Nothing noticed for 90 minutes, and the wave's final train waited on it.*
+- **A stalled agent: let the others finish, then stop the workflow and dispatch the remainder by hand.** A workflow
+  cannot stop one of its own agents, and nothing outside it can either. A hung agent's commits are on its branch,
+  so a fresh finisher resumes from its stamped `STATUS.md`, or a lander takes the branch as it is if its gate was
+  green. `rolling-wave.js` also carries a per-implementer ceiling (`implementerCeilingMin`, default 240): an agent
+  still running at the ceiling is recorded `STALLED` and the wave moves on, so a hang cannot block a wave forever.
+  Landers get no ceiling, because a timed-out lander might still be pushing when the next train starts; for a
+  stalled lander, the watchdog alerts a person.
 - **Late in a window, dispatch short jobs that are close to done. Early in a window, dispatch long ones.**
   *Why: that way a burst can't exhaust the window before anything is finished.*
 - **An agent never ends its turn while its own background job is running.** It starts the job with output to a

@@ -28,6 +28,20 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.10.0
+
+- **A hung agent can no longer stall a wave unnoticed.** A model call can hang: two implementers in one wave stopped
+  producing tokens after a successful tool result, one of them after finishing and gating all its work. Nothing
+  noticed for 90 minutes, and the wave's final train waited on it.
+  - `agent-fleet/references/stall_watch.py` runs beside every workflow and exits the moment an agent has been silent
+    over 10 min waiting on the model, or over 12 min inside one tool call. The thresholds are measured: over 150
+    transcripts, model waits were under 94 s at the 99.9th percentile, and tool calls peaked at 585 s.
+  - `rolling-wave.js` records an implementer still running after `implementerCeilingMin` (default 240) as `STALLED`
+    and moves on, so a hang cannot block a wave forever. Simulated: a never-returning agent hangs the old script,
+    and the new one finishes and lands.
+  - SKILL §5 gains the procedure: let the others finish, stop the workflow, and dispatch the remainder from the
+    stalled agent's branch.
+
 ## What's new in 1.9.0
 
 - **`agent-fleet/references/status_guard.py`: the stamped handoff is enforced, not just requested.** It is a hook

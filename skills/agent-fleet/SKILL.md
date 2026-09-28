@@ -13,7 +13,7 @@ Everything here serves three goals:
 3. **Tokens go where they move the metric.** Cost is measured per unit, and work is routed to the cheapest lane.
 
 Roles: the **orchestrator** (your session) plans, dispatches, reconciles, gates and commits. Every other job
-(probe, implement, validate, adversarial review, land) is a subagent. The orchestrator keeps its own transcript
+(probe, implement, file leads as work items, validate, adversarial review, land) is a subagent. The orchestrator keeps its own transcript
 short: reports and briefs are **files**, and the conversation carries only paths to them.
 
 ## 1. The cost law, which drives the other rules
@@ -62,6 +62,12 @@ In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of
   repro, the governing rule, and the gate command.
   *Why: search and read turns are the largest share of implementer tokens. Rediscovering a subsystem costs more
   than fixing it.* *(Practice — not yet validated: no like-for-like cost per item before and after.)*
+- **The implementer's first step is to re-run each item's repro on its own build, before fixing anything.** An
+  item that no longer reproduces is DISCHARGED, not fixed: the report records the command, its output and the
+  commit it ran on. A discharge closes the item, so it goes to a refuter like any closing verdict (§10). If the
+  contract has no repro, writing one is the first step. *Why: a backlog item's word is not evidence, and the code
+  moves on under it. Re-probing 331 known-bad items, all judged before several fix waves landed, found 114 already
+  fixed, and refuters overturned 20 of the probers' own claims.* *(Validated 2026-09-28.)*
 - **Give every implementer ONE-CALL ORIENTATION, derived fresh — don't let each wave re-survey the same files.**
   The brief says: before reading any source, run `references/orient.py <the files your items name> --notes <issue
   dir> --cite "<spec-ref regex>"`. Per file it prints the outline with line numbers, the spec references it cites,
@@ -80,6 +86,15 @@ In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of
   already learned. Cutting ~25 of ~200 turns is ~15 % of an implementer's tokens on the quadratic cost curve.* *(Practice — not yet validated: the ~15 % is an estimate; orientation cost with and without the script is not yet measured.)*
 - **Every lead an agent reports carries its repro and code site.** *Why: otherwise the triager and the next
   implementer each find the same fact again.* *(Practice — not yet validated: the repeated probing it prevents was never counted, nor the saving.)*
+- **The agent that files leads as work items (the registrar) re-checks every lead before filing it.** When a lead
+  carries a runnable repro and a code site, run that repro ONCE on your own build and record the result in the
+  filed item (reproduces, already fixed, or behaves differently). Write a fresh probe only when the lead lacks a
+  repro or a code site. Never copy a report's measurement or quoted citation forward unverified: re-read the
+  citation at its source. *Why: a registrar that copies a report's measurement forward is a second place for the
+  report's mistakes to live. Across six registrar passes, forwarded leads repeatedly failed the re-run: in one
+  pass three of 52 died (one was already fixed), in another three reported findings did not survive and a quoted
+  citation proved to be a paraphrase. The narrower form (run the given repro once, probe fresh only without one)
+  replaced re-probing every lead from scratch, which had the same lead probed three times over.* *(Validated 2026-09-28.)*
 - **Tell the implementer to ask the structural rules before editing.** When the repo encodes invariants as drift
   tests, the brief says: run the rule query for the files you will touch (`engineering-standards/references/rule_index.py --tests "<glob>" <files>`, or the repo's own) and honor every specific rule it prints; if you keep a checker for your briefs, make it fail a brief
   that drops the line. *Why: the rules live in the tests, so an agent that is not pointed at them learns each one only by tripping it
@@ -122,6 +137,17 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   agent's `stash pop` can take another agent's work. *(Practice — not yet validated: one near-miss recorded; no loss yet traced to the shared stack.)**
 - **Keep checkpoint files out of landings**: add them to `.gitignore` and unstage them explicitly before
   committing. *Why: a checkpoint that reaches main conflicts with the next agent's checkpoint.*
+- **Assert on conflict markers between staging and committing**, at every checkpoint and every landing commit:
+  ```
+  git grep --cached -nI -e "^<<<<<<< " -e "^||||||| " -e "^>>>>>>> "
+  git diff --cached --check | grep -i "conflict marker"
+  ```
+  Both must print nothing. Read their OUTPUT, not their exit codes: `--check` also reports whitespace, and on a
+  CRLF file it flags every line, so a gate on its exit code is always red and gets dropped. Back it with a
+  repo-wide conflict-marker test, seen to fail once on a planted hunk (`test-gate`). *Why: an implementer's
+  blanket `git add -A` checkpoint committed four unresolved hunks into a script that no test imports, the lander
+  resolved conflicts by judgement and never re-checked, and the markers passed three green gates. Since the test
+  was adopted, no marker has reached main.* *(Validated 2026-09-28.)*
 - **Stamp the handoff.** `STATUS.md`'s first line is `STATUS-AT: <sha>`, the commit it describes, written AFTER
   the checkpoint commit (the file is untracked and ignored, so writing it never moves HEAD). An agent that resumes
   a worktree, or merges a predecessor's branch, first runs `references/status_delta.py <worktree>` and reads what
@@ -200,6 +226,13 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   k=5, and beyond ~6 the gate becomes hard to attribute.* *(Practice — not yet validated: the per-cluster saving is modelled from the fixed cost, not measured.)*
 - **The lander gates the WHOLE test suite, unfiltered**, not the union of the implementers' filters.
   *Why: the tests that no filter names are exactly the ones that go red in CI.* *(Validated 2026-09-28.)*
+- **Run the comprehensive battery in its own detached worktree**, cut at the batch head
+  (`git worktree add --detach <path> <sha>`), never in the checkout the lander builds in. *Why: the battery
+  rebuilds mid-run, so on the shared checkout it measured a half-finished edit (that run was stopped and redone),
+  and nothing could land until it finished. One battery took ~45 min of machine time; the lander work that freeze
+  blocks was modelled at about seven clusters, not measured. From the first worktree battery on, landings continued
+  in parallel. The battery still shares the cores (the lander's gate ran about twice as slow during one), so the
+  worktree turns a freeze into a slowdown.* *(Validated 2026-09-28.)*
 - **Implementers gate narrowly** (their own tests plus drift and unit checks) at low process priority.
   *Why: when many implementers run the full suite, they triple the lander's gate time.* *(Practice — not yet validated: the slowdown was never measured under control.)*
 - **Fill a freed implementer slot in the same turn it frees**, from a standing queue of apply-ready contracts.

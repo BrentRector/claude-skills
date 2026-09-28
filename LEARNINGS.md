@@ -100,7 +100,8 @@ the project's development log.
 ### C6. Re-probe a stale backlog before fixing it
 - **Problem:** 331 known-bad rules had been judged before several fix waves landed.
 - **Root cause:** a note's word is not evidence, and the code had moved on.
-- **Fix in the skills:** not yet in the skills.
+- **Fix in the skills:** [agent-fleet §2](skills/agent-fleet/SKILL.md#2-inputs-one-agent-one-self-contained-input-file)
+  "The implementer's first step is to re-run each item's repro on its own build"; the brief template's Contract.
 - **Evidence:** a 24-agent probe-and-refute pass found 114 already FIXED, 170 still live and 47 not implemented, with
   20 prober claims overturned. A later 17-agent pass had refuters break 14 FIXED claims. Re-probing on the
   implementer's own build is standing practice and keeps discharging stale items.
@@ -110,8 +111,10 @@ the project's development log.
 - **Problem:** leads forwarded from implementer reports were often wrong, and a second agent repeated them verbatim:
   "a registrar that copies a report's measurement forward is a second place for the report's mistakes to live".
 - **Root cause:** unverified self-reports.
-- **Fix in the skills:** not yet in the skills. Current form: run the lead's given repro once on your own build;
-  write a fresh probe only when the lead has no runnable repro and code site.
+- **Fix in the skills:** [agent-fleet §2](skills/agent-fleet/SKILL.md#2-inputs-one-agent-one-self-contained-input-file)
+  "The agent that files leads as work items (the registrar) re-checks every lead", in the current form: run the
+  lead's given repro once on your own build; write a fresh probe only when the lead has no runnable repro and code
+  site. Also the brief template's Contract.
 - **Evidence:** one pass of 52 leads: three died on re-measurement, one already fixed. Another of 48: three did not
   survive the re-run, and a quoted citation was a paraphrase. Another: two real defects each carried a wrong claim.
   Sustained across six registrar passes.
@@ -148,8 +151,9 @@ the project's development log.
 ### C25. Run the comprehensive battery in its own worktree
 - **Problem:** the batch test battery rebuilds the tree, so a battery on the shared tree froze the lander.
 - **Root cause:** a shared build tree; one battery measured a half-edited change and had to be redone.
-- **Fix in the skills:** not yet in the skills (agent-fleet §9 gives analysis fleets a pinned worktree; the battery
-  is not covered).
+- **Fix in the skills:** [test-gate](skills/test-gate/SKILL.md#the-three-tiers) "Run the comprehensive gate in its
+  own detached worktree"; [agent-fleet §6](skills/agent-fleet/SKILL.md#6-land-finished-work-before-starting-new-work)
+  "Run the comprehensive battery in its own detached worktree".
 - **Evidence:** the battery took ~45 min of machine time. From the next battery on, every battery ran in a detached
   worktree without freezing the lander. The saving is a slowdown rather than a full freeze: the lander's gate ran
   about twice as slow during one battery.
@@ -289,9 +293,12 @@ the project's development log.
 - **Problem:** an implementer committed four unresolved conflict hunks into a script no test imports.
 - **Root cause:** a blanket `git add -A` checkpoint, a lander that resolved conflicts by judgement with no re-check,
   and no test touching the file.
-- **Fix in the skills:** not yet in the skills. The project asserts, between add and commit, on the OUTPUT of
-  `git diff --cached --check` and `git grep --cached` (not their exit codes: a CRLF file makes every line "trailing
-  whitespace"), and runs a repo-wide conflict-marker test.
+- **Fix in the skills:** [test-gate](skills/test-gate/SKILL.md#between-staging-and-committing-no-conflict-markers)
+  "Between staging and committing: no conflict markers";
+  [agent-fleet §4](skills/agent-fleet/SKILL.md#4-checkpoint-to-disk-after-every-unit-of-work) "Assert on conflict
+  markers between staging and committing"; the brief template's checkpoint protocol. Both assert on the OUTPUT of
+  `git grep --cached` and `git diff --cached --check` (not their exit codes: a CRLF file makes every line "trailing
+  whitespace"), backed by a repo-wide conflict-marker test.
 - **Evidence:** 4 hunks, 3 green gates. The marker test was fired end to end (370 ms over 7,304 files) and has run in
   every unfiltered leg since; the per-cluster check is recorded train after train.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 1547, 1559, 1594.

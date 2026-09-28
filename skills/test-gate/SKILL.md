@@ -36,6 +36,13 @@ the targeted gate. A batch gets the full suite. The CI run for the pushed commit
 - **The comprehensive gate will turn up tests that the targeted filters never loaded,** including tests that
   still encode behaviour someone deliberately changed. Fix the test so it asserts the new behaviour. Don't
   exclude it.
+- **Run the comprehensive gate in its own detached worktree**, cut at the batch head
+  (`git worktree add --detach <path> <sha>`, then build and run there), never in the main checkout, when other
+  work (edits, landings) goes on while it runs. *Why: a battery that rebuilds mid-run measures whatever the tree
+  holds at that moment: on the main checkout one measured a half-finished edit and had to be redone, and nothing
+  could land for its whole run (~45 min of machine time; the landing work that blocks was modelled at about seven
+  clusters, not measured). From the first worktree battery on, landings continued in parallel. It still competes
+  for the same cores, so expect other gates to run slower while it does.* *(Validated 2026-09-28.)*
 
 ## Always first: build fresh
 
@@ -99,6 +106,24 @@ by the number you added. *(Validated 2026-09-28.)*
    `--no-build` run leaves that leg with no verdict at all.
 5. **Know which kind of failure you're looking at before you diagnose it.** A stack trace, a compile error, a
    validation or diagnostic message and a timeout (usually an infinite loop) are four different problems.
+
+## Between staging and committing: no conflict markers
+
+A green gate says nothing about a file no test loads. After `git add` and before `git commit` (every commit,
+including WIP checkpoints and merge resolutions), run both:
+
+```
+git grep --cached -nI -e "^<<<<<<< " -e "^||||||| " -e "^>>>>>>> "
+git diff --cached --check | grep -i "conflict marker"
+```
+
+Both must print **nothing**. Read the OUTPUT, not the exit code: `--check` also reports whitespace errors, and on a
+CRLF file it flags every line as trailing whitespace, so a rule gated on its exit code is red on every commit and
+gets abandoned. Then add a **repo-wide conflict-marker test** to the suite (scan every tracked text file for the
+three marker lines) and see it fail once on a planted hunk before trusting it.
+*Why: a blanket `git add -A` committed four unresolved conflict hunks into a script that no test imports, and they
+passed three green gates, none of which looked at that file. Since the test was adopted, no marker has reached
+main.* *(Validated 2026-09-28.)*
 
 ## A missing observation is not a negative one
 

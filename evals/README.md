@@ -8,11 +8,12 @@ tests Claude rather than the skill, and so it can't detect an edit that breaks t
 
 ## What it covers
 
-Twenty-four cases: one to four for each of the twelve skills and one for each of the four agents. Each case is a small
+Twenty-seven cases: one to six for each of the twelve skills and one for each of the four agents. Each case is a small
 scenario, written inline in its `prompt.md`, that can only be handled correctly by following that skill's rule.
-The scores below come from the last full run (3 runs per arm, 2026-09-25), except eight cases added later and
-measured on their own: `automating-agent-guardrails-guard-design` (2 runs per arm), `agent-fleet-file-clusters`
-and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), `agent-fleet-stamped-handoff` (3 runs per arm,
+The scores below come from the last full run (3 runs per arm, 2026-09-25), except eleven cases added later and
+measured on their own: `agent-fleet-reprobe-backlog`, `agent-fleet-registrar-rerun` and
+`test-gate-conflict-markers-staged` (3 runs per arm, 2026-09-28), `automating-agent-guardrails-guard-design`
+(2 runs per arm), `agent-fleet-file-clusters` and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), `agent-fleet-stamped-handoff` (3 runs per arm,
 2026-09-28), and the four `devlog-*` cases (3 runs per arm, 2026-09-28).
 
 | Case | Covers | The rule it checks | WITH | W/OUT |
@@ -23,6 +24,7 @@ and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), `agent-fleet-stamped
 | `variant-analysis-latent-not-cleared` | variant-analysis | Reports a variant that nothing calls as *latent*, not cleared, and records the query calibration | 1.00 | 0.00 |
 | `spec-oracle-render-the-diagram` | spec-oracle | Settles a required-vs-optional keyword by rendering the printed page, where underlining decides, instead of trusting the extracted text | 1.00 | 0.33 |
 | `spec-compliance-audit-partial-verdict` | spec-compliance-audit | A rule that holds on one path and fails on another is `PARTIAL`, never `CONFORMS` | 1.00 | 0.00 |
+| `test-gate-conflict-markers-staged` | test-gate | Between `git add` and `git commit`, checks what is STAGED (`git grep --cached` for the marker lines) and reads the OUTPUT of `git diff --cached --check` for "conflict marker" instead of its exit code | 1.00 | 0.17 |
 | `test-gate-preexisting-red-blocks-merge` | test-gate | A red that already existed before the batch is attributed and filed, but it still blocks the merge | 1.00 | 0.00 |
 | `dotnet-engineering-single-current-tfm` | dotnet-engineering | Targets one current TFM, with no `netstandard2.0` and no multi-targeting when no consumer is named | 1.00 | 0.00 |
 | `roslyn-analysis-renamed-clones` | roslyn-analysis | Uses the bundled type-2 clone detector (`detect-clones.cs`) to find renamed copies | 1.00 | 0.00 |
@@ -31,6 +33,8 @@ and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), `agent-fleet-stamped
 | `agent-fleet-file-clusters` | agent-fleet | Assigns defects to implementer slots by COMPUTED per-file clusters ranked by summed harm, naming the bundled `fix_clusters.py` | 1.00 | 0.00 |
 | `agent-fleet-orientation` | agent-fleet | Tells implementers to orient with the bundled `orient.py --notes …` (outline, covering tests, what earlier fixes learned) before reading source | 1.00 | 0.00 |
 | `agent-fleet-stamped-handoff` | agent-fleet | Stamps the handoff summary with the commit it describes (`STATUS-AT: <sha>`) and has a resuming or successor agent run the bundled `status_delta.py` to read only the commits the summary does not cover | 1.00 | 0.00 |
+| `agent-fleet-reprobe-backlog` | agent-fleet | The implementer re-runs each stale item's repro first; one that no longer reproduces is discharged with evidence (the commit it ran on) and goes to a refuter | 1.00 | 0.50 |
+| `agent-fleet-registrar-rerun` | agent-fleet | The agent that files leads runs each lead's given repro once on its own build before filing (no fresh probe when a repro exists) and verifies quoted citations at their source | 1.00 | 0.00 |
 | `claude-cloud-sessions-multi-repo-hooks` | claude-cloud-sessions | Explains that multi-repo sessions start in `/home/user` and load no repo hooks, and fixes it with a user-level hook shim | 1.00 | 0.00 |
 | `agent-pr-test-analyzer` | pr-test-analyzer | Checks determinism: names a work-count or growth-ratio replacement for a Stopwatch ceiling (`Check:` findings) | 1.00 | 0.00 |
 | `agent-silent-failure-hunter` | silent-failure-hunter | Ranks the silent default price above the crash; findings carry `Harm: silent wrong answer` | 1.00 | 0.50 |
@@ -88,7 +92,8 @@ test-gate-preexisting-red-blocks-merge 1.00  0.00  +1.00  6    $0.44
 - **Triggering.** Seven skill cases name the skill ("Use the `X` skill for this"):
   `engineering-standards`, `variant-analysis`, `spec-oracle`, `spec-compliance-audit`, `dotnet-engineering` and
   `agent-fleet`. On natural phrasing those skills fired only some of the time, and a run where the skill does not
-  fire measures nothing. The rest use natural phrasing and fired in every run: review, test-gate, both roslyn
+  fire measures nothing. `test-gate-conflict-markers-staged` names `test-gate` too: on natural phrasing it did not
+  fire in any of 3 runs. The rest use natural phrasing and fired in every run: review, the other test-gate case, both roslyn
   cases, cloud sessions, agent guardrails, and the four agent cases ("use a specialist … reviewer if you have one"). Those also guard
   each skill's `description`. The names `engineering-standards` and `variant-analysis` hint at the answer a little,
   which makes the baseline those two cases must beat harder, not easier.
@@ -129,6 +134,7 @@ Each is kept here so nobody spends money writing it again.
 | test-gate CI pending | the status line after a push says "local green; CI pending" | W/OUT matched WITH (1/2 each); Claude already hedges |
 | agent-fleet WIP commit, not `git stash` | set WIP aside with a commit, because the stash is shared by linked worktrees | once the grader stopped counting prose warnings, W/OUT was 1.00 across two prompt variants |
 | agent-fleet fresh vs resume | a fresh agent from the checkpoint beats resuming a 280-turn transcript | W/OUT 1.00 |
+| test-gate battery in a worktree | run the comprehensive battery in its own detached worktree while landings continue | W/OUT 1.00 across two prompt variants (3 runs each): once the prompt mentions landings during the run, the baseline already cuts a `git worktree add` for it |
 | agent-fleet no early peek | never read a two-stage fleet's output before it signals completion | W/OUT 1.00 |
 | agent-fleet landing batch size | 4–6 clusters per landing | W/OUT 1.00 (the baseline also picks the middle) |
 | agent-fleet workflow liveness | judge a background workflow alive by its processes and journal, never by transcript file times | W/OUT 0.83–1.00 across two prompt variants: the baseline already keys a watchdog on live processes and says quiet output is not death. A first grader that forbade the word "transcript" also failed the plugin arm, which names transcript times in order to reject them |

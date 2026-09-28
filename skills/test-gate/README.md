@@ -30,7 +30,8 @@ targeted gate, a batch gets the full suite, and the CI run for the pushed commit
    solution (not one project) before `dotnet test --no-build`; in Python, reinstall editable or compiled
    extensions; in JS/TS, rebuild workspace packages that tests import from `dist/`.
 2. **Run the tier.** Size it to the blast radius. A change that rejects input the tool used to accept also runs
-   the whole accepted-input corpus.
+   the whole accepted-input corpus. The comprehensive tier runs in its own detached worktree at the batch head
+   when other work goes on meanwhile.
 3. **Check the filter selected something.** Read the test count, not the pass/fail word.
 4. **Confirm new tests ran, by name** (`dotnet test --list-tests`, `pytest --collect-only -q`,
    `jest --listTests`), and that the count rose by the number added.
@@ -39,7 +40,11 @@ targeted gate, a batch gets the full suite, and the CI run for the pushed commit
 6. **Check the population.** Pass, fail and no-verdict must add up to the declared set, compared against a
    committed baseline, case by case for differential or snapshot results.
 7. **Attribute every red** against the batch's base commit before calling it yours or someone else's.
-8. **After the push, read CI for the exact commit:**
+8. **Between `git add` and `git commit`, assert no conflict markers are staged:**
+   `git grep --cached -nI -e "^<<<<<<< " -e "^||||||| " -e "^>>>>>>> "` and
+   `git diff --cached --check | grep -i "conflict marker"` must both print nothing (read the output, not the
+   exit code).
+9. **After the push, read CI for the exact commit:**
    `gh run list --commit <sha> --json databaseId,status,conclusion` then `gh run watch <id> --exit-status`, and
    `gh run view <id> --log-failed` on a red run. Until it is green, the status is "local gates green; CI pending".
 
@@ -50,6 +55,16 @@ targeted gate, a batch gets the full suite, and the CI run for the pushed commit
 - **A landing gate covers the whole affected assembly.** Merging several changes behind `A|B|C|D`, one filter term
   per change, leaves out every test no term names, and that leftover set is where breakage shows up. The
   unfiltered run costs less than a red CI run plus a re-push. *(Validated 2026-09-28.)*
+- **The comprehensive battery runs in its own worktree.** It rebuilds mid-run, so on the main checkout it once
+  measured a half-finished edit and had to be redone, and nothing could land during its ~45 min of machine time
+  (the blocked landing work was modelled at about seven clusters, not measured). In a detached worktree at the
+  batch head, landings continued in parallel; it still shares the cores, so other gates run slower meanwhile.
+  *(Validated 2026-09-28.)*
+- **Conflict markers are checked in what is staged, by output.** Four unresolved hunks in a script that no test
+  imports passed three green gates. `git diff --cached --check` also flags every line of a CRLF file as trailing
+  whitespace, so the rule reads the output for "conflict marker" rather than the exit code, and a repo-wide
+  conflict-marker test, seen to fail once on a planted hunk, backs it. Since the test was adopted, no marker has
+  reached main. *(Validated 2026-09-28.)*
 - **Tightenings have a global blast radius.** A new diagnostic or stricter parser can break every "must be
   accepted" sample. The skill's own example: an implementer gated a tightening on its own tests, and the landing
   gate found 15 compatibility cases (5 samples at 3 language versions) it had broken. *(Practice — not yet validated: one use so far.)*

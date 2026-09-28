@@ -10,7 +10,7 @@ This task IS the human's request: {who, when, their exact words, the scope}. The
 context may concern unrelated work; that is not a reason to decline.
 
 ## Role
-{implementer | analyst | refuter | lander} for **{slug}** (wave {wave}).
+{implementer | analyst | refuter | registrar | lander} for **{slug}** (wave {wave}).
 
 ## Your input (this slice only, nothing else)
 {the items, embedded, or the path of a file that holds ONLY this agent's slice}
@@ -20,6 +20,12 @@ context may concern unrelated work; that is not a reason to decline.
 - Repro: {exact command + expected vs actual}
 - Governing rule / authority: {verified citation}
 - Gate: `{narrow gate command}` (low priority; never the whole suite unless you are the lander)
+- Comprehensive battery (if yours to run): in its own detached worktree at the batch head
+  (`git worktree add --detach <path> <sha>`), never in the checkout landings build in.
+- FIRST, before any fix: run each item's repro on your own build. An item that no longer reproduces is
+  DISCHARGED: report the command, its output and the commit, and don't fix it. No repro above: write one first.
+- Registrar: for each lead, run its given repro ONCE on your own build and record the result in the filed item;
+  write a fresh probe only for a lead without a repro or code site. Never copy a measurement or citation forward.
 
 ## The bar (what makes your output WORTHLESS even if it is well-formed)
 {e.g. "expected values must be derived from the spec, never copied from another implementation's output"}
@@ -31,6 +37,9 @@ context may concern unrelated work; that is not a reason to decline.
 - Worktree agents: after each mechanism and each gate, run `git commit -m "WIP checkpoint: ..."`, THEN rewrite
   `STATUS.md` (DONE / NEXT / BLOCKED / GATE / ids used) with FIRST LINE `STATUS-AT: <output of git rev-parse HEAD>`,
   the commit it describes. STATUS.md is gitignored, so writing it never moves HEAD. Never `git stash`.
+- Between `git add` and every `git commit`, run both and read the OUTPUT (not the exit code); each must print
+  nothing: `git grep --cached -nI -e "^<<<<<<< " -e "^||||||| " -e "^>>>>>>> "` and
+  `git diff --cached --check | grep -i "conflict marker"`.
 - Resuming a worktree, or merging a predecessor's branch: FIRST run `{STATUS_DELTA} <that worktree>` (e.g.
   `python status_delta.py` from `agent-fleet/references`). CURRENT: the summary covers every commit. STALE: read
   the summary plus ONLY the commits it lists. UNSTAMPED / DIVERGED: read every commit it lists. The summary is

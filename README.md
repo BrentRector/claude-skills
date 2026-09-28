@@ -32,6 +32,29 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.13.0
+
+Four vetted learnings that were in no skill yet are now encoded where an agent meets them, each marked
+*"Validated 2026-09-28"*:
+
+- **Re-run a work item's repro before fixing it** (`agent-fleet` §2, the brief template). An item that no longer
+  reproduces is discharged with the evidence, not fixed. *Evidence:* re-probing 331 known-bad items, judged before
+  several fix waves landed, found 114 already fixed, and refuters overturned 20 of the probers' own claims.
+- **A registrar re-checks every lead before filing it** (`agent-fleet` §2, the brief template's new `registrar`
+  role): run the lead's given repro once on your own build and record the result; probe fresh only when the lead
+  has no repro. *Evidence:* across six registrar passes, forwarded leads repeatedly failed the re-run, and a quoted
+  citation proved to be a paraphrase.
+- **Run the comprehensive battery in its own detached worktree** (`test-gate` tiers, `agent-fleet` §6). *Evidence:*
+  on the main checkout a ~45-minute battery measured a half-finished edit and blocked landings; from the first
+  worktree battery on, landings continued in parallel (the blocked work, about seven clusters, is modelled).
+- **Assert on conflict markers between staging and committing, by output** (`test-gate`, `agent-fleet` §4, the
+  brief template). *Evidence:* four unresolved hunks in a script no test imports passed three green gates; since a
+  repo-wide marker test was adopted, no marker has reached main.
+
+[LEARNINGS.md](LEARNINGS.md) now links each of the four to where it lives. Three new eval cases discriminate
+(re-probe, registrar, conflict markers: WITH 1.00 against 0.50, 0.00 and 0.17 without the plugin); the worktree
+battery case was dropped because the baseline already does it (see the [evals README](evals/README.md)).
+
 ## What's new in 1.12.0
 
 - **The learnings were validated, and the skills now say which rules are proven.** The 145 candidate learnings from
@@ -287,7 +310,7 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`test-gate`](skills/test-gate/) | before every commit, merge or push | Tiered gates; read the verdict line, not the exit code; filters that silently match nothing; confirm new tests actually ran; CI for the exact pushed commit is the final word. |
+| [`test-gate`](skills/test-gate/) | before every commit, merge or push | Tiered gates, the comprehensive one in its own worktree; read the verdict line, not the exit code; filters that silently match nothing; confirm new tests actually ran; no conflict markers in what is staged; CI for the exact pushed commit is the final word. |
 | [`dotnet-engineering`](skills/dotnet-engineering/) | .NET / C# work | Latest .NET and C#, strong types, warnings as errors; `dotnet test` filter traps; test gaps and smells; BenchmarkDotNet with a witness; binlog failure analysis; trimming/Native AOT; NuGet trusted publishing. |
 | [`roslyn-analysis`](skills/roslyn-analysis/) | C# duplication review, sibling sweeps, mechanical refactors, verifying built assemblies | Structural clone detection, symbol sweeps (every implementation/override/reference), a safe rewriter harness (dry-run, preserves encoding and line endings, refuses unparseable output), metadata-only assembly and IL inspection. |
 
@@ -344,7 +367,7 @@ and a `## Testing` section records gate commands and baseline counts.
 
 ## Regression evals
 
-[`evals/`](evals/README.md) is a `claude plugin eval` suite with one to four cases per skill and one per agent. Each
+[`evals/`](evals/README.md) is a `claude plugin eval` suite with one to six cases per skill and one per agent. Each
 case runs with the plugin and with no plugin at all, and it is kept only if the plugin arm scores higher. That makes
 it a regression test: a skill edit that stops changing Claude's behavior shows up as a shrinking Δ. To run it:
 `claude plugin eval . -j 4 --no-publish --threshold 0`. A skill change ships with its eval; see the

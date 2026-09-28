@@ -23,7 +23,7 @@ them from the clone. Every script runs as `python <script>` and has a `--selftes
 | Guard hook | `.claude/hooks/guard_commands.py`, `guard-rules.json`; PreToolUse in `.claude/settings.json` | `scripts/guard_commands.py`, `templates/guard-rules.json`, `templates/settings.json` |
 | Role agents | `.claude/agents/*.md`, `.claude/hooks/readonly_guard.py` | `templates/agents/`, `scripts/readonly_guard.py` |
 | Readiness check | `.claude/hooks/readiness_check.py`, `readiness.json`, `session_start.py`; SessionStart in settings; a `CLAUDE.md` section | `scripts/readiness_check.py`, `templates/readiness.json`, `templates/session_start.py`, `templates/CLAUDE-guardrails.md` |
-| Cost telemetry | `.claude/hooks/otlp_sink.py`, `usage_report.py`; env in `.claude/settings.local.json` | `scripts/` |
+| Cost telemetry | `.claude/hooks/otlp_sink.py`, `usage_report.py`; env in the USER settings `~/.claude/settings.json` (a project's settings cannot enable telemetry) | `scripts/` |
 
 ## 1. Guard hooks that block forbidden commands
 
@@ -114,9 +114,13 @@ in, and can't tell the agent what to do instead.
 ## 4. Local cost telemetry
 
 1. Ask first, and on a yes run `python .claude/hooks/readiness_check.py --enable-telemetry`. That writes
-   `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the OTLP `http/json` exporters and endpoint `http://127.0.0.1:4318` into
-   `.claude/settings.local.json` and git-excludes it. Set it **per machine, never in the committed settings**:
-   clones, CI and cloud sessions would all export to a port with no receiver. It takes effect in the next session.
+   `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the OTLP `http/json` exporters and endpoint `http://127.0.0.1:4318` into the
+   **user settings** (`~/.claude/settings.json`, or `$CLAUDE_CONFIG_DIR/settings.json`). That is per machine and never
+   committed. It takes effect in the next session. *Why the user settings: Claude Code ignores telemetry-ENABLING
+   variables in a project's `.claude/settings.json` and `.claude/settings.local.json`; a project may only turn
+   telemetry off. Measured: with the switch in `settings.local.json`, nothing was exported while a check reading that
+   same file reported "OK". The readiness check now flags a project file that sets the switch as dead
+   configuration.*
 2. `otlp_sink.py` is the loopback receiver. It is standard-library only and refuses protobuf with a 415. The
    readiness check starts it when it is down and reports REPAIRED.
 3. `python .claude/hooks/usage_report.py [--by agent,skill,model] [--all]` reports tokens and cost per group. On
@@ -170,7 +174,8 @@ tool before grep, and use grep for text.
 - A role file without `maxTurns`, a read-only role without its own `hooks:`, a gate-waiting role without `cacheTtl: 1h`
 - "Definitions are in place" with no restart and no smoke dispatch
 - A readiness status set without N/A, or a check that can crash the hook
-- `CLAUDE_CODE_ENABLE_TELEMETRY` in the committed `.claude/settings.json`
+- `CLAUDE_CODE_ENABLE_TELEMETRY` in a project's `.claude/settings.json` or `.claude/settings.local.json` (ignored
+  there: telemetry is enabled only in the user settings)
 - Routing around a block: rephrasing, splitting or encoding a command the guard refused
 - A guard rule, trigger step or role the owner never asked for, installed without asking
 - "CI runs the self-tests" with no CI run seen, or a readiness probe that exercises only one shell tool

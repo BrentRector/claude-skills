@@ -31,6 +31,18 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.10.2
+
+- **Fix: telemetry is enabled in the USER settings** (`automating-agent-guardrails`).
+  - Claude Code ignores telemetry-enabling variables in a project's `.claude/settings.json` and
+    `.claude/settings.local.json`; a project may only turn telemetry off.
+  - `readiness_check.py --enable-telemetry` used to write them to `settings.local.json`, where they did nothing, while
+    the check reading that file reported "OK". It now writes `~/.claude/settings.json`, and the check flags a project
+    file that sets the switch as dead configuration.
+  - The readiness self-test is now hermetic: it no longer inherits the machine's own telemetry variables, which had
+    made it RED on any machine with telemetry on.
+  - The contradiction was surfaced by compiling LEARNINGS.md.
+
 ## What's new in 1.10.1
 
 - **[LEARNINGS.md](LEARNINGS.md)**: the consolidated record of agent and fleet learnings from the whole project

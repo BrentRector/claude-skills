@@ -47,7 +47,7 @@ contract item closes a mistake they made.
 | An **N/A** status and cloud/CI detection | Without them, a cloud session would try to start a local receiver and ask you to install tools on a throwaway VM. |
 | The ask-the-owner rule lives in **`CLAUDE.md`**, not only in hook output | A rule that exists only in hook output disappears on the day the hook fails. |
 | The readiness check **fails open at every level**, including config loading | A baseline check crashed with a traceback on a corrupt config and asked nobody anything. |
-| Telemetry env only in `settings.local.json` | In committed settings, every clone, CI run and cloud session would export to a port with no receiver. |
+| Telemetry env only in the user settings (`~/.claude/settings.json`) | Claude Code ignores telemetry-enabling variables in a project's `.claude/settings.json` and `.claude/settings.local.json` (a project may only turn it off). An earlier version of this skill wrote them to `settings.local.json`: nothing was exported, and the check reading that file said "OK". |
 
 ## Installing it in a project
 

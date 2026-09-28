@@ -27,9 +27,10 @@ Usage:
                                             ASK-OWNER or TODO line, so a broken role or hook fails CI
   python readiness_check.py --stamp ID      record that recurring owner step ID (or `roles-smoke`) was done now
   python readiness_check.py --enable-telemetry
-                                            after the owner says yes: write the telemetry env into
-                                            .claude/settings.local.json (per machine, git-ignored); effective from
-                                            the next session
+                                            after the owner says yes: write the telemetry env into the USER
+                                            settings ($CLAUDE_CONFIG_DIR or ~/.claude, settings.json; per machine,
+                                            never committed; a project's settings files cannot enable telemetry);
+                                            effective from the next session
   python readiness_check.py --selftest      prove every status in a throwaway project
 """
 import datetime
@@ -295,18 +296,23 @@ def check_telemetry(ctx):
         return []
     port = int(t.get("port", 4318))
     lines = []
-    committed = (load_json(ctx["project"] / ".claude" / "settings.json").get("env") or {})
-    if str(committed.get("CLAUDE_CODE_ENABLE_TELEMETRY", "")) == "1":
-        lines.append(Line("ASK-OWNER", "telemetry scope", "telemetry is enabled in the COMMITTED .claude/settings.json, "
-                          "so every clone, CI run and cloud session exports to a loopback port with no receiver. "
-                          "Ask to move it to .claude/settings.local.json.",
-                          on_yes=f"remove the OTEL/telemetry env from .claude/settings.json; `python {this_script()} "
-                          "--enable-telemetry`"))
+    # Claude Code IGNORES telemetry-ENABLING variables in a project's settings files (.claude/settings.json and
+    # .claude/settings.local.json may only turn telemetry off). Measured: a project that set them in
+    # settings.local.json exported nothing, while a check reading that same file reported telemetry OK. So the switch
+    # lives in the USER settings, and a project file that sets it is dead configuration, flagged here.
+    for name in ("settings.json", "settings.local.json"):
+        penv = load_json(ctx["project"] / ".claude" / name).get("env") or {}
+        if str(penv.get("CLAUDE_CODE_ENABLE_TELEMETRY", "")) == "1":
+            lines.append(Line("ASK-OWNER", "telemetry scope", f"telemetry is enabled in .claude/{name}, which Claude "
+                              "Code IGNORES for enabling telemetry (a project may only turn it off), so nothing is "
+                              "exported from that setting. Ask to move it to the user settings "
+                              f"({(user_config_dir() / 'settings.json').as_posix()}).",
+                              on_yes=f"remove the OTEL/telemetry env from .claude/{name}; `python {this_script()} "
+                              "--enable-telemetry`"))
     if ctx["env"] != "local":
         return lines + [Line("N/A", "telemetry", NOT_HERE[ctx["env"]])]
-    local = load_json(ctx["project"] / ".claude" / "settings.local.json").get("env") or {}
     user = load_json(user_config_dir() / "settings.json").get("env") or {}
-    enabled = any(str(src.get("CLAUDE_CODE_ENABLE_TELEMETRY", "")) == "1" for src in (local, user, os.environ))
+    enabled = any(str(src.get("CLAUDE_CODE_ENABLE_TELEMETRY", "")) == "1" for src in (user, os.environ))
     if not enabled:
         return lines + [Line("ASK-OWNER", "telemetry", "not enabled on this machine. Ask: \"Enable local cost "
                              "telemetry (tokens and cost per agent, skill and model, recorded only on this "
@@ -439,26 +445,15 @@ def hook_payload(argv=()):
 
 
 def enable_telemetry(ctx):
+    """Write the telemetry env into the USER settings (per machine, never committed). A project's settings files
+    cannot enable telemetry: Claude Code ignores enabling variables there."""
     port = int((ctx["cfg"].get("telemetry") or {}).get("port", 4318))
-    path = ctx["project"] / ".claude" / "settings.local.json"
+    path = user_config_dir() / "settings.json"
     data = load_json(path)
     data.setdefault("env", {}).update(telemetry_env(port))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    note = ""
-    ignored = subprocess.run(["git", "-C", str(ctx["project"]), "check-ignore", "-q", str(path)], capture_output=True)
-    if ignored.returncode == 1:
-        exclude = subprocess.run(["git", "-C", str(ctx["project"]), "rev-parse", "--git-path", "info/exclude"],
-                                 capture_output=True, text=True).stdout.strip()
-        if exclude:
-            exclude_path = pathlib.Path(exclude)
-            if not exclude_path.is_absolute():
-                exclude_path = ctx["project"] / exclude_path
-            exclude_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(exclude_path, "a", encoding="utf-8") as f:
-                f.write("\n.claude/settings.local.json\n")
-            note = " Added it to .git/info/exclude so it is never committed."
-    print(f"Wrote the telemetry env to {path.as_posix()}.{note} It takes effect from the next session.")
+    print(f"Wrote the telemetry env to the user settings {path.as_posix()}. It takes effect from the next session.")
     return 0
 
 
@@ -546,8 +541,11 @@ def selftest():
                "ask_at_trigger": [{"step": "/code-review ultra", "trigger": "before a landing push"}]}
         cfg_path = hooks / "readiness.json"
         cfg_path.write_text(json.dumps(cfg), encoding="utf-8")
+        # Hermetic: the machine running the self-test may have telemetry enabled in its own environment, which would
+        # make the "fresh machine" cases see telemetry as already on (measured: RED on such a machine).
         base_env = {k: v for k, v in os.environ.items()
-                    if k not in ("CLAUDE_CODE_REMOTE", "CI", "PYTHONIOENCODING", "PYTHONUTF8")}
+                    if k not in ("CLAUDE_CODE_REMOTE", "CI", "PYTHONIOENCODING", "PYTHONUTF8", "CLAUDE_CODE_ENABLE_TELEMETRY")
+                    and not k.startswith("OTEL_")}
         base_env.update(CLAUDE_PROJECT_DIR=str(proj), CLAUDE_CONFIG_DIR=str(conf), READINESS_STATE_DIR=str(state))
 
         def run(*args, **env_extra):
@@ -592,8 +590,25 @@ def selftest():
 
             for sid in ("roles-smoke", "weekly-review"):
                 run("--stamp", sid)
+            # A telemetry switch in the project's settings.local.json is IGNORED by Claude Code: still ASK-OWNER, and
+            # the dead setting is flagged.
+            (proj / ".claude" / "settings.local.json").write_text(
+                json.dumps({"env": {"CLAUDE_CODE_ENABLE_TELEMETRY": "1"}}), encoding="utf-8")
+            s = statuses()
+            expect("telemetry only in settings.local.json: not counted as enabled",
+                   s.get("telemetry", {}).get("status") == "ASK-OWNER")
+            expect("telemetry only in settings.local.json: the dead setting is flagged",
+                   "IGNORES" in s.get("telemetry scope", {}).get("detail", ""))
+            (proj / ".claude" / "settings.local.json").unlink()
+
             run("--enable-telemetry")
-            (conf / "settings.json").write_text(json.dumps({"enabledPlugins": {"fake-lsp@x": True}}), encoding="utf-8")
+            user_settings = json.loads((conf / "settings.json").read_text(encoding="utf-8"))
+            expect("--enable-telemetry writes the USER settings",
+                   user_settings.get("env", {}).get("CLAUDE_CODE_ENABLE_TELEMETRY") == "1")
+            expect("--enable-telemetry does not write the project settings",
+                   not (proj / ".claude" / "settings.local.json").exists())
+            user_settings["enabledPlugins"] = {"fake-lsp@x": True}
+            (conf / "settings.json").write_text(json.dumps(user_settings), encoding="utf-8")
             fake_ls.parent.mkdir()
             fake_ls.write_text("", encoding="utf-8")
             s = statuses()
@@ -603,9 +618,6 @@ def selftest():
                    s.get("telemetry", {}).get("status") == "REPAIRED")
             expect("telemetry: second run OK", statuses().get("telemetry", {}).get("status") == "OK")
             expect("LSP plugin + server: OK", s.get("LSP (fake)", {}).get("status") == "OK")
-            ignored = subprocess.run(["git", "-C", str(proj), "check-ignore", "-q",
-                                      str(proj / ".claude" / "settings.local.json")])
-            expect("settings.local.json is git-ignored after --enable-telemetry", ignored.returncode == 0)
 
             stamp = state / next(state.iterdir()).name / "weekly-review.json"
             old = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=8)).isoformat()

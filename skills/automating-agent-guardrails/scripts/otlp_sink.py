@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """A local OTLP/HTTP-JSON receiver for Claude Code telemetry. Loopback only, standard library only, no collector.
 
-Claude Code exports telemetry when these are set (per MACHINE, in .claude/settings.local.json `env`; never in the
-committed settings, or every clone and cloud session exports to a port nothing listens on):
+Claude Code exports telemetry when these are set (per MACHINE, in the USER settings `~/.claude/settings.json` `env`.
+Claude Code ignores telemetry-enabling variables in a project's .claude/settings.json and .claude/settings.local.json,
+which may only turn telemetry off):
 
     CLAUDE_CODE_ENABLE_TELEMETRY=1   OTEL_METRICS_EXPORTER=otlp   OTEL_LOGS_EXPORTER=otlp
     OTEL_EXPORTER_OTLP_PROTOCOL=http/json   OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318

@@ -1540,11 +1540,16 @@ A few terms used throughout:
 - **Problem:** after cost telemetry was adopted, nothing was ever exported, while the readiness check reported it "OK".
 - **Root cause:** Claude Code IGNORES the telemetry-enabling variables in a project's `.claude/settings.local.json`
   (project settings may only turn telemetry off), and the check read that same file.
-- **Fix in the skills:** **NOT YET, and the skill currently disagrees.** `readiness_check.py --enable-telemetry` in
-  [automating-agent-guardrails §4][ag] still writes the variables to `.claude/settings.local.json`. The project moved
-  them to the user settings (`~/.claude/settings.json`) and made its check read that file.
-- **Evidence:** Claude Code's own system diagnostics message.
-- **When:** 2026-09-25.
+- **Fix in the skills:** [automating-agent-guardrails §4][ag] (1.10.2).
+  - `readiness_check.py --enable-telemetry` now writes the variables to the user settings (`~/.claude/settings.json`).
+  - The check counts only the user settings or the environment as "enabled", and flags a project file that sets the
+    switch as dead configuration.
+  - The skill had kept the old advice until this document's own consolidation surfaced the contradiction. Its
+    self-test was also not hermetic: it inherited the machine's telemetry variable, so it was RED on any machine with
+    telemetry on. That is fixed too.
+- **Evidence:** Claude Code's own system diagnostics message. The self-test now covers the ignored-project-setting
+  case.
+- **When:** 2026-09-25 (project); 2026-09-28 (skill).
 
 ### A pilot's effect can fail to replicate
 - **Problem:** a pilot of the stamped handoff (n = 4 per arm, one branch) showed −33 % tokens, and the owner asked for
@@ -1604,8 +1609,6 @@ Measured, or at least observed, but not solved:
 
 Lessons the project acted on that this repository does not yet carry, or carries only in part:
 
-- **Contradiction:** telemetry-enabling variables must go in the user settings. `readiness_check.py --enable-telemetry`
-  still writes them to `.claude/settings.local.json`, which Claude Code ignores for enabling telemetry.
 - Pacing to a weekly budget with a cumulative daily allowance. Reading the real usage meter instead of an extrapolated
   rate.
 - Workflow run-id resume works only in the owning process; after a reboot, re-dispatch.

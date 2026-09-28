@@ -28,6 +28,15 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.8.2
+
+- **Fix: the rolling wave no longer deadlocks when an agent dies** (`agent-fleet/references/rolling-wave.js`). An
+  agent that dies on an API error makes `agent()` reject rather than return null. The rejection escaped the worker
+  with its slot still counted and no wake-up sent, so a same-file successor waited forever and the workflow showed
+  "running" with nothing left to do; one did so for 16 hours. A rejection is now recorded as `NO-RESULT`, like a null
+  return, and the slot and the wake-up are released whatever the outcome. The waiting successor then starts fresh.
+  A simulation with a rejecting agent hangs on 1.8.1 and finishes on 1.8.2.
+
 ## What's new in 1.8.1
 
 - **Correction: why transcript times are no liveness signal** (`agent-fleet` §5). 1.7.0 said subagent transcripts

@@ -153,11 +153,24 @@ async function worker() {
       if (running === 0) g = queue.shift()          // its predecessor never ran: start it fresh
       else { await new Promise(res => { const prev = wake; wake = () => { prev(); res() } }); continue }
     }
+    // An agent that dies on an API error REJECTS rather than returning null. Without this try/finally the rejection
+    // escapes the worker with `running` still counted and no wake-up sent, so a successor parked on `wake` waits
+    // forever and the workflow shows "running" with nothing left to do (measured: one sat 16 h). A rejection is a
+    // NO-RESULT like a null return, and the count and the wake-up happen whatever the outcome.
     running++
-    const r = await runGroup(g)
-    running--
-    onResult(g, r)
-    const w = wake; wake = () => {}; w()
+    let r
+    try {
+      r = await runGroup(g)
+    } catch (e) {
+      r = { letter: g.letter, lead: g.lead, notes: g.notes, status: 'NO-RESULT', error: String(e && e.message || e) }
+    } finally {
+      running--
+    }
+    try {
+      onResult(g, r)
+    } finally {
+      const w = wake; wake = () => {}; w()
+    }
   }
 }
 

@@ -28,6 +28,16 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.8.1
+
+- **Correction: why transcript times are no liveness signal** (`agent-fleet` §5). 1.7.0 said subagent transcripts
+  are "written lazily". They aren't. The measured causes are two. A tool call writes nothing to the transcript
+  until it returns, so each long gate wait is a ~580-second silence (5–7 of them per agent in one run). And
+  clearing or restarting the orchestrating session moves the running agents' transcripts to the new session's
+  directory while the workflow journal stays in the old one, which is where the 20+ minutes of "silence" came
+  from. The rule is unchanged. §5 now also says how to read a transcript if you must: one ending on an unanswered
+  tool call is live for up to that tool's maximum duration, and no longer.
+
 ## What's new in 1.8.0
 
 - **One configuration file for the fleet scripts** (`agent-fleet` §2,
@@ -59,8 +69,9 @@ marketplaces), the base's `SKILL.md` is still readable at its submodule path.
   [`rolling-wave.js`](skills/agent-fleet/references/rolling-wave.js), and the brief template's first section). A
   workflow agent takes the session's latest user message as its request, so a fleet launched in a later turn
   quotes the human's direction verbatim in every prompt, or its agents decline the work.
-- **Liveness is judged by processes and the journal, not transcript file times** (`agent-fleet` §5). Subagent
-  transcripts are written lazily; a watchdog keyed on their modification time called a working fleet dead.
+- **Liveness is judged by processes and the journal, not transcript file times** (`agent-fleet` §5). A watchdog
+  keyed on transcript modification time called a working fleet dead. (The reason given here at first, that
+  transcripts are written lazily, was wrong; 1.8.1 states the two measured causes.)
 - Workflow scripts stay LF-only: a Workflow tool refused a CRLF script as containing hidden control characters.
 
 ## What's new in 1.6.0

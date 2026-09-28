@@ -151,10 +151,16 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
 - **Judge a background workflow's liveness by its processes and its journal, never by transcript file times.**
   Alive means: the workflow's own run status and progress journal are advancing, or its agents' processes (builds,
   test runs) are running in their worktrees, or their worktrees are gaining commits and changed files. A watchdog
-  or restart decision keys on those. *Why: subagent transcript files are written lazily. Measured: transcripts went
-  20+ minutes without a write while their agents were actively running gates, and a watchdog keyed on transcript
-  modification time declared a healthy fleet dead. Restarting a live fleet duplicates its work and races its
-  worktrees.*
+  or restart decision keys on those. If you must read a transcript, one that ends on a tool call with no result
+  yet is LIVE for up to that tool's maximum duration, and no longer (so a killed agent's dangling call does not
+  count as alive forever). *Why, measured: (1) a tool call writes nothing to the agent's transcript until it
+  returns: one line when the call starts and one when its result arrives. A gate wait of the form
+  `timeout 580 … tail -f <log> | grep -m1 …` is a ~580-second silence; each of four agents in one run showed 5–7
+  silences of 582–585 s, every one opened by a shell tool call, so a check on a short modification-time window
+  calls a live agent dead during every long tool call. (2) Clearing or restarting the orchestrating session moves
+  the still-running agents' transcripts to the NEW session's directory while the workflow journal stays in the old
+  one; a watchdog reading the old directory saw 20+ minutes of silence for that reason alone. Restarting a live
+  fleet duplicates its work and races its worktrees.*
 - **Late in a window, dispatch short jobs that are close to done. Early in a window, dispatch long ones.**
   *Why: that way a burst can't exhaust the window before anything is finished.*
 - **An agent never ends its turn while its own background job is running.** It starts the job with output to a

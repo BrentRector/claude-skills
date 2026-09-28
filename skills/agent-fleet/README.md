@@ -53,7 +53,9 @@ A campaign run under the skill looks like this:
 On restart after a cutoff, the skill's recovery procedure is: read the reset time from the limit message, check
 `git status` on main (a dead lander may already have applied its patch), run `status_delta.py` on each worktree,
 and dispatch **fresh** agents from the checkpoints in landing order. Before calling a background workflow dead,
-check its run status and journal and its agents' processes and worktrees; transcript file times are not a signal.
+check its run status and journal and its agents' processes and worktrees. Transcript file times are not a signal:
+a tool call writes nothing to a transcript until it returns, and restarting the orchestrating session moves live
+agents' transcripts to the new session's directory.
 
 A fleet launched in a later turn than your request carries that request, quoted verbatim, at the top of every
 agent prompt (the `authorization` arg of [`rolling-wave.js`](references/rolling-wave.js), or the brief's first
@@ -93,7 +95,7 @@ Every rule in the skill carries its own *Why*. The main ones:
 | Checkpoint to disk after every unit | Un-checkpointed refuters lost 100 % of their decisions to a single session kill. |
 | Stamp the handoff (`STATUS-AT: <sha>`, read with `status_delta.py`) | An agent killed between its commit and its summary leaves a summary that silently omits the last commits. Without a stamp, a successor can't tell stale from current and must re-read the whole branch every time. |
 | A workflow's prompts carry the human's authorization verbatim | A workflow agent takes the session's latest user message as its request. A fleet launched in a turn whose latest message was about something else had every implementer decline and return BLOCKED. |
-| Judge a workflow's liveness by its processes and journal | Subagent transcripts are written lazily: they went 20+ minutes without a write while their agents ran gates, and a watchdog keyed on transcript modification time called a healthy fleet dead. |
+| Judge a workflow's liveness by its processes and journal | A tool call writes nothing to the transcript until it returns, so every long gate wait is a ~580-second silence (measured: 5–7 such silences per agent in one run). And clearing or restarting the orchestrating session moves live agents' transcripts to the new session's directory while the journal stays in the old one; a watchdog reading the old directory saw 20+ minutes of silence for that reason and called a healthy fleet dead. A transcript ending on an unanswered tool call is live for up to that tool's maximum duration. |
 | Never `git stash` (including `--autostash`) | The stash stack is shared by every linked worktree, so one agent's `stash pop` can take another's work. |
 | Concurrency budget and a token tally | ~28 concurrent agents burned ~20 % of a window in 11 minutes; ~50 exhausted a window in ~2.5 h. The limit kills landers mid-landing. |
 | Graceful STOP file | Workflow agents can't be messaged, and a hard kill lands mid-step. |

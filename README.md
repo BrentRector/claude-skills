@@ -28,6 +28,20 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.9.0
+
+- **`agent-fleet/references/status_guard.py`: the stamped handoff is enforced, not just requested.** It is a hook
+  that refuses a `git commit` while `STATUS.md` does not describe the current commit, and refuses to let the agent
+  finish in that state. It fires only on a violation, so it costs nothing while the rule is followed. The rule itself
+  is now "rewrite `STATUS.md` after EVERY commit".
+- **Why, measured.**
+  - 3 of 14 finished real branches ended with a stale `STATUS.md` with no crash involved.
+  - A stamp test with 88 fresh resumers over 22 scenarios: coverage was misjudged in 11 of 44 resumes without the
+    stamp and 0 of 44 with it. Tokens fell about 17 % overall and 31 % when the summary was current.
+  - Two sandbox A/Bs of the hook: a per-command reminder was tried and rejected for costing about 20 % more turns
+    and dollars. An `if: Bash(git commit*)` filter misses chained and scripted commits, so the hook is registered
+    without one.
+
 ## What's new in 1.8.2
 
 - **Fix: the rolling wave no longer deadlocks when an agent dies** (`agent-fleet/references/rolling-wave.js`). An

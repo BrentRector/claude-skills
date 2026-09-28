@@ -106,7 +106,7 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
 
 | job | checkpoint | resume unit |
 |---|---|---|
-| implementer (own worktree) | a WIP commit on its branch after each mechanism and each gate, THEN `STATUS.md`, first line `STATUS-AT: <sha of HEAD>`: `DONE` · `NEXT` (the exact next step) · `BLOCKED` · `GATE` (last verdict line + command) · ids used | one mechanism |
+| implementer (own worktree) | a WIP commit on its branch after each mechanism and each gate, and after EVERY commit a rewrite of `STATUS.md`, first line `STATUS-AT: <sha of HEAD>`: `DONE` · `NEXT` (the exact next step) · `BLOCKED` · `GATE` (last verdict line + command) · ids used | one mechanism |
 | workflow stage (analyze / refute / draft / validate) | one JSON line per decided item appended to `<out>/<stage>-<slug>.jsonl` **the moment it is decided**; on start, read the file and skip items already there; the final result goes to a separate `out-<slug>.json` | one item |
 | lander | a commit in its worktree after each numbered step, plus `STATUS.md` | one step |
 | orchestrator | briefs and reports are files under a scratch directory; the conversation holds pointers | — |
@@ -128,7 +128,20 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   The summary stays navigation, never evidence. *Why: an agent killed after a commit but before rewriting its
   summary leaves one that silently omits the last commits. Without a stamp a successor cannot tell stale from
   current, so the only safe rule is to re-read the whole branch on every resume, which spends the orientation the
-  summary was written to save.*
+  summary was written to save. Measured with 88 fresh resumers over 22 scenarios from 11 real branches: without the
+  stamp, agents misjudged what the summary covered in 11 of 44 resumes; with it, in none. Tokens fell about 17 %
+  overall and 31 % when the summary was current.*
+- **Enforce the rewrite with `references/status_guard.py`**, a hook that fires ONLY on a violation:
+  - **PreToolUse** on the shell tools, with NO `if` filter: it refuses a command that runs `git commit` while
+    `STATUS.md` does not describe HEAD, so at most one commit is ever undescribed.
+  - **Stop and SubagentStop:** it refuses once to let the agent finish while `STATUS.md` does not describe HEAD.
+  It is silent in any tree without `STATUS.md`, and it fails open on an internal error. *Why:
+  - 3 of 14 finished real branches ended with a `STATUS.md` that missed their own last commit, with no crash. The
+    usual shape was a small final commit (a gate-red fix, a regenerated index) made after the last rewrite.
+  - An `if: Bash(git commit*)` filter misses `git add -A && git commit …`, and misses checkpoint scripts agents write
+    themselves. Measured: it silenced the hook in most sessions. The Stop check catches a commit made inside a script.
+  - A reminder after every command was tried and REJECTED: it cost about 20 % more turns and dollars, and every arm
+    ended current anyway.*
 - **Design workflow stages to read their inputs from disk** (`out-<slug>.json`). *Why: then a rewritten or
   resumed script never re-runs completed stages.*
 

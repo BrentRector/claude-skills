@@ -4,6 +4,9 @@ Engineering-discipline skills for [Claude Code](https://code.claude.com), distil
 work — a standards-conformant compiler built largely by Claude agents, a commercial .NET tool, and several smaller
 projects. Each skill encodes rules that were learned the expensive way; the *why* travels with every rule.
 
+**[LEARNINGS.md](LEARNINGS.md)** is the research record behind these skills: every agent, fleet and process problem the
+project hit from March to September 2026, its root cause, the measured evidence, and where the fix lives here.
+
 ## Install
 
 ```
@@ -27,6 +30,14 @@ repository as a git submodule (say at `tools/claude-skills`) and declare it in t
 Project skills that extend one of these can then open by invoking the base (`brent-tools:<skill>`) and keep only
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
+
+## What's new in 1.10.1
+
+- **[LEARNINGS.md](LEARNINGS.md)**: the consolidated record of agent and fleet learnings from the whole project
+  history, grouped by theme. Each entry gives the problem, the root cause, where the fix lives in these skills, the
+  measured evidence and the date. It keeps reversals, rejected ideas and null results, and closes with the open
+  problems and the lessons the skills do not carry yet, including one the guardrails skill currently contradicts:
+  Claude Code ignores telemetry-enabling variables in a project's `settings.local.json`.
 
 ## What's new in 1.10.0
 

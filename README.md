@@ -4,6 +4,10 @@ Engineering-discipline skills for [Claude Code](https://code.claude.com), distil
 work — a standards-conformant compiler built largely by Claude agents, a commercial .NET tool, and several smaller
 projects. Each skill encodes rules that were learned the expensive way; the *why* travels with every rule.
 
+**[LEARNINGS.md](LEARNINGS.md)** holds the vetted learnings behind these skills: the 46 of 145 candidates from the
+project's development log that survived validation against primary sources and an independent refuter. Rules in
+the skills that are not yet proven say so where they stand.
+
 ## Install
 
 ```
@@ -27,6 +31,37 @@ repository as a git submodule (say at `tools/claude-skills`) and declare it in t
 Project skills that extend one of these can then open by invoking the base (`brent-tools:<skill>`) and keep only
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
+
+## What's new in 1.12.0
+
+- **The learnings were validated, and the skills now say which rules are proven.** The 145 candidate learnings from
+  the development log were each checked against the primary sources (log entries, commits, CI and test records,
+  agent transcripts) by a validator, and every VETTED ruling was then re-checked by an independent refuter told to
+  overturn it.
+  - **46 VETTED, 90 UNPROVEN, 9 REFUTED.** The refuters overturned **21 of the 67** rulings the first validator had
+    vetted, 15 to unproven and 6 to refuted.
+  - **Refuted claims removed or corrected.** Seven of the nine were never encoded here. Two were, and one more
+    was answered:
+    - *"One mechanism per implementer, one landing per lander transcript"* rested on a modelled cost, never a
+      measurement, and later practice grouped related fixes. `agent-fleet` §6–§7, `spec-compliance-audit` §7 and
+      the lander role template no longer give the modelled cost as a reason, and related fixes are grouped.
+    - *"A continuation after a kill confirms, it never re-applies"*: continuations confirmed finished steps and
+      redid half-done ones. `agent-fleet` §12's restart step now says so, and reads the dead lander's worktree.
+    - *"Find-then-verify reviews find real bugs in every phase"* (never stated here): several reviews correctly
+      found nothing. `review` Step 6 now says a null result is a valid outcome, labelled unproven.
+  - **Unproven rules are labelled.** They stay, marked *"Practice — not yet validated: <the missing evidence>"*, in
+    `SKILL.md` and the matching `README.md` row. Vetted rules are marked *"Validated 2026-09-28"*.
+  - **Figures corrected** where validation found them wrong: 7 of 10 implementers (not all) declined an
+    unauthorized fleet; 5–7 silences over 120 s per agent, the longest ~585 s; 15 compatibility cases, not samples.
+  - **Vetted refinements added:** confirm a build succeeded and hash the assemblies when in doubt (`test-gate`);
+    check each OR'd filter term's own count (`test-gate`); name input files uniquely and compare returns by id set,
+    not count (`agent-fleet` §2); re-measure a work item's premise before fixing it (`engineering-standards` §3);
+    the measured 1-hour-cache saving, and dropping the cache for roles that never wait (`automating-agent-guardrails`).
+  - A same-run timing ratio is no longer offered as a replacement for a wall-clock ceiling (`review`,
+    `pr-test-analyzer`): one went red on unchanged code.
+- **[LEARNINGS.md](LEARNINGS.md) is back, with only the 46 vetted learnings**, each with its problem, root cause,
+  where the fix lives, the corrected evidence and its validation. The unproven and refuted candidates stay in the
+  project's research record, not here.
 
 ## What's new in 1.11.0
 
@@ -58,7 +93,7 @@ marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 - **Withdrawn, pending validation.** Two things published earlier had not been through the validation above, so they
   are removed rather than left to spread; each comes back only if validation vets it.
   - **`LEARNINGS.md`** (added in 1.10.1). It was compiled from the development log without vetting, so it carried
-    the log's refuted hypotheses along with its conclusions. It will be republished containing only vetted learnings.
+    the log's refuted hypotheses along with its conclusions. It will be republished containing only vetted learnings (republished in 1.12.0 with only vetted learnings).
   - **`agent-fleet/references/status_guard.py`** and its `agent-fleet` §4 rule (added in 1.9.0). Its sandbox A/B
     was null for staleness, and it has not been proven in production. The stamped handoff it enforced stays:
     `STATUS-AT: <sha>`, read with `status_delta.py` and rewritten after every commit, was proven in an 88-agent
@@ -75,12 +110,14 @@ marketplaces), the base's `SKILL.md` is still readable at its submodule path.
   - The readiness self-test is now hermetic: it no longer inherits the machine's own telemetry variables, which had
     made it RED on any machine with telemetry on.
   - The contradiction was surfaced by compiling LEARNINGS.md (withdrawn in 1.11.0 pending validation: it was compiled
-    from the development log without vetting, and will be republished containing only vetted learnings).
+    from the development log without vetting, and will be republished containing only vetted learnings;
+    republished in 1.12.0 with only vetted learnings).
 
 ## What's new in 1.10.1
 
 - **LEARNINGS.md** (withdrawn in 1.11.0 pending validation: it was compiled from the development log without
-  vetting, and will be republished containing only vetted learnings): the consolidated record of agent and fleet
+  vetting, and will be republished containing only vetted learnings; republished in 1.12.0 with only vetted
+  learnings): the consolidated record of agent and fleet
   learnings from the whole project history, grouped by theme. Each entry gives the problem, the root cause, where
   the fix lives in these skills, the measured evidence and the date. It keeps reversals, rejected ideas and null
   results, and closes with the open problems and the lessons the skills do not carry yet, including one the

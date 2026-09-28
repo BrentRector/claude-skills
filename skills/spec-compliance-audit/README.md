@@ -59,13 +59,13 @@ default), `searched` (patterns and results, including irrelevant hits), `witness
   prose. Where a table or diagram carries the rule, the page is rendered, because extracted figures skew toward
   falsely restrictive syntax.
 - **GAP is the only honest progress number.** "Tests passing" and "features implemented" count what you looked
-  at; GAP counts what you have not proven. There is one inventory: no side lists, "remaining work" sections or
+  at; GAP counts what you have not proven. *(Validated 2026-09-28.)* There is one inventory: no side lists, "remaining work" sections or
   per-campaign trackers.
 - **Self-contained agent inputs.** In the skill's measured campaigns, searching and re-reading took nearly half of
-  an agent's tokens, so the input carries what is already known.
+  an agent's tokens, so the input carries what is already known. *(Practice — not yet validated: no like-for-like cost per rule before and after.)*
 - **State the bar, and bind a schema.** The agent is told what makes a well-formed answer worthless (a verdict
   without the lines read, an absence without the searches run, an expected value copied from another
-  implementation). A schema forces it to name the lines it read; free prose lets it skip that.
+  implementation). A schema forces it to name the lines it read; free prose lets it skip that. *(Validated 2026-09-28.)*
 - **`PARTIAL` is its own verdict.** It is usually the most serious result: the rule holds on the paths everyone
   tests and fails on the one nobody tested. It is never rounded up to `CONFORMS` or down to `DIVERGES`, because
   the fix differs.
@@ -85,10 +85,10 @@ default), `searched` (patterns and results, including irrelevant hits), `witness
 - **An adversarial refuter.** The agent that produced a verdict is biased toward it. The refuter re-reads the
   rule, looks for a more specific overriding rule, re-walks the paths, checks that the witness exercises the
   governed branch, and checks the premise (a finding describing input the grammar makes impossible is refuted).
-  A failed refuter leaves the verdict **unverified**, not confirmed.
+  A failed refuter leaves the verdict **unverified**, not confirmed. *(Validated 2026-09-28.)*
 - **Cluster by mechanism.** One ticket per rule scatters a single root cause. A finding that lives only in a
   report or log paragraph is invisible to every work list. Work is ranked by what the defect does to a user's
-  program or data (wrong answer, crash, rejecting legal input), not by its label.
+  program or data (wrong answer, crash, rejecting legal input), not by its label. *(Validated 2026-09-28.)*
 
 The skill also lists measured lessons: a missing documentation row is not a divergence; a missing observation is
 not a negative one; differential oracles are blind to shared bugs; green tests can hold a GAP open; severity is

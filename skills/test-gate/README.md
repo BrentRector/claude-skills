@@ -49,38 +49,41 @@ targeted gate, a batch gets the full suite, and the CI run for the pushed commit
   the bottleneck, and a long run that gets waved off is where a real regression slips through as a "flake".
 - **A landing gate covers the whole affected assembly.** Merging several changes behind `A|B|C|D`, one filter term
   per change, leaves out every test no term names, and that leftover set is where breakage shows up. The
-  unfiltered run costs less than a red CI run plus a re-push.
+  unfiltered run costs less than a red CI run plus a re-push. *(Validated 2026-09-28.)*
 - **Tightenings have a global blast radius.** A new diagnostic or stricter parser can break every "must be
   accepted" sample. The skill's own example: an implementer gated a tightening on its own tests, and the landing
-  gate found 15 compatibility samples it had broken.
+  gate found 15 compatibility cases (5 samples at 3 language versions) it had broken. *(Practice — not yet validated: one use so far.)*
 - **Stale binaries hide regressions.** The symptom is local green commit after commit while CI, building from a
-  clean checkout, has been red since the first one.
+  clean checkout, has been red since the first one. A failed or incremental build can also leave a stale assembly, so confirm the
+  build succeeded and hash the assemblies when in doubt. *(Validated 2026-09-28.)*
 - **A filter that matches nothing is a silent green.** In .NET, `--filter "~Parser|~Lexer"` matches nothing
   (every OR/AND term needs its own property, e.g. `FullyQualifiedName~Parser|FullyQualifiedName~Lexer`) and exits
   0. pytest `-k` that deselects everything exits 5, which CI scripts often swallow. Jest/Vitest `-t` with no
-  match marks everything skipped and exits 0. A wrapper that fails on a zero or missing count closes this hole.
+  match marks everything skipped and exits 0. A wrapper that fails on a zero or missing count closes this hole, and each OR'd term needs its own count: one
+  dead term among live ones still prints a verdict. *(Validated 2026-09-28.)*
 - **Undiscovered tests pass by never running.** A wrong attribute, a missing `test_` prefix or a non-public class
-  prints nothing red.
+  prints nothing red. *(Validated 2026-09-28.)*
 - **The exit code is not the verdict.** `| tail -N` drops the failing test's name, and in
   `test | tail && git push` the exit code is `tail`'s. So nothing is chained after a test or build run: it runs
   alone to a log, the verdict line is read, and the next step is a separate command (`; echo "EXIT=$?"` keeps
-  the status in the same call). The `automating-agent-guardrails` skill ships a guard rule that enforces this.
+  the status in the same call). The `automating-agent-guardrails` skill ships a guard rule that enforces this. *(Validated 2026-09-28; the hook form is not yet proven in production.)*
 - **Don't edit source while a gate runs**, and run rebuilding legs one at a time: legs that compile from the
   working tree pick up half-made edits, and a rebuild in the middle of a `--no-build` leg leaves it with no
-  verdict.
+  verdict. *(Practice — not yet validated: no before/after measure of false reds.)*
 - **A missing observation is not a negative one.** A killed process leaves truncated output that can compare like
   a wrong answer or a correct one. That is "no verdict", reported loudly, never folded into pass or fail. Totals
   that barely move can hide one fix plus two regressions, so differential results are compared per case.
   Re-running something that produced no observation is legitimate; re-running a failed assertion until it passes
-  is not.
+  is not. *(Validated 2026-09-28.)*
 - **A gate that has never failed proves nothing.** Make a new check fail once, for the right reason, and ask what
   its scope leaves out. For long jobs, only positive evidence counts as liveness: a broken monitor and a healthy
-  job both look like silence.
+  job both look like silence. *(Validated 2026-09-28.)*
 - **No "flake" without a name.** A flake verdict needs a clean isolated re-run of that test. A red that predates
-  the batch still blocks the merge; attribute it and file it.
+  the batch still blocks the merge; attribute it and file it. *(Practice — not yet validated: the record shows such reds later stepped around.)*
 - **CI is the final authority.** Local green is evidence about one host, OS and configuration. A failed status
   lookup is its own outcome, never red or green: the skill cites a push script that read a transient TLS timeout
-  as "CI is red" on a green run. A red CI run blocks further work until its fix lands on its own.
+  as "CI is red" on a green run. A red CI run blocks further work until its fix lands on its own. *(CI as final authority: validated 2026-09-28.
+  The failed-lookup rule: practice, not yet validated: its retry path has not been exercised yet.)*
 
 The *Standards* section applies the [`engineering-standards`](../engineering-standards/SKILL.md) bar at the gate:
 fix a red at its root cause (never weaken an assertion, widen a tolerance, add a skip, re-baseline an expected

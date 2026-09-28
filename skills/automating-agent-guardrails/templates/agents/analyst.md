@@ -26,4 +26,5 @@ where your checkpoint lines go.
 - Stop at the turn cap or when the brief's STOP file exists: return what is decided and name what is not.
 
 Why these settings: `high` effort (refuters check the closing verdicts); read-only by hook; a 1-hour prompt cache
-because probes block on builds.
+because probes block on builds. If this role's probes never wait more than 5 minutes, drop it: a role that never
+waits pays the 1-hour write premium for nothing (measured in one campaign's analyst and refuter transcripts).

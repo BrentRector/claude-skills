@@ -84,7 +84,7 @@ Every rule in the skill carries its own *Why*. The main ones:
 
 - **Production quality always, no fallbacks or shims.** Maintenance cost dwarfs the cost of writing it well once,
   and "good enough for now" is never revisited. A fallback is not robustness; it is a second, wrong answer to a
-  question the first path should have answered.
+  question the first path should have answered. *(Validated 2026-09-28.)*
 - **One mechanism per job; one rule in one place.** Two coexisting mechanisms double the surface and are
   guaranteed to drift apart. Duplication is what makes a systematic bug look like a one-off — the skill's example
   is a value mapping copied into three evaluators that works in two and throws in the third.
@@ -93,20 +93,20 @@ Every rule in the skill carries its own *Why*. The main ones:
 - **A stated scope is an estimate, never a ceiling.** Minimizing today's diff maximizes tomorrow's rework. The
   skill prefers the shape that makes the *next* case automatic — its example restructures seven ambient flags
   into one copyable snapshot rather than hand-writing save/restore that every future flag would have to join —
-  and accepts a short, deliberate broken build over a half-migrated codebase with two shapes.
+  and accepts a short, deliberate broken build over a half-migrated codebase with two shapes. *(Validated 2026-09-28.)*
 - **Every bug is a pattern; ask which arm you fixed.** A repro exercises one arm, the existing tests follow the
   same arm, and the other arm survives a green suite. "Swept" without the search query is an assertion, not
-  evidence.
+  evidence. *(Validated 2026-09-28.)*
 - **Tests verify; they do not scope.** A slice shaped by one test fails the next real input. Parsing something
-  and silently doing nothing is worse than an error, because the program runs and produces wrong results.
+  and silently doing nothing is worse than an error, because the program runs and produces wrong results. *(Validated 2026-09-28.)*
 - **A guard that cannot fail is not a guard.** The skill's example: a test that checked a registry against the
   same reflection scan that populated it could never fail. Every new check is made to fail once, for the right
-  reason, before its green is trusted.
+  reason, before its green is trusted. *(Validated 2026-09-28.)*
 - **Surface drift rules from one home.** The skill reports that more than 200 drift tests whose rules lived only
   in the tests were rediscovered one red gate at a time — and that copying the rules into a skill would have
   created a second copy of every rule to drift. Hence the generated index and per-file query instead.
 - **Docs describe the present; honesty is calibrated.** A stale design doc tells the next implementer to build
-  the rejected approach. The closing summary line is where overreach creeps in, and it is the line others act on.
+  the rejected approach. *(Practice — not yet validated: no measured effect.)* The closing summary line is where overreach creeps in, and it is the line others act on.
 
 ## Using it in your project
 

@@ -16,7 +16,7 @@ description: Use immediately after any defect is confirmed - a wrong answer, cra
 **Every bug is a pattern.** Once a defect is confirmed, it is one instance of a mechanism, and the same mistake
 usually lives elsewhere: in a copy-pasted neighbor, at another call site of the same API, in the other arm of the
 same dispatch, or in a second copy of the same rule. The fix is not done until the sweep is done, and the sweep is
-not done until you can show the queries you ran and what each one found.
+not done until you can show the queries you ran and what each one found. *(Validated 2026-09-28.)*
 
 ## When to use
 
@@ -101,7 +101,7 @@ A candidate is not a finding until something runs. For each hit:
    *latent* (unreachable today but unprotected; report at lower severity and say what would make it reachable).
 
 Code with no callers today is not cleared. It is latent, and the sweep is exactly how you find it before a caller
-arrives. Keep every probe as a regression test once it is fixed.
+arrives. Keep every probe as a regression test once it is fixed. *(Validated 2026-09-28.)*
 
 ## Step 6: Report the sweep
 
@@ -125,7 +125,7 @@ Regression guard: <test or analyzer or CI rule derived from the best query>.
 ```
 
 File every confirmed and latent variant in the project's work register, one item each, before it turns into a
-paragraph of prose. Record the queries that failed alongside those that worked.
+paragraph of prose. *(Practice — not yet validated: the lesson held in use, but its original evidence was only partly re-sourced.)* Record the queries that failed alongside those that worked.
 
 ## Examples
 

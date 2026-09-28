@@ -59,18 +59,19 @@ source text, not a derived index, because an index can drop or renumber clauses.
 
 - **Other oracles are not authority.** A differential test is blind to any violation both sides share, especially
   when your implementation was ported from or tuned against the reference. Conformance suites are mostly happy
-  paths. Vendor behavior is a choice the vendor made, often an extension or a known deviation.
+  paths. Vendor behavior is a choice the vendor made, often an extension or a known deviation. *(Validated 2026-09-28.)*
 - **Order of operations is the whole point.** The usual failure is starting from a failing test, reverse-engineering
   what the code does, and calling that "expected". A repro verifies a spec-derived expectation; it never supplies
   one.
 - **Specific rule over general sentence.** A "gap" found in a general sentence usually disappears once you read the
-  rule for that argument, field or state.
+  rule for that argument, field or state, and so does a "decision fork" checked against the text before it is
+  escalated. *(Validated 2026-09-28.)*
 - **Render figures.** Text extraction loses choice bars, optional brackets, required-keyword underlines, column
   alignment and footnote markers, and the damage is usually one-directional: the syntax looks *more restrictive*
-  than it is, so legal input looks illegal.
+  than it is, so legal input looks illegal. *(Validated 2026-09-28.)*
 - **Check every citation mechanically.** The common failure is not inventing a citation but *inheriting* one: the
   quoted text really is in the standard, nobody re-derives the clause number, and it spreads into comments, tests
-  and commit messages as if checked.
+  and commit messages as if checked. *(Validated 2026-09-28.)*
 - **A passing check is not the end.** The skill names three further failure modes, each of which it says has
   shipped real bugs:
   - *A real clause answering a different question*: the quote checks out but the clause does not govern this
@@ -80,11 +81,12 @@ source text, not a derived index, because an index can drop or renumber clauses.
     legal. If the fix's own test case cannot be written, the finding is refuted.
   - *A right answer for a wrong reason*: when a second reviewer agrees with a verdict, check that it agrees with the
     reasoning too.
+  *(Validated 2026-09-28.)*
 - **Latitude uses a documented precedence, decided by survey.** Where the spec leaves room: the spec wherever it
   still speaks (e.g. "shall be documented"), then the reference or dominant implementation, then other major
   vendors. This settles latitude only and never adopts non-standard extensions. Decide by what implementations
   actually do (docs, error catalogs, test suites, running them), not from memory, and record the choice next to the
-  survey so it stays defensible.
+  survey so it stays defensible. *(Validated 2026-09-28.)*
 - **Record defects in the standard.** Quietly coding around a contradiction or erratum invites a future maintainer
   to "fix" the code back to the wrong behavior.
 

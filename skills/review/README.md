@@ -72,7 +72,8 @@ was *not* examined and sends finders there.
 ## Why it works this way
 
 - **Filter, don't generate.** Wrong findings cost more than missed ones, so every candidate must survive an
-  attempt to kill it, and uncertainty resolves to refuted.
+  attempt to kill it, and uncertainty resolves to refuted. Find-then-verify has found real bugs that green tests
+  missed, and has correctly found nothing on other diffs: an empty review is a valid result. *(Practice — not yet validated: this narrowed claim has not been re-validated; an earlier claim that it finds real bugs in every phase was refuted.)*
 - **A concrete scenario per finding.** "This could be cleaner" is a style opinion, not a defect. A scenario with
   inputs, actual result and expected result is what makes a finding checkable — by the skeptic and by the author.
 - **Free checks first.** Judgment is spent only on what tools cannot already catch.
@@ -84,17 +85,18 @@ was *not* examined and sends finders there.
 - **What the skeptic checks goes beyond "is the code wrong".** A finding can cite a real rule and still describe a
   construct that cannot occur (check the premise). A citation can be genuine but answer a different question.
   "Nothing calls this" is a probe to run, not a conclusion. A correct verdict held for the wrong reason is a
-  latent defect.
+  latent defect. *(Validated 2026-09-28.)*
 - **No fixed time limits in tests.** An assertion comparing elapsed time to a ceiling measures the machine, not
   the code; a loaded CI runner turns it red with no regression. The review asks for a property instead: a work
-  count through a test seam, an observed effect, completion, or a growth ratio of two readings in the same run.
+  count through a test seam, an observed effect, or completion. A same-run timing ratio is not a replacement: one
+  went red on unchanged code. *(Practice — not yet validated: the no-ceiling rule has been exercised once so far.)*
 - **Drift rules are checked per file.** When the repo has invariant/drift tests, the rules governing each changed
   file are listed and the diff is checked against each — a change that breaks one is a finding even when its
   test was edited to pass.
 - **Every confirmed bug is a pattern.** The most common shape is two arms of a dispatch with only one ever fixed.
-  Saying which pattern and scope were searched turns a zero result into evidence rather than silence.
+  Saying which pattern and scope were searched turns a zero result into evidence rather than silence. *(Validated 2026-09-28.)*
 - **Findings become tracked work.** If the project names a tracker, the skill offers to file each survivor there
-  rather than leaving it in prose that evaporates.
+  rather than leaving it in prose that evaporates. *(Validated 2026-09-28.)*
 
 ## Using it in your project
 

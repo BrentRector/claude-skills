@@ -23,7 +23,7 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
 - **No hacks, no shims, no fallbacks, no dead code, no TODOs left behind.**
   *Why: each one is a defect that has been hidden instead of fixed, and it misleads the next reader.*
   Example: a "try the exact lookup, and if that fails match by name" fallback is not robustness; it is a second,
-  wrong answer to a question the first path should have answered correctly.
+  wrong answer to a question the first path should have answered correctly. *(Validated 2026-09-28.)*
 - **Latest stable language and runtime; zero backward-compatibility baggage unless a real user needs it.** Use
   the modern idioms (records, pattern matching, spans, primary constructors, or the equivalents in your
   language).
@@ -72,7 +72,7 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
 
 - **A stated scope is an estimate, never a ceiling.** When implementation shows "one small change" actually
   needs restructuring, the restructuring IS the task. Correct the estimate and the design doc; do not ship the
-  smallest diff that fits the original guess.
+  smallest diff that fits the original guess. *(Validated 2026-09-28.)*
 - **Prefer the shape that makes the NEXT case automatic over the one that makes THIS case small**, and pair it
   with a drift test so "automatic" stays true.
   *Example: seven ambient flags each needed save/restore around a new construct. Restructuring them into one
@@ -93,7 +93,8 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
   that hides the output, no special-casing to match an expected answer.
   *Why: a workaround leaves the defect in place to hit the next input, and hides it while it waits.*
 - **Never change valid input to dodge a bug in the tool.** If a valid program, file or query fails, the tool is
-  broken; the failure is the signal pointing at the bug.
+  broken; the failure is the signal pointing at the bug. A written rule reduces this, but has not
+  stopped it. *(Validated 2026-09-28.)*
 - **Never relabel a bug a "quirk" or "known limitation".** Honest diagnosis has always turned out to be a real bug.
 - **When a correction arrives, fix the interpretation, not the output.** Treat "this result is wrong" as evidence
   that the model is wrong, and find the general flaw that makes every observation fall out correctly.
@@ -101,7 +102,7 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
 - **Every bug is a pattern: sweep for its siblings in the same change.** Name the pattern, search the whole
   codebase (code and docs), fix every instance, and add a test that catches a recurrence.
   *Why: every time this was skipped, the siblings existed.* Show the search you ran; "swept" without the query is
-  an assertion, not evidence.
+  an assertion, not evidence. *(Validated 2026-09-28.)*
 - **Two-arm dispatch: ask which arm you fixed, and what the other one is.** Exact vs approximate path,
   validating vs value-producing twin, read vs write half, debug vs release.
   *Why: a repro exercises one arm, the existing tests follow the same arm, and the other arm survives a green
@@ -112,7 +113,8 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
 - **Diagnose from evidence, never from a plausible story.** State what is known, then read the code, dump the
   data, reproduce in isolation. "Probably because..." is not a diagnosis.
 - **A remembered pattern is a hypothesis.** When a known bug shape fits the symptom, find its mechanism in THIS
-  code before acting. If you cannot point at it, the pattern does not apply.
+  code before acting. If you cannot point at it, the pattern does not apply. Likewise re-measure a work item's stated premise on today's code before fixing it: it may
+  have been reasoned rather than measured, or already fixed by another change. *(Validated 2026-09-28.)*
 - **Apply a coordinated set of fixes as one change and test once.** Cherry-picking pieces of an interdependent
   fix, then reverting some of them, creates states worse than either end.
 - **Output must be reproducible.** The same input produces the same output: no process-randomized hashes, no
@@ -123,12 +125,12 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
 
 - **Implement the COMPLETE feature to its spec or design. Tests verify; they do not scope.** Enumerate every rule
   the feature owes and build all of it.
-  *Why: a slice shaped by one test fails the next real input and re-litigates the design.*
+  *Why: a slice shaped by one test fails the next real input and re-litigates the design.* *(Validated 2026-09-28.)*
 - **Deferral is debt, and only the owner may choose it.** "Documented limitation", "follow-up pass", "staged",
   and a loud rejection of valid input are all forms of unfinished work. If the full job is genuinely large,
   surface the size as a decision; do not pre-decide the deferral.
 - **Never ship a half-feature.** Parsing something and silently doing nothing is worse than an error: the program
-  runs and produces wrong results. The feature, its tests and its docs land together.
+  runs and produces wrong results. The feature, its tests and its docs land together. *(Validated 2026-09-28.)*
 - **Handle every legal input shape, not the shapes you happen to use.** A bug found on your own code is a bug a
   user will hit; fence it with a standalone regression test.
 - **Future-proof when the option exists.** Take the hardening path (the extra validator, the gate, the
@@ -152,18 +154,18 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
 - **A guard that cannot fail is not a guard. Make every new check fail once, for the right reason.** Restore the
   defect or point it at an old revision before trusting its green.
   *Example: a test that verified a registry against the same reflection scan that populated it asked "did the
-  scan find what the scan found?" and could never fail.*
+  scan find what the scan found?" and could never fail.* *(Validated 2026-09-28.)*
 - **Ask what a check's scope EXCLUDES, and whether each exclusion's premise is still true.** Couple every
-  exemption to the precondition that justifies it.
-- **Verify the values, not "it ran".** Assert on specific output values, never on exit codes alone.
-- **Compute expected results from the authority** (the spec, the contract), never by copying an oracle's output.
+  exemption to the precondition that justifies it. *(Validated 2026-09-28.)*
+- **Verify the values, not "it ran".** Assert on specific output values, never on exit codes alone. *(Validated 2026-09-28.)*
+- **Compute expected results from the authority** (the spec, the contract), never by copying an oracle's output. *(Validated 2026-09-28.)*
 - **Every measurement carries a witness** (a count, a version, a marker) that proves it did the work, and you
   check the witness before reporting. A stale binary, a swallowed argument or a filter that matched nothing all
   look like a pass.
 - **Reachability is measured, not deduced.** "Nothing calls this" and "not observable" are claims with a probe
   attached. Run the probe and record the result.
 - **Vary the axis your current subject holds fixed.** A probe built while working on X inherits X's premise, so
-  flip that property before believing a green result.
+  flip that property before believing a green result. *(Validated 2026-09-28.)*
 - **Compare against an independent implementation, not a round trip of your own.** A model that loses the same
   information on read and write passes its own round trip perfectly.
 
@@ -172,7 +174,7 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
 - **Keep docs current in the same change set.** Design docs, README, API docs and the project instructions
   describe the code as it is NOW. History (what changed, what was tried) belongs in the commit message and the
   changelog or dev log, never in the design doc.
-  *Why: a stale design doc tells the next implementer to build the rejected approach.*
+  *Why: a stale design doc tells the next implementer to build the rejected approach.* *(Practice — not yet validated: no measured effect, and a live-state document still accumulated history.)*
 - **Implement from the design doc; a design correction updates the doc in the same change.**
 - **Sweep docs on discovery.** When a doc is wrong, fix it and every other doc that repeats the stale fact, now.
 - **Comments carry the WHY.** Document every public type and member; comment non-obvious logic; never narrate
@@ -183,7 +185,7 @@ A change that breaks one of these is not "done with caveats". It is debt, and it
   without the evidence in hand. Say which gates ran, what they covered, and what is still pending.
   *Why: the closing summary line is where overreach creeps in, and it is the line others act on.*
 - **Say it immediately when you were wrong.** Record the misstep, its cause and the fix, clinically. Never
-  minimize, and never present a guess, a recollection or training data as measured fact.
+  minimize, and never present a guess, a recollection or training data as measured fact. *(Practice — not yet validated: no measured effect.)*
 
 ## Using this skill
 

@@ -32,7 +32,7 @@ directory of numbered files named `NNNN-YYYY-MM-DD-slug.md`. The script handles 
 | Rule | Why |
 |---|---|
 | An entry with every change, in the same commit | Written later, an entry loses the reasoning of the moment, and a batch of changes ends up with one vague entry. |
-| The timestamp comes from the clock (`date`, or the script) | Estimated timestamps were caught wrong twice in one day. Readers use the stamps to work out order and duration. |
+| The timestamp comes from the clock (`date`, or the script) | Estimated timestamps were caught wrong twice in one day. Readers use the stamps to work out order and duration. *(Practice — not yet validated: a prose rule alone did not hold.)* |
 | A correction is a new entry; old entries are never rewritten | The log records what was believed and when. A rewritten entry hides the mistake, and every commit or doc citing it now points at different text. |
 | Failures, dead ends and overturned verdicts stay in | "We tried X; it failed because Y" is the entry that saves the most time later, and the one most often left out. |
 | Each entry gives the context, what was tried and why, the result, the lesson, and what's next | Without the why and the rejected alternatives, the next agent tries them again. |
@@ -68,7 +68,7 @@ never silently dropped.
 **Why a separate validation stage:** a log records hypotheses as well as conclusions, and some are later refuted:
 in one project a published explanation of an observed silence was refuted the same day. A learnings file compiled
 straight from the log inherits those errors, and a skill that encodes them spreads them. Consolidation alone
-produces claims, not facts.
+produces claims, not facts. The first validation of those 145 vetted 46, left 90 unproven and refuted 9, and independent refuters overturned 21 of the 67 that a first validator had vetted.
 
 ## What's included
 
@@ -90,7 +90,7 @@ produces claims, not facts.
 3. Merge `templates/settings.json` into `.claude/settings.json`. **Register the hook without an `if` filter.** An
    `if: Bash(git commit*)` filter does not match `git add -A && git commit …`, which is how agents usually commit.
    On a sibling hook, the filter was measured silencing it in most sessions. The script finds `git commit` anywhere
-   in the command and returns at once for every other command.
+   in the command and returns at once for every other command. *(Practice — not yet validated: the filter's effect was measured in a sandbox, not yet in production.)*
 4. Run `python devlog.py --self-test` and `python devlog_guard.py --self-test`, then `python devlog.py check`
    (with `--from N` if the early entries predate the header format).
 
@@ -101,6 +101,7 @@ produces claims, not facts.
 | The working history reached **1,750+ entries in about six months**, one per change, written by agents under this rule and enforced by the hook | the largest project the skill came from |
 | One consolidation run produced **145 CANDIDATE learnings (not yet validated) and 15 open problems in about 30 minutes** | the brief in `consolidate-brief.md` |
 | The contradiction that run surfaced **was real**: a skill documented a setting the tool silently ignores. It was fixed in this repository's 1.10.2 | the root README's "What's new in 1.10.2" |
+| The first validation run over those 145 candidates vetted **46**, left **90** unproven and refuted **9**; independent refuters overturned **21 of the 67** that a first validator had vetted | [`LEARNINGS.md`](../../LEARNINGS.md) |
 | Estimated timestamps were caught wrong **twice in one day**; a hand-written splice put an entry **inside the ordering note**; a text-mode write turned a 50-line entry into a **36,000-line diff** | the traps `devlog.py new` closes |
 
 In this repository's eval (3 runs per arm), Claude without the skill usually registered the hook with an `if`

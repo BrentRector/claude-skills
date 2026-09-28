@@ -46,10 +46,10 @@ them from the clone. Every script runs as `python <script>` and has a `--selftes
 |---|---|
 | exits 2 with a stderr message naming the rule and an `Instead:` command | A bare "no" invites the agent to rephrase the command; a named alternative gets followed. |
 | covers every shell tool (Bash and PowerShell) | A rule on Bash alone is bypassed by the first PowerShell call. |
-| **fails OPEN**: unparseable input, a missing or corrupt rules file, a git error or a crash all exit 0 (with a stderr note) | A guard that fails closed turns one bad field, a missing interpreter or a harness format change into a block on every shell call in every session and subagent. These rules are workflow conventions with real backstops (branch protection, CI). A security boundary belongs in permissions, a sandbox or the server. |
-| writes stderr as UTF-8 | Windows otherwise writes the console code page, and the agent reads mojibake. |
-| is **scoped to this repository**: a `repo` rule fires only when the command's working tree has the same git common dir as `$CLAUDE_PROJECT_DIR`, following `cwd`, `cd`/`Set-Location` and `git -C` | The same session also works in other repos, and each has its own rules. A push rule keyed on the branch name alone blocks `git push origin main` everywhere. |
-| has a self-test in CI proving each rule fires on `block`, passes `allow`, and passes when the same command runs in an **unrelated** repo | A guard is only trusted once its failure branch has fired. Two checkouts of one repo don't test scope, because they share it. |
+| **fails OPEN**: unparseable input, a missing or corrupt rules file, a git error or a crash all exit 0 (with a stderr note) | A guard that fails closed turns one bad field, a missing interpreter or a harness format change into a block on every shell call in every session and subagent. These rules are workflow conventions with real backstops (branch protection, CI). A security boundary belongs in permissions, a sandbox or the server. *(Practice — not yet validated: no production measure of fail-open silent passes against fail-closed blocks.)* |
+| writes stderr as UTF-8 | Windows otherwise writes the console code page, and the agent reads mojibake. *(Practice — not yet validated: one incident so far.)* |
+| is **scoped to this repository**: a `repo` rule fires only when the command's working tree has the same git common dir as `$CLAUDE_PROJECT_DIR`, following `cwd`, `cd`/`Set-Location` and `git -C` | The same session also works in other repos, and each has its own rules. A push rule keyed on the branch name alone blocks `git push origin main` everywhere. *(Practice — not yet validated: not yet exercised across a rename or a second checkout in production.)* |
+| has a self-test in CI proving each rule fires on `block`, passes `allow`, and passes when the same command runs in an **unrelated** repo | A guard is only trusted once its failure branch has fired. Two checkouts of one repo don't test scope, because they share it. *(Validated 2026-09-28.)* |
 
 Don't use `permissions.deny` for these rules. Deny rules match a prefix, can't see which repository a command runs
 in, and can't tell the agent what to do instead.
@@ -63,25 +63,27 @@ in, and can't tell the agent what to do instead.
    read-only mechanical role, lookups end up on the top-tier analyst by default.
 2. **Every role that waits on gates, builds or CI** sets `experimental:` / `cacheTtl: 1h`. With the default 5-minute
    TTL, each wait longer than 5 minutes ends with the whole context written to the cache again. The 1-hour TTL
-   turns those rewrites into cache reads. Roles that never wait keep the default.
+   turns those rewrites into cache reads. Roles that never wait keep the default. Measured over 208 agents: every
+   wait over 5 minutes was followed by a cache read instead of a rewrite, an estimated net saving of about 44 M
+   base-token units at API cache prices, while roles that never waited paid the 1-hour write premium for nothing. *(Validated 2026-09-28.)*
 3. **Read-only roles carry `readonly_guard.py` in their OWN frontmatter `hooks:`**, with matcher
    `Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell`. Don't put it in project settings keyed on the hook input's
    `agent_type`: when that field is missing, such a hook can't tell the role from the main session, and it allows
    the write. The guard blocks file-tool writes, repo-changing git and shell writes (`>`, `>>`, `tee`, `Out-File`,
    `Set-Content`) inside any git tree, resolves Git Bash paths (`/e/repo`), and lets scratch writes through. It
-   cannot see a write made inside a script; say so in your report.
+   cannot see a write made inside a script; say so in your report. *(Practice — not yet validated: no recorded production block yet.)*
 4. Select roles by name: `agentType: '<role>'` in workflow scripts, and `subagent_type: "<role>"` with the Agent
    tool. Never set model or effort per call: a per-call `model` OVERRIDES the role's frontmatter. One campaign's
    "pass the top model on every agent" rule silently ran its cheaper chore role on the top tier. If you keep a
-   brief or workflow checker, make it fail a mechanical role's call that carries a `model`.
+   brief or workflow checker, make it fail a mechanical role's call that carries a `model`. *(Practice — not yet validated: the cost of the override was never measured.)*
 5. **Restart, then prove each role.** The agent registry loads at session start, so a new or edited definition
    does nothing until a restart. Then send one short smoke agent per role. Each one reports its model and effort.
    Each read-only role tries a Write inside the repo, which must be BLOCKED, and a Write in scratch, which must
    pass. Record the proof with `python .claude/hooks/readiness_check.py --stamp roles-smoke`. The readiness check
-   prints a TODO line until the proof matches the current files.
+   prints a TODO line until the proof matches the current files. *(Practice — not yet validated: not yet a standing practice with a recorded catch.)*
 6. **Roll back on quality.** After lowering a role's model or effort, watch its quality metric: the refuters'
    overturn rate on its output, rework, or red CI. If the metric drops, move the role back up. Telemetry (§4)
-   supplies the cost side.
+   supplies the cost side. *(Practice — not yet validated: no before/after overturn rate per role yet.)*
 
 ## 3. The session-start readiness check
 
@@ -98,7 +100,7 @@ in, and can't tell the agent what to do instead.
    changes user settings, or is owner-only or billed is an ASK-OWNER line.
 4. **Put the asking rule in `CLAUDE.md`**: paste `templates/CLAUDE-guardrails.md`. Every ASK-OWNER line becomes
    one AskUserQuestion at session start, before other work, and none is skipped silently. Hook output alone is not
-   enough, because a rule that exists only there disappears when the hook fails.
+   enough, because a rule that exists only there disappears when the hook fails. *(Practice — not yet validated: no recorded silent skip or measured effect.)*
 5. **It fails open at every level**, including config loading. Any failure becomes an ASK-OWNER line saying "run it
    by hand", never a traceback or a non-zero exit.
 6. **It detects the environment.** With `CLAUDE_CODE_REMOTE=true` (cloud) or `CI` set, machine-local capabilities
@@ -120,7 +122,7 @@ in, and can't tell the agent what to do instead.
    variables in a project's `.claude/settings.json` and `.claude/settings.local.json`; a project may only turn
    telemetry off. Measured: with the switch in `settings.local.json`, nothing was exported while a check reading that
    same file reported "OK". The readiness check now flags a project file that sets the switch as dead
-   configuration.*
+   configuration.* *(Practice — not yet validated: one instance so far.)*
 2. `otlp_sink.py` is the loopback receiver. It is standard-library only and refuses protobuf with a 415. The
    readiness check starts it when it is down and reports REPAIRED.
 3. `python .claude/hooks/usage_report.py [--by agent,skill,model] [--all]` reports tokens and cost per group. On
@@ -140,7 +142,7 @@ tool before grep, and use grep for text.
   beats the no-plugin baseline (this repo's `evals/README.md` explains the rule and how to read Δ). Run it before
   the push, and because it is billed, ask at that trigger.
 - **Landings:** run a review step on the merged diff before the landing push (the lander template's step; the
-  `review` skill or `/code-review`). A finding blocks the push.
+  `review` skill or `/code-review`). A finding blocks the push. *(Practice — not yet validated: six or more reviewed batches have produced no confirmed finding yet.)*
 
 ## Common mistakes (each made by a baseline agent without this skill)
 

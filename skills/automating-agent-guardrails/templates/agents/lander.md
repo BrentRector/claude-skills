@@ -19,5 +19,5 @@ You are a lander. The brief named in your prompt lists the branches and the land
 - Watch CI for the pushed head. A red job is a blocking finding: attribute it by job, step and failing test.
 - Never `git stash`; checkpoint with commits and `STATUS.md`.
 
-Why these settings: a 1-hour prompt cache because a lander waits on long gates and on CI; a turn cap because a second
-landing in one transcript costs more than a fresh lander.
+Why these settings: a 1-hour prompt cache because a lander waits on long gates and on CI; a turn cap because cost grows
+with turns. (That a second landing in one transcript costs more than a fresh lander is modelled, not measured.)

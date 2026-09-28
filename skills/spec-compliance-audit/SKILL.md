@@ -51,17 +51,17 @@ hand-maintained catalog loses rules that are written as plain prose. Where a tab
 render the page (see `spec-oracle` §2): extracted figures skew toward falsely restrictive syntax.
 
 For a very large standard, audit a named scope and say which clauses were NOT covered. Never imply that a
-partial audit covered the whole standard.
+partial audit covered the whole standard. *(Validated 2026-09-28.)*
 
 ## 2. The traceability inventory: the progress metric
 
 The inventory joins each catalog row to its verdict, its evidence and any work item it points to. It is
 **derived**: a generator builds it from the catalog plus the recorded verdicts. **GAP** is the number of rows
 without a closed verdict backed by evidence. GAP is the only honest progress number. "Tests passing" and
-"features implemented" both count what you looked at, and GAP counts what you have not proven.
+"features implemented" both count what you looked at, and GAP counts what you have not proven. *(Validated 2026-09-28.)*
 
 Keep one inventory. Do not start side lists, "remaining work" sections or per-campaign trackers. Every open item
-belongs in the tracked-work system (§7), linked from its inventory rows.
+belongs in the tracked-work system (§7), linked from its inventory rows. *(Validated 2026-09-28.)*
 
 ## 3. One agent per rule, with a self-contained input
 
@@ -69,11 +69,12 @@ Group rows by subject (a clause, or one construct's rule family). Give each agen
 the rule rows verbatim with their ids, the definitions they cite, the code entry points already known, the
 verdict vocabulary, the return schema, and the bar (see below). The agent should not rediscover any of that. In
 measured campaigns, searching and re-reading took nearly half of an agent's tokens, so the input carries what is
-already known. Use the `agent-fleet` skill for checkpointing, budgets and restart-safety.
+already known. *(An input per agent: validated 2026-09-28. The cost figure: practice, not yet validated: no
+like-for-like cost per rule before and after.)* Use the `agent-fleet` skill for checkpointing, budgets and restart-safety.
 
 **State the bar, not only the format.** Tell the agent what makes a well-formed answer worthless: a verdict
 without the lines read, an absence without the searches run, or an expected value copied from another
-implementation's output.
+implementation's output. *(Validated 2026-09-28.)*
 
 **Bind the return to a schema**, one record per rule: `rule_id`, `verdict`, `citation` (clause plus verbatim
 quote, run through the checker), `derived_expectation`, `enforcement` (file:line ranges read), `paths_walked`
@@ -139,7 +140,7 @@ The agent that produced a verdict is biased toward it. Send every verdict that w
 least one independent agent that did not produce it. Its instruction is to refute: re-read the rule, look for a
 more specific rule that overrides it, walk the paths again, and check that the witness actually exercises the
 governed branch. Drop or downgrade whatever it knocks down. If the refuter itself fails, the verdict is
-**unverified**, not confirmed. Record it that way.
+**unverified**, not confirmed. Record it that way. *(Validated 2026-09-28.)*
 
 When the refuter agrees, check that it agrees with the REASONING, not just the label. A right verdict reached for
 a wrong reason gets its reasoning corrected in the record.
@@ -152,12 +153,13 @@ grammar or format makes impossible. If you cannot write the witness's input lega
 Do not file one ticket per rule. Group the open rows by **root cause**: the same dispatch, the same table, the
 same rule written down in two places. File one work item per mechanism, listing every inventory row it claims.
 When the fix lands, the item records which rows it CLOSED (or why it closed none), and GAP moves in the same
-change. A finding that exists only in an audit report or a log paragraph is invisible to every work list and
-will rot there.
+change. *(Validated 2026-09-28.)* A finding that exists only in an audit report or a log paragraph is invisible to every work list and
+will rot there. *(Practice — not yet validated: the lesson held in use, but its original evidence was only partly re-sourced.)*
 
 Rank the work by what the defect DOES to a user's program or data: a wrong answer, a crash, or rejecting legal
-input. Do not rank by the label a finding happened to get. Fix one mechanism per implementer, and sweep its
-siblings (paired functions, other arms of the same dispatch) before calling the cluster done.
+input. Do not rank by the label a finding happened to get. *(Validated 2026-09-28.)* Give each implementer one mechanism, or a
+group of related ones that share files (see `agent-fleet`), and sweep its siblings (paired functions, other arms
+of the same dispatch) before calling the cluster done. *(Practice — not yet validated: an earlier cost argument for strictly one mechanism per implementer was modelled and has been withdrawn.)*
 
 ## Measured lessons
 

@@ -21,18 +21,19 @@ then calling that "expected". If you catch yourself doing that, stop and restart
 - **A differential test is blind to any violation both sides share.** If your implementation was ported from,
   or tuned against, the reference, the bug and the oracle came from the same place.
 - **Conformance suites are mostly happy paths.** A green suite says nothing about the rules it never runs.
-- **Vendor behavior is a choice the vendor made,** often an extension or a known deviation.
+- **Vendor behavior is a choice the vendor made,** often an extension or a known deviation. *(Validated 2026-09-28.)*
 
 Every difference from the expected output counts as a bug until a citation says otherwise. "Close enough" and
 "implementation variation" are not answers. If something is a common extension and not standard behavior,
-call it that. Never claim conformance without a citation.
+call it that. Never claim conformance without a citation. *(Practice — not yet validated: shown on one program, on one day.)*
 
 ## 1. Find the governing rule
 
 Locate the standard's text. Keep it in the repo as Markdown or plain text if you can, so it can be searched and
 checked mechanically (see step 3). Then find the **specific** rule for the exact construct, not the nearest
 general sentence. A "gap" found in a general sentence usually disappears once you read the rule for that
-argument, field or state.
+argument, field or state. A "decision fork" about to be escalated often dissolves the same way: check it against
+the text first. *(Validated 2026-09-28.)*
 
 Look in all the places the answer can live: the syntax or grammar, the semantic rules for that construct, the
 shared definitions and concepts sections, conformance and requirement-level text (MUST/SHALL, see RFC 2119),
@@ -43,7 +44,7 @@ errata, and any annex listing implementation-defined behavior or differences bet
 Rule prose usually survives text extraction. **Diagrams, syntax railroads, bit-layout figures and tables often
 do not.** Choice bars, optional brackets, underlines that mark required keywords, column alignment and footnote
 markers all get lost. The damage is usually one-directional: text extraction makes the syntax look **more
-restrictive** than it is, so legal input looks illegal.
+restrictive** than it is, so legal input looks illegal. *(Validated 2026-09-28.)*
 
 - If the figure decides the answer, **render the actual page** (PDF to image) and look at it. Don't work out a
   diagram's meaning from the prose around it, and don't trust extracted text of a figure over the rendered page.
@@ -61,7 +62,7 @@ Before touching code, write down three things:
 
 Then **check the citation mechanically.** Confirm that the quoted text occurs inside that clause's own section,
 not merely somewhere in the document. See `references/citation-checker.md` for a small tool that does this and
-also reports which section really holds a quote. **A citation you haven't checked isn't a citation.**
+also reports which section really holds a quote. **A citation you haven't checked isn't a citation.** *(Validated 2026-09-28.)*
 
 Test expected values are **computed from this rule**. Never copy them from another implementation's output.
 
@@ -76,7 +77,9 @@ regression. It never proves correctness.
 **Inheriting an unchecked citation.** The usual failure is not making up a citation. It is inheriting one. A
 ticket, design doc or code comment carries "§7.3.2 rule 4", the quoted text really is in the standard, and
 nobody re-derives the clause NUMBER. It then spreads into comments, tests and commit messages as if someone had
-checked it. Re-check every citation you pass on, including ones you wrote yourself last week.
+checked it. Re-check every citation you pass on, including ones you wrote yourself last week. *(The inherited-citation failure:
+validated 2026-09-28. Re-checking your own is practice, not yet validated: the catches so far came from a CI
+audit, not from re-checking.)*
 
 **A real clause answering a different question.** A mechanical check proves the quote is in that clause. It
 cannot prove the clause **governs your question**. This shows up most in comments that justify NOT doing
@@ -88,16 +91,16 @@ ask:
   that *selects* one. A rule about non-local elements does not govern local ones.
 - **Is there a MORE SPECIFIC rule** for this exact construct that overrides the general one?
 - Freedom over the *form* of something is never freedom over whether it *exists*. Be suspicious when a design
-  doc says "permanently" or "never needed".
+  doc says "permanently" or "never needed". *(Validated 2026-09-28.)*
 
 **A valid rule with an impossible premise.** A finding can quote a real rule correctly and still ask for
 something that can't happen. Before building the fix, write the test input and ask whether it is even legal
 under the grammar or format. If the fix's own test case can't be written, the finding is refuted, not hard.
 Refuting it is a real result: record the evidence and remove the unreachable code. When a finding explains an
-*asymmetry* between two paths, first check whether that asymmetry is simply what a syntax difference implies.
+*asymmetry* between two paths, first check whether that asymmetry is simply what a syntax difference implies. *(Validated 2026-09-28.)*
 
 **A right answer for a wrong reason.** When a second review agrees with a verdict, check that it agrees with the
-*reasoning* too. Record the corrected reasoning along with the corrected verdict.
+*reasoning* too. Record the corrected reasoning along with the corrected verdict. *(Validated 2026-09-28.)*
 
 ## Where the spec leaves latitude
 
@@ -118,7 +121,7 @@ catalogs, their test suites, or run them. Don't reason from first principles or 
 memory is a guess, and you should label it as one. Surveys often overturn the "obvious" choice: what looked like
 an open question can turn out to have one answer every implementation agrees on. When the survey is unanimous,
 say so and recommend that answer rather than presenting a balanced menu. Respect licenses: observe behavior and
-read documentation, don't copy source.
+read documentation, don't copy source. *(Validated 2026-09-28.)*
 
 **Record the choice** in a conformance or implementation-defined-behavior document, next to the survey that
 justifies it. A survey is expensive to redo, and the record is what makes the choice defensible later.

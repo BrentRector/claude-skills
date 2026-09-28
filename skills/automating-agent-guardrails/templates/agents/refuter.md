@@ -25,4 +25,5 @@ given is wrong. The brief named in your prompt lists the claims and where your c
 - Stop at the turn cap or when the brief's STOP file exists: return what is decided and name what is not.
 
 Why these settings: the refuter is the quality gate, so it keeps the highest effort; read-only is a hook in this
-file, so it holds however the role is dispatched; a 1-hour prompt cache because probes block on builds.
+file, so it holds however the role is dispatched; a 1-hour prompt cache because probes block on builds. If this role's probes never wait more than 5 minutes, drop it: a
+role that never waits pays the 1-hour write premium for nothing (measured in one campaign's refuter transcripts).

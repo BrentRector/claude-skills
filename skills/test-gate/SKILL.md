@@ -27,12 +27,12 @@ the targeted gate. A batch gets the full suite. The CI run for the pushed commit
 - **A landing gate covers the whole affected assembly, not a hand-picked union of filters.** Merging several
   changes behind `A|B|C|D`, one term per change, leaves out every test that no term names. That leftover set is
   where the breakage shows up, and adding one more term after each failure never covers it. The unfiltered run
-  costs less than a red CI run plus a re-push.
+  costs less than a red CI run plus a re-push. *(Validated 2026-09-28.)*
 - **A change that REJECTS input the tool used to accept runs the whole accepted-input corpus.** A new diagnostic, a
   tightened validation or a stricter parser is a targeted change with a global blast radius: every "this must be
   accepted" sample, fixture and compatibility matrix is now a candidate red. Add that corpus to the change's own gate,
   not only the landing gate. *Why: an implementer gated a tightening on its own tests; the landing gate found 15
-  compatibility samples it had broken.*
+  compatibility cases (5 samples at 3 language versions) it had broken.* *(Practice — not yet validated: one use so far.)*
 - **The comprehensive gate will turn up tests that the targeted filters never loaded,** including tests that
   still encode behaviour someone deliberately changed. Fix the test so it asserts the new behaviour. Don't
   exclude it.
@@ -49,6 +49,9 @@ A no-build test run tests whatever binary was copied into the test output at the
 
 The symptom: local stays green commit after commit while CI, which checks out clean and builds everything, has
 been red since the first one.
+
+Then confirm the build itself **succeeded**: a failed or incremental build can still leave a stale assembly
+behind, so when in doubt, hash the assemblies the tests load. *(Validated 2026-09-28.)*
 
 ## A filter that matches nothing is a silent green
 
@@ -67,7 +70,8 @@ The most common false green is a selector that selects nothing and still exits 0
 
 **Fix:** read the **count**, not just the pass/fail word. `Total: 0` or "0 passed, 312 skipped" means the gate
 did not run. Better still, wrap the gate in a script that normalises the filter and **fails on a zero or missing
-count**.
+count**. With several OR'd terms, check each term's own count: one dead term among live ones still prints
+a clean verdict. *(Validated 2026-09-28.)*
 
 ## Confirm the new tests actually ran, by name
 
@@ -75,7 +79,7 @@ A test that was written but never discovered (wrong attribute, missing `test_` p
 a data-driven source that yields no cases, a class that isn't public) passes by never running. It is a red
 failure even though nothing printed red. After adding tests, search the run's output for **their names** or list
 them (`dotnet test --list-tests`, `pytest --collect-only -q`, `jest --listTests`) and check that the count went up
-by the number you added.
+by the number you added. *(Validated 2026-09-28.)*
 
 ## Read the verdict line, not the exit code
 
@@ -87,10 +91,10 @@ by the number you added.
    verdict, then take the next step in a separate command. To keep the status in the same call, append
    `; echo "EXIT=$?"` (read-only commands on the log may follow that). This is cheap to enforce with a guard hook
    (`automating-agent-guardrails`, rule `no-chain-after-verdict`); a prose rule alone was broken after it was
-   written.
+   written. *(Validated 2026-09-28; the hook form is not yet proven in production.)*
 3. **Never edit source while a gate is running.** Legs that compile from the working tree will pick up
    half-made edits and report failures that aren't real. Staging first doesn't protect you. Work on docs or the
-   commit message while it runs.
+   commit message while it runs. *(Practice — not yet validated: no before/after measure of false reds.)*
 4. **Run long legs one at a time** when one of them rebuilds. A rebuild in the middle of another leg's
    `--no-build` run leaves that leg with no verdict at all.
 5. **Know which kind of failure you're looking at before you diagnose it.** A stack trace, a compile error, a
@@ -101,15 +105,15 @@ by the number you added.
 A verdict needs the evidence it claims to have. "Passed" means the thing ran to completion and was checked. A
 killed process leaves truncated output, and truncated output can compare exactly like a wrong answer, or like a
 correct one. A non-zero exit with no reason attached is a **lost result**, not a failure you can reason about.
-Anything like that is **no verdict**, and should be reported loudly as such, never folded into pass or fail.
+Anything like that is **no verdict**, and should be reported loudly as such, never folded into pass or fail. *(Validated 2026-09-28.)*
 
 - **Check the population, not only the failure count.** Pass, fail and no-verdict should add up to the declared
   set. A harness that only counts failures will report "all green" when a case disappears.
 - **Compare against a committed baseline or manifest,** never a number someone remembers.
 - **Compare differential or snapshot results case by case, never by totals.** Totals that barely move can hide
-  one fix plus two regressions.
+  one fix plus two regressions. *(Validated 2026-09-28.)*
 - **A filter, ranker or selector tells you about what it returned and nothing about what it dropped.** Before
-  you trust one, look at its complement.
+  you trust one, look at its complement. *(Validated 2026-09-28.)*
 - Re-running something that produced no observation is legitimate. Re-running a failed assertion until it
   passes is not.
 
@@ -121,7 +125,7 @@ not because some unrelated problem had already turned it red. Then ask **what it
 the reasoning behind each exclusion still holds. A guard can be green, correct, and aimed at the wrong
 population. For long jobs, only positive evidence (the process exists, the log shows the expected phase line,
 artifacts are growing) counts as proof that the job is alive. A broken monitor and a healthy job both look like
-silence.
+silence. *(Validated 2026-09-28.)*
 
 ## Flakes and attribution
 
@@ -130,14 +134,14 @@ silence.
   **that** test. The fact that other suites passed is not evidence.
 - **Attribute every red before calling it yours, and before calling it someone else's.** Check it against the
   commit the batch started from (`git stash` / a worktree at the base, `git log -S "<symbol or message>"`). A
-  red that was already there before your batch **still blocks the merge**. Attribute it honestly and file it.
+  red that was already there before your batch **still blocks the merge**. *(Practice — not yet validated: the record shows such reds later stepped around, so it is not yet shown to hold.)* Attribute it honestly and file it.
   Don't step around it.
 
 ## After the push: CI is the final authority
 
 Local green is evidence about one host, one OS and one build configuration. CI runs a clean checkout, often
 other operating systems and a Release build. Tests that depend on file locks, ACLs, path separators, locale or
-timing can pass locally and fail there.
+timing can pass locally and fail there. *(Validated 2026-09-28.)*
 
 - Read the run for **the exact commit you pushed**:
   `gh run list --commit <sha> --json databaseId,status,conclusion` → `gh run watch <id> --exit-status`, and
@@ -145,7 +149,7 @@ timing can pass locally and fail there.
 - Until that run has finished green, report "local gates green; CI pending", never "all green".
 - A status lookup that FAILS (an API timeout, an empty or unknown conclusion) is **no verdict**: retry it, and report
   it as its own outcome - never as red, never as green. *Why: a push script read a transient TLS timeout as an empty
-  conclusion and reported "CI is red" on a green run.*
+  conclusion and reported "CI is red" on a green run.* *(Practice — not yet validated: the retry path has not been exercised yet.)*
 - A red CI run blocks further work. Attribute it by job, step and test, and land the fix on its own before the
   next change.
 - If behaviour can differ between Debug and Release, run a local Release leg before pushing. Better still,
@@ -161,7 +165,7 @@ The bar is the **engineering-standards** skill. At the gate it means:
   covers only the reproduced case leaves the siblings (and the other arm of the dispatch) unguarded.
 - A green test that pins wrong behavior is a defect, not a decision. Check rejections and "fails loud" tests
   against the authority.
-- Expected values come from the authority, not from copying the current output.
+- Expected values come from the authority, not from copying the current output. *(Validated 2026-09-28.)*
 - Every new guard or drift test is seen to fail once, for the right reason, before its green counts.
 
 ## Project hooks

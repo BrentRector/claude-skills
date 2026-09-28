@@ -64,7 +64,7 @@ and semantic levels:
   is a rule written in more than one place. Patching N copies leaves N places to drift again.
 - **A candidate is not a finding until something runs.** Arguing against each hit and then probing it separates
   real variants from look-alikes. Expected values come from the contract or spec, not from current output.
-  Code with no callers is *latent*, not cleared: the sweep is how you find it before a caller arrives.
+  Code with no callers is *latent*, not cleared: the sweep is how you find it before a caller arrives. *(Validated 2026-09-28.)*
 - **A zero result must be calibrated.** "No variants" means something only if the query could have found one, so
   the report records that each query hit the original instance before the fix, and records failed queries too.
 

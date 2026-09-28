@@ -69,7 +69,7 @@ work (§1).
 The hook points at a shim that runs the repo's own hook only when `CLAUDE_PROJECT_DIR` is NOT the repo, so the
 single-repo case doesn't run it twice. The settings file is part of the snapshot, so the hook fires in every session.
 Measured: `hook_spawn_completed … "SessionStart" … exit_code 0`, the submodule got checked out, and the unit
-suite went green.
+suite went green. *(Practice — not yet validated: one session so far; not yet exercised again.)*
 *Docs contradiction:* the docs say user-level `~/.claude/settings.json` hooks should not be expected in the cloud
 and that Anthropic-hosted sessions run hooks "from the repository and from your organization's server-managed
 settings". That statement is about YOUR laptop's user settings. A user settings file written ON the VM by the
@@ -112,7 +112,7 @@ setup script was loaded (measured 2026-09-24).
 - *Docs:* the docs describe no separate credit at all. They say cloud sessions "share rate limits with all other
   Claude and Claude Code usage" and "there is no separate compute charge for the cloud VM". When a credit exists,
   **which surface you launch from decides what you spend.** Confirm with a one-line test session and the meter
-  before starting a fleet.
+  before starting a fleet. *(Practice — not yet validated: measured once; re-measure.)*
 
 ## 6. Monitoring a session without disturbing it
 
@@ -143,7 +143,7 @@ reopened (docs). Design so a kill costs at most one step:
   over the meter). At a threshold well before empty, send each live session a STOP message
   ("push what exists now and stop; start nothing new") — the verified channel is the session's web page (a browser
   automation step works); leave margin for the push itself, and click the session's Stop button as the last
-  resort. Test the watcher's STOP branch once before relying on it.
+  resort. Test the watcher's STOP branch once before relying on it. *(Practice — not yet validated: not yet exercised in a later cloud session.)*
 
 ## 8. Measure cost per unit, then plan with it
 

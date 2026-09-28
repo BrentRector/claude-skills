@@ -85,9 +85,10 @@ name the deterministic replacement:
 
 - a **work count** the code already bounds (cache misses, iterations, allocations) read through a test seam;
 - an **observed effect** in place of a real sleep or timeout (inject the clock or sleeper; assert what was requested);
-- **completion**, when "it finishes" is the whole property;
-- a **growth ratio** of two readings taken in the same run (size n vs 10n, best of several) when the property really
-  is complexity - load that slows both readings alike cannot move a ratio.
+- **completion**, when "it finishes" is the whole property.
+
+When the property really is complexity, count the work at two sizes. A timing ratio of two readings taken in the same
+run is not a replacement: one went red on unchanged code. *(Practice — not yet validated: the no-ceiling rule has been exercised once so far.)*
 
 Other nondeterminism in the same class: wall-clock dates, unseeded randomness, test-order dependence, and shared
 fixed paths (temp folders, ports) that parallel runs collide on. Severity: **Warning** for a new one; **Critical**

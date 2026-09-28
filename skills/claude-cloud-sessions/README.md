@@ -70,12 +70,12 @@ A trailing comment shows the repo side: in your SessionStart hook, do per-clone 
 | Verify the pasted script by hash (field + `"\n"`) | The platform runs only the pasted text, and trims the final newline on save. |
 | Install your own interpreter and symlink both names | Measured: the image's `/usr/local/bin/python{,3}` pointed at 3.11, ahead of `/usr/bin` on PATH, and broke scripts using newer syntax. |
 | Select the environment explicitly | Measured: the `Agent` tool's `isolation: "remote"` has no environment parameter and lands in Default, bypassing the one you built. |
-| User-level hook shim | Measured: with 2+ repos the session starts in `/home/user`, logs `Found 0 total hooks in registry`, and submodules stay uninitialized (two unit tests went red unnoticed). The shim restored the hook. It skips itself in the single-repo case so the hook doesn't run twice. |
+| User-level hook shim | Measured: with 2+ repos the session starts in `/home/user`, logs `Found 0 total hooks in registry`, and submodules stay uninitialized (two unit tests went red unnoticed). The shim restored the hook. It skips itself in the single-repo case so the hook doesn't run twice. *(Practice — not yet validated: one session so far.)* |
 | Attach every repo the work needs | The GitHub proxy authorizes only attached repos; a private submodule elsewhere fails with a credentials prompt error. |
-| Choose the launch surface deliberately | Measured: routine-launched sessions billed the plan's usage meters, while web-page and interactive `claude --cloud` sessions drew a promotional cloud-session credit. The docs describe no separate credit. Confirm with a one-line test and the meter. |
+| Choose the launch surface deliberately | Measured: routine-launched sessions billed the plan's usage meters, while web-page and interactive `claude --cloud` sessions drew a promotional cloud-session credit. The docs describe no separate credit. Confirm with a one-line test and the meter. *(Practice — not yet validated: measured once; re-measure.)* |
 | Unique tag at the start of every prompt | Sidebar titles come from the prompt's opening words; routine run titles come from the routine name. |
 | Don't open "See detailed breakdown" from a working session | Measured: it posts `/usage` into the session you are viewing. |
-| Checkpoint per unit, push every N, draft before refute | A session can end abruptly, and background subagents are not restored when it is reopened. The refute phase is the longest stretch with nothing durable written. |
+| Checkpoint per unit, push every N, draft before refute | A session can end abruptly, and background subagents are not restored when it is reopened. The refute phase is the longest stretch with nothing durable written. *(Practice — not yet validated: not yet exercised in a later cloud session.)* |
 | A budget watcher, tested once | The stop signal must arrive with enough margin for the final push. Non-interactive `claude -p … --cloud` was measured failing, so the verified channel is the session's web page. |
 
 The skill's *Standards* section adds that the cloud changes where work runs, never how good it must be: cloud

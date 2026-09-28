@@ -130,6 +130,25 @@ Every rule in the skill carries its own *Why*. The main ones:
   `fix_clusters.py` picks what each implementer gets: one cluster of co-located defects per slot, the
   highest-harm cluster first. `orient.py` is the first line of each implementer's brief. Its LEARNED section is
   only as good as your closed notes, so have every fix record its code site and mechanism in the note.
+- **Configure once, not at every call site.** Put your settings in a `.agent-fleet.json` at the repository root
+  and every brief can say just `python <path>/orient.py <files>`. The three scripts find it by walking up from the
+  current directory; explicit flags override it, and a key no script accepts is an error. The keys are the long
+  flag names with underscores; path keys are relative to the file:
+  ```json
+  {
+    "notes": "docs/issues", "notes_glob": "*.md", "tests": "tests", "test_ext": ".cs",
+    "cite": "(?P<key>RFC\\s?\\d+)(?:\\s+section\\s+\\d+)?", "closed_status": "done,fixed", "min_name": 7,
+    "src": ["src/App.*"], "ext": ".cs,.g4", "exclude_dir": ["Generated"],
+    "harm": "wrong_answer=8,crashes=4", "kind": "defect", "skip_flag": ["blocked"],
+    "base": "origin/main", "exclude": [".local-settings.json"]
+  }
+  ```
+  A named group `key` in `cite` counts references per key and lists each key's refinements
+  (`RFC9110×12 (section 8×5, …)`); without one, each distinct match counts separately.
+  [`fleet_config.py`](references/fleet_config.py) documents every key.
+- **Consume the plugin rather than copying it.** A repository can pin this repository as a git submodule, enable
+  the plugin from the submodule in its project settings, and call the scripts at their submodule paths, so
+  improvements arrive by moving the pin and the project keeps only its configuration and its overlays.
 - **Prerequisites.** Git with worktree support (implementers and pinned analysis probes each use a worktree),
   a subagent or workflow tool, and a shell that can run `timeout`, `tail` and `grep` for the blocking-gate pattern.
 - **Composes with:**
@@ -152,4 +171,5 @@ Every rule in the skill carries its own *Why*. The main ones:
 | [`references/rolling-wave.js`](references/rolling-wave.js) | Reference Workflow script for the fix lane: a rolling pool of implementers over a queue of groups, same-file successors (`after`) that inherit their predecessor's branch and handoff notes, and serialized lander trains started as branches finish. Agent types, spec paths, stop file, landing command and the human's verbatim `authorization` are args |
 | [`references/status_delta.py`](references/status_delta.py) | Reads a worktree's stamped `STATUS.md` against its branch and prints CURRENT, STALE by N (with only those commits), or UNSTAMPED / DIVERGED (with every commit since the base), plus the uncommitted changes |
 | [`references/orient.py`](references/orient.py) | One-call orientation for the files an implementer will change: outline with line numbers, cited spec references, covering tests, what closed notes learned about each file, open notes naming it, recent commits |
+| [`references/fleet_config.py`](references/fleet_config.py) | Finds and validates the repository's optional `.agent-fleet.json`, the one place the three scripts' settings live |
 | `README.md` | This page |

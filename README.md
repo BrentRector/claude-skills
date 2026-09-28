@@ -11,6 +11,43 @@ projects. Each skill encodes rules that were learned the expensive way; the *why
 /plugin install brent-tools@brentrector-claude-skills
 ```
 
+To pin the skills to a repository instead, so every clone and every agent session gets the same version, add this
+repository as a git submodule (say at `tools/claude-skills`) and declare it in the project's
+`.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "brentrector-claude-skills": { "source": { "source": "directory", "path": "./tools/claude-skills" } }
+  },
+  "enabledPlugins": { "brent-tools@brentrector-claude-skills": true }
+}
+```
+
+Project skills that extend one of these can then open by invoking the base (`brent-tools:<skill>`) and keep only
+what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
+marketplaces), the base's `SKILL.md` is still readable at its submodule path.
+
+## What's new in 1.8.0
+
+- **One configuration file for the fleet scripts** (`agent-fleet` §2,
+  [`fleet_config.py`](skills/agent-fleet/references/fleet_config.py)). `orient.py`, `fix_clusters.py` and
+  `status_delta.py` read their settings from a `.agent-fleet.json` at the repository root, so a brief's line is
+  just `orient.py <files>`, and a project calls the scripts where they live instead of keeping a wrapper. Flags
+  still override it; an unknown key is an error.
+- **`orient.py`**: LEARNED is newest-first by the note id's number (a string sort ranked `BUG-62` newer
+  than `BUG-1534`), and OPEN is sorted too. C# outlines keep `record struct` and skip statement lines such as
+  `return Foo(x)` that looked like declarations. ANTLR `.g4` files get an outline of rules, modes and embedded
+  members. A `key` group in `--cite` counts references per clause and lists each clause's rules. New options:
+  `--notes-glob`, `--test-ext`, `--max-tests`, `--min-name`; file paths may be given relative to the repository
+  root from anywhere inside it.
+- **`fix_clusters.py`**: a singleton absorbs another singleton that names its file, so two one-note files that
+  name each other are one pass. A path or bare file name counts only if it resolves to a real file, and on a
+  directory boundary (`Lexer.cs` no longer matches `MyLexer.cs`; a partial path like `Core/Lexer.cs` now counts).
+  `--src` is repeatable and takes globs, `--exclude-dir` leaves generated code out, `--json` adds each note's
+  `area` and each cluster's `files`, and a malformed `--harm` is a usage error instead of a traceback.
+- **Pinning the plugin as a submodule** (Install, above): project skills become overlays on the published base.
+
 ## What's new in 1.7.0
 
 - **The stamped handoff** (`agent-fleet` §4, [`status_delta.py`](skills/agent-fleet/references/status_delta.py)).

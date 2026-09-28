@@ -18,12 +18,17 @@ This script turns the stamp into the exact reading list:
   UNSTAMPED / DIVERGED (exit 2) - coverage unknown: read every commit since the base (listed).
 
 Uncommitted changes in the worktree are always listed: no summary covers them.
+
+With a `.agent-fleet.json` at the repository root (see fleet_config.py), `base` and `exclude` come from it.
 """
 import argparse
 import pathlib
 import re
 import subprocess
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import fleet_config  # noqa: E402
 
 STAMP = re.compile(r"^\s*STATUS-AT:\s*([0-9a-fA-F]{7,40})\b", re.M)
 
@@ -41,7 +46,7 @@ def log_since(cwd, since, head):
     return n, out
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("worktree", nargs="?", help="a worktree holding STATUS.md")
     ap.add_argument("--status", help="a STATUS.md file (with --ref)")
@@ -49,7 +54,7 @@ def main():
     ap.add_argument("--base", default="origin/main", help="the fallback base for an unstamped status (default origin/main)")
     ap.add_argument("--exclude", action="append", default=[],
                     help="a path to leave out of the uncommitted list (repeatable), e.g. a local settings file")
-    a = ap.parse_args()
+    a, _ = fleet_config.apply(ap, argv)
     try:
         sys.stdout.reconfigure(encoding="utf-8")
     except AttributeError:

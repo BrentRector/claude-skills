@@ -67,7 +67,11 @@ In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of
   It is derived from the tree, the notes and git on every run, so it never goes stale and nobody maintains it; the
   knowledge accrues because every fix's note records its code site and mechanism (require that in the report).
   If you keep a brief checker, make it fail a brief without the orient line. Don't pre-generate "codebase maps"
-  with agents instead: they cost a fleet to write and go stale at the next landing.
+  with agents instead: they cost a fleet to write and go stale at the next landing. Keep the flags in ONE
+  `.agent-fleet.json` at the repository root (`references/fleet_config.py`; orient.py, fix_clusters.py and
+  status_delta.py all read it), so a brief's line is just `orient.py <files>` and no call site can drift from
+  another. When a project pins this repository as a submodule, briefs call the scripts at their submodule path:
+  never a copy or a wrapper, which is a second version to keep in step.
   *Why: measured over 7 implementer transcripts (1,401 turns), 63 % of tool calls were reads or searches, and
   15 % of turns and 43 % of tool-result bytes came before the first edit, re-deriving what earlier fixes had
   already learned. Cutting ~25 of ~200 turns is ~15 % of an implementer's tokens on the quadratic cost curve.*
@@ -191,10 +195,12 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
 - **Compute the groups from code sites; don't pick them by hand.** Resolve every open defect's named code sites
   (paths, `Type.Member`, type names) to real source files, give each note a PRIMARY file (its heaviest site, ties
   to the more specific file), and cluster notes by it: cap ~5 per cluster, split larger ones by harm, absorb a
-  singleton into a cluster whose file it also names. Rank clusters by SUMMED harm and fill each slot with the
-  top cluster of a subsystem not already in flight. `references/fix_clusters.py` does this over a directory of
-  front-matter notes (`--notes`, `--src`, `--ext`, `--harm`); it is a view recomputed each run, never a second
-  list to maintain.
+  singleton into a cluster whose file it also names (another singleton included: two one-note files that name
+  each other are one pass). Rank clusters by SUMMED harm and fill each slot with the top cluster of a subsystem
+  not already in flight. `references/fix_clusters.py` does this over a directory of front-matter notes
+  (`--notes`, `--src`, `--ext`, `--harm`, or `.agent-fleet.json`); a site counts only if it resolves to a real
+  file (a stale path to a moved file is not a site, and generated code is excluded with `--exclude-dir`). It is a
+  view recomputed each run, never a second list to maintain.
   *Why: hand-picked groups (a lead plus keyword siblings) carried 1–3 notes each and split one file's defects
   across two implementers who then edited it separately; computed clusters turned 411 open defects into 125
   groups (42 of five), so a six-slot wave carried ~25–30 fixes instead of ~10, each file read and gated once.*

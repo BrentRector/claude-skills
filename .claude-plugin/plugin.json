@@ -1,7 +1,7 @@
 {
   "name": "brent-tools",
-  "version": "1.10.2",
-  "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, claude-cloud-sessions and automating-agent-guardrails",
+  "version": "1.11.0",
+  "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, claude-cloud-sessions, automating-agent-guardrails and devlog",
   "author": {
     "name": "Brent Rector"
   },
@@ -18,7 +18,8 @@
     "./skills/roslyn-analysis",
     "./skills/agent-fleet",
     "./skills/claude-cloud-sessions",
-    "./skills/automating-agent-guardrails"
+    "./skills/automating-agent-guardrails",
+    "./skills/devlog"
   ],
   "agents": [
     "./agents/comment-analyzer.md",

@@ -4,9 +4,6 @@ Engineering-discipline skills for [Claude Code](https://code.claude.com), distil
 work — a standards-conformant compiler built largely by Claude agents, a commercial .NET tool, and several smaller
 projects. Each skill encodes rules that were learned the expensive way; the *why* travels with every rule.
 
-**[LEARNINGS.md](LEARNINGS.md)** is the research record behind these skills: every agent, fleet and process problem the
-project hit from March to September 2026, its root cause, the measured evidence, and where the fix lives here.
-
 ## Install
 
 ```
@@ -31,6 +28,42 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.11.0
+
+- **New skill: [`devlog`](skills/devlog/)**, a development log that Claude agents write and use as the project's
+  memory.
+  - **Three forms, chosen by purpose:** a working history (one entry per change, in the same commit), a defect/fix
+    log for reviewers and source-license customers (one entry per defect fixed in shipped code), and published
+    narrative posts (one per milestone or finding, reversals included).
+  - **Core rules for all three**, each with its reason: an entry with every change; timestamps read from the clock,
+    never estimated; a correction is a new entry and old entries are never rewritten; failures and overturned
+    verdicts are kept; and only the log is historical, while every other doc describes the current state.
+  - **How agents use it:** never loaded at session start (the small current-state document is), and searched before
+    retrying an approach.
+  - **Learnings come out of it in three stages.** The log records everything. A consolidation run
+    (`templates/consolidate-brief.md`) turns it into CANDIDATE learnings. An adversarial validation run
+    (`templates/validate-brief.md`) rules each candidate VETTED, UNPROVEN or REFUTED. Only vetted learnings enter
+    `LEARNINGS.md`, and only vetted learnings are encoded into skills or rules; refuted candidates stay in the record,
+    marked refuted. *Why: a log records hypotheses as well as conclusions, and some are later refuted. A learnings
+    file compiled straight from the log inherits those errors, and a skill that encodes them spreads them.*
+  - **`references/devlog.py`** (`new` / `check` / `search`) numbers each entry newest + 1 and refuses a collision,
+    stamps the time from the clock, and keeps a CRLF file CRLF. It handles both a newest-first file and a directory of
+    `NNNN-YYYY-MM-DD-slug.md` entries. **`references/devlog_guard.py`** is a PreToolUse hook that asks before a
+    commit that carries no entry. It is registered with no `if` filter, because that filter misses `git add -A &&
+    git commit`.
+  - **Measured:** the working history this came from reached 1,750+ entries in about six months. One consolidation
+    run turned it into 145 CANDIDATE learnings (not yet validated) and 15 open problems in about 30 minutes; the
+    contradiction it surfaced was real and was fixed in 1.10.2. Four new evals, all discriminating: WITH 1.00 on
+    each, W/OUT 0.00–0.50.
+- **Withdrawn, pending validation.** Two things published earlier had not been through the validation above, so they
+  are removed rather than left to spread; each comes back only if validation vets it.
+  - **`LEARNINGS.md`** (added in 1.10.1). It was compiled from the development log without vetting, so it carried
+    the log's refuted hypotheses along with its conclusions. It will be republished containing only vetted learnings.
+  - **`agent-fleet/references/status_guard.py`** and its `agent-fleet` §4 rule (added in 1.9.0). Its sandbox A/B
+    was null for staleness, and it has not been proven in production. The stamped handoff it enforced stays:
+    `STATUS-AT: <sha>`, read with `status_delta.py` and rewritten after every commit, was proven in an 88-agent
+    controlled A/B.
+
 ## What's new in 1.10.2
 
 - **Fix: telemetry is enabled in the USER settings** (`automating-agent-guardrails`).
@@ -41,15 +74,18 @@ marketplaces), the base's `SKILL.md` is still readable at its submodule path.
     file that sets the switch as dead configuration.
   - The readiness self-test is now hermetic: it no longer inherits the machine's own telemetry variables, which had
     made it RED on any machine with telemetry on.
-  - The contradiction was surfaced by compiling LEARNINGS.md.
+  - The contradiction was surfaced by compiling LEARNINGS.md (withdrawn in 1.11.0 pending validation: it was compiled
+    from the development log without vetting, and will be republished containing only vetted learnings).
 
 ## What's new in 1.10.1
 
-- **[LEARNINGS.md](LEARNINGS.md)**: the consolidated record of agent and fleet learnings from the whole project
-  history, grouped by theme. Each entry gives the problem, the root cause, where the fix lives in these skills, the
-  measured evidence and the date. It keeps reversals, rejected ideas and null results, and closes with the open
-  problems and the lessons the skills do not carry yet, including one the guardrails skill currently contradicts:
-  Claude Code ignores telemetry-enabling variables in a project's `settings.local.json`.
+- **LEARNINGS.md** (withdrawn in 1.11.0 pending validation: it was compiled from the development log without
+  vetting, and will be republished containing only vetted learnings): the consolidated record of agent and fleet
+  learnings from the whole project history, grouped by theme. Each entry gives the problem, the root cause, where
+  the fix lives in these skills, the measured evidence and the date. It keeps reversals, rejected ideas and null
+  results, and closes with the open problems and the lessons the skills do not carry yet, including one the
+  guardrails skill currently contradicts: Claude Code ignores telemetry-enabling variables in a project's
+  `settings.local.json`.
 
 ## What's new in 1.10.0
 
@@ -67,16 +103,16 @@ marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
 ## What's new in 1.9.0
 
-- **`agent-fleet/references/status_guard.py`: the stamped handoff is enforced, not just requested.** It is a hook
-  that refuses a `git commit` while `STATUS.md` does not describe the current commit, and refuses to let the agent
-  finish in that state. It fires only on a violation, so it costs nothing while the rule is followed. The rule itself
-  is now "rewrite `STATUS.md` after EVERY commit".
+- **`agent-fleet/references/status_guard.py`** (withdrawn in 1.11.0 pending production validation: its sandbox A/B
+  was null for staleness). It was a hook that refused a `git commit` while `STATUS.md` did not describe the current
+  commit, and refused to let the agent finish in that state. The rule it enforced stays: "rewrite `STATUS.md` after
+  EVERY commit".
 - **Why, measured.**
   - 3 of 14 finished real branches ended with a stale `STATUS.md` with no crash involved.
   - A stamp test with 88 fresh resumers over 22 scenarios: coverage was misjudged in 11 of 44 resumes without the
     stamp and 0 of 44 with it. Tokens fell about 17 % overall and 31 % when the summary was current.
   - Two sandbox A/Bs of the hook: a per-command reminder was tried and rejected for costing about 20 % more turns
-    and dollars. An `if: Bash(git commit*)` filter misses chained and scripted commits, so the hook is registered
+    and dollars. An `if: Bash(git commit*)` filter misses chained and scripted commits, so the hook was registered
     without one.
 
 ## What's new in 1.8.2
@@ -226,6 +262,12 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 | [`claude-cloud-sessions`](skills/claude-cloud-sessions/) | running work in Claude Code cloud sessions | Environment setup scripts and snapshots; multi-repo sessions and hooks; private-repo access; launch surfaces and **billing** (measured, including where it differs from the docs); stopping cleanly before a credit runs out. Includes a setup-script template. |
 | [`automating-agent-guardrails`](skills/automating-agent-guardrails/) | agents keep breaking a project's rules, or when setting up guard hooks, role agents, a session-start readiness check, cost telemetry or LSP navigation | Guard hooks on every shell tool that fail open, are scoped to the repo and prove each rule with a self-test in CI; role definitions with model, effort, turn cap, 1-hour cache and read-only hooks in the role itself, proven by a smoke dispatch after restart; a readiness check every session (OK / REPAIRED / N/A / TODO / ASK-OWNER) where anything needing your permission becomes a question; local per-agent cost telemetry. Includes the scripts and templates. |
 
+**Project memory**
+
+| Skill | Use it when | What it enforces |
+|---|---|---|
+| [`devlog`](skills/devlog/) | keeping a development log, work history or fix log that agents write and read; recording a failed or overturned approach; checking whether something was tried before | Three forms by purpose (working history, defect/fix log, published narrative); an entry with every change; timestamps from the clock; corrections as new entries, never rewrites; failures kept; only the log is historical. Agents search it before retrying instead of reading it at session start; consolidation yields candidate learnings, and only those an adversarial validation vets enter the learnings file or a skill. Includes an entry script (both layouts, line endings kept), a commit hook and the templates. |
+
 `engineering-standards` is the bar every other skill applies in its own context — each has a short *Standards*
 section saying how.
 
@@ -253,6 +295,9 @@ Specialist reviewers the `review` skill adds when a change calls for them:
   `claude-cloud-sessions` covers running that work in Claude Code cloud sessions. `automating-agent-guardrails` turns
   the rules those agents must follow into hooks and role definitions, and checks at every session start that they
   are in force.
+- **Remembering:** `devlog` keeps what every change tried and learned, so the next session starts from it instead of
+  repeating it; its consolidation brief turns the log into candidate learnings, and its validation brief admits only
+  the vetted ones to a learnings file or a skill.
 
 ## Adapting to your project
 
@@ -262,7 +307,7 @@ and a `## Testing` section records gate commands and baseline counts.
 
 ## Regression evals
 
-[`evals/`](evals/README.md) is a `claude plugin eval` suite with one or two cases per skill and one per agent. Each
+[`evals/`](evals/README.md) is a `claude plugin eval` suite with one to four cases per skill and one per agent. Each
 case runs with the plugin and with no plugin at all, and it is kept only if the plugin arm scores higher. That makes
 it a regression test: a skill edit that stops changing Claude's behavior shows up as a shrinking Δ. To run it:
 `claude plugin eval . -j 4 --no-publish --threshold 0`. A skill change ships with its eval; see the

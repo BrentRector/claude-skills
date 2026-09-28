@@ -131,17 +131,6 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   summary was written to save. Measured with 88 fresh resumers over 22 scenarios from 11 real branches: without the
   stamp, agents misjudged what the summary covered in 11 of 44 resumes; with it, in none. Tokens fell about 17 %
   overall and 31 % when the summary was current.*
-- **Enforce the rewrite with `references/status_guard.py`**, a hook that fires ONLY on a violation:
-  - **PreToolUse** on the shell tools, with NO `if` filter: it refuses a command that runs `git commit` while
-    `STATUS.md` does not describe HEAD, so at most one commit is ever undescribed.
-  - **Stop and SubagentStop:** it refuses once to let the agent finish while `STATUS.md` does not describe HEAD.
-  It is silent in any tree without `STATUS.md`, and it fails open on an internal error. *Why:
-  - 3 of 14 finished real branches ended with a `STATUS.md` that missed their own last commit, with no crash. The
-    usual shape was a small final commit (a gate-red fix, a regenerated index) made after the last rewrite.
-  - An `if: Bash(git commit*)` filter misses `git add -A && git commit …`, and misses checkpoint scripts agents write
-    themselves. Measured: it silenced the hook in most sessions. The Stop check catches a commit made inside a script.
-  - A reminder after every command was tried and REJECTED: it cost about 20 % more turns and dollars, and every arm
-    ended current anyway.*
 - **Design workflow stages to read their inputs from disk** (`out-<slug>.json`). *Why: then a rewritten or
   resumed script never re-runs completed stages.*
 

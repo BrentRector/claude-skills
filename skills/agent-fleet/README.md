@@ -41,8 +41,7 @@ A campaign run under the skill looks like this:
    describes; workflow stages append one JSON line per decided item and skip items already on disk when they start.
    An agent that resumes a worktree or merges a predecessor runs
    [`references/status_delta.py`](references/status_delta.py) first, which prints exactly the commits the summary
-   does not cover. A hook, [`references/status_guard.py`](references/status_guard.py), refuses a commit, or the
-   agent's exit, while `STATUS.md` does not describe the current commit. It costs nothing while the rule is followed.
+   does not cover.
 4. **Agents obey the stop rules**: a hard turn cap per role (e.g. ~160 read-only, ~220 implementer), a graceful
    `{SCRATCH}/STOP` file checked before every step, and never ending a turn while their own background gate runs.
 5. **Reconcile the returns** against the expected worklist (missing, duplicated, extra) and re-run only the gaps.
@@ -95,7 +94,6 @@ Every rule in the skill carries its own *Why*. The main ones:
 | State the bar, not just the format | Agents optimize the criterion you wrote down; a shape validator passes worthless-but-valid work. |
 | Checkpoint to disk after every unit | Un-checkpointed refuters lost 100 % of their decisions to a single session kill. |
 | Stamp the handoff (`STATUS-AT: <sha>`, read with `status_delta.py`) | An agent killed between its commit and its summary leaves a summary that silently omits the last commits. Without a stamp, a successor can't tell stale from current and must re-read the whole branch every time. Measured (88 resumers, 22 scenarios): coverage misjudged in 11 of 44 resumes without the stamp, 0 of 44 with it; tokens −17 % overall, −31 % when the summary was current. |
-| Enforce the rewrite with a hook (`status_guard.py`), not a reminder | 3 of 14 finished real branches ended with a stale `STATUS.md`, no crash involved. The hook refuses the next commit and the agent's exit while the stamp is not HEAD, which costs nothing while the rule is followed. A per-command reminder cost about 20 % more turns and dollars and was rejected. |
 | A workflow's prompts carry the human's authorization verbatim | A workflow agent takes the session's latest user message as its request. A fleet launched in a turn whose latest message was about something else had every implementer decline and return BLOCKED. |
 | Judge a workflow's liveness by its processes and journal | A tool call writes nothing to the transcript until it returns, so every long gate wait is a ~580-second silence (measured: 5–7 such silences per agent in one run). And clearing or restarting the orchestrating session moves live agents' transcripts to the new session's directory while the journal stays in the old one; a watchdog reading the old directory saw 20+ minutes of silence for that reason and called a healthy fleet dead. A transcript ending on an unanswered tool call is live for up to that tool's maximum duration. |
 | Never `git stash` (including `--autostash`) | The stash stack is shared by every linked worktree, so one agent's `stash pop` can take another's work. |
@@ -175,7 +173,6 @@ Every rule in the skill carries its own *Why*. The main ones:
 | [`references/rolling-wave.js`](references/rolling-wave.js) | Reference Workflow script for the fix lane: a rolling pool of implementers over a queue of groups, same-file successors (`after`) that inherit their predecessor's branch and handoff notes, and serialized lander trains started as branches finish. Agent types, spec paths, stop file, landing command and the human's verbatim `authorization` are args |
 | [`references/status_delta.py`](references/status_delta.py) | Reads a worktree's stamped `STATUS.md` against its branch and prints CURRENT, STALE by N (with only those commits), or UNSTAMPED / DIVERGED (with every commit since the base), plus the uncommitted changes |
 | [`references/stall_watch.py`](references/stall_watch.py) | Background watchdog for a running workflow: exits the moment a pending agent has been silent more than 10 min waiting on the model or 12 min inside one tool call (thresholds measured over 150 transcripts), naming the agent and its last action |
-| [`references/status_guard.py`](references/status_guard.py) | Hook (PreToolUse on the shell tools with no `if` filter, plus Stop / SubagentStop): refuses a `git commit` and refuses the agent's exit while `STATUS.md` does not describe HEAD; silent without `STATUS.md`, fails open; `--self-test` covers 14 cases |
 | [`references/orient.py`](references/orient.py) | One-call orientation for the files an implementer will change: outline with line numbers, cited spec references, covering tests, what closed notes learned about each file, open notes naming it, recent commits |
 | [`references/fleet_config.py`](references/fleet_config.py) | Finds and validates the repository's optional `.agent-fleet.json`, the one place the three scripts' settings live |
 | `README.md` | This page |

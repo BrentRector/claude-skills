@@ -8,12 +8,12 @@ tests Claude rather than the skill, and so it can't detect an edit that breaks t
 
 ## What it covers
 
-Twenty cases: one to four for each of the eleven skills and one for each of the four agents. Each case is a small
+Twenty-four cases: one to four for each of the twelve skills and one for each of the four agents. Each case is a small
 scenario, written inline in its `prompt.md`, that can only be handled correctly by following that skill's rule.
-The scores below come from the last full run (3 runs per arm, 2026-09-25), except four cases added later and
+The scores below come from the last full run (3 runs per arm, 2026-09-25), except eight cases added later and
 measured on their own: `automating-agent-guardrails-guard-design` (2 runs per arm), `agent-fleet-file-clusters`
-and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), and `agent-fleet-stamped-handoff` (3 runs per arm,
-2026-09-28).
+and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), `agent-fleet-stamped-handoff` (3 runs per arm,
+2026-09-28), and the four `devlog-*` cases (3 runs per arm, 2026-09-28).
 
 | Case | Covers | The rule it checks | WITH | W/OUT |
 |---|---|---|---|---|
@@ -36,6 +36,10 @@ and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), and `agent-fleet-sta
 | `agent-silent-failure-hunter` | silent-failure-hunter | Ranks the silent default price above the crash; findings carry `Harm: silent wrong answer` | 1.00 | 0.50 |
 | `agent-type-design-analyzer` | type-design-analyzer | Replaces the kind enum with its per-kind fields by a closed hierarchy; findings carry a `Smell:` classification | 0.83 | 0.50 |
 | `agent-comment-analyzer` | comment-analyzer | Rejects a citation that answers a different question and finds the governing clause; findings carry `Scenario:`/`Evidence:` | 1.00 | 0.50 |
+| `devlog-correction-and-clock` | devlog | Records an overturned finding as a NEW entry (`OLD-ENTRY: LEAVE`, against a teammate's "fix it in place") and takes the header time from the clock (`date`), not from "around 4:30" | 1.00 | 0.50 |
+| `devlog-commit-hook` | devlog | Registers the missing-entry commit hook with NO `if` filter (which misses `git add -A && git commit`), although the prompt asks for one, and has it ASK rather than deny | 1.00 | 0.00 |
+| `devlog-insert-entry` | devlog | Adds an entry to a CRLF, newest-first log with the bundled `devlog.py new` instead of a hand-written splice | 1.00 | 0.00 |
+| `devlog-consolidate-brief` | devlog | A brief to consolidate the log into learnings closes with an open-problems list and a not-yet-acted-on list | 1.00 | 0.33 |
 | `automating-agent-guardrails-guard-design` | automating-agent-guardrails | A guard hook for "no stash / land main only via the script" fails OPEN on its own errors (`ON-ERROR: ALLOW`) and scopes the push rule to this repository (`OTHER-REPO: ALLOWED`) | 1.00 | 0.50 |
 
 The WITH score is the mean over 3 runs of the fraction of scored graders that passed. W/OUT is the same score with
@@ -146,4 +150,11 @@ failed.
 One kept grader passes the baseline too: `OTHER-REPO: ALLOWED` in `automating-agent-guardrails-guard-design`. Asked
 directly about another repository, Claude scopes the rule correctly, although the baseline builder that was never
 asked did not. It stays as a regression guard; the case's delta comes from `ON-ERROR: ALLOW` (W/OUT 0/2: the baseline
-fails closed).
+fails closed). Likewise `OLD-ENTRY: LEAVE` in `devlog-correction-and-clock` passes the baseline (6/6 over the
+authoring run and the final run: Claude already keeps a log append-only) and stays as a regression guard. That case's
+delta comes from the clock-read timestamp (W/OUT 0/6: the baseline writes "16:30"). In `devlog-consolidate-brief` the
+baseline named open problems in 2 of 6 runs but a not-yet-acted-on list in none. An earlier variant of the
+correction case, whose `TIMESTAMP:` line offered "or the command you take it from", passed the baseline 2/2 and was
+rewritten. In `devlog-commit-hook` the baseline registered the `if` filter the prompt asked for in 5 of 6 runs and
+chose DENY in all 6. A `keeps-reversals` grader on the consolidation case passed the baseline 2/2 and was replaced
+by the not-yet-acted-on grader. The four devlog cases cost about $4.40 at 3 runs per arm.

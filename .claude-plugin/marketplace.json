@@ -4,13 +4,13 @@
     "name": "Brent Rector"
   },
   "metadata": {
-    "description": "Engineering-discipline skills for Claude Code, distilled from long-running production work: a production engineering bar, adversarial code review, spec-driven correctness, test gates that can't lie, multi-agent campaigns, cloud sessions, and agent guardrails that are enforced and checked every session.",
-    "version": "1.10.2"
+    "description": "Engineering-discipline skills for Claude Code, distilled from long-running production work: a production engineering bar, adversarial code review, spec-driven correctness, test gates that can't lie, multi-agent campaigns, cloud sessions, agent guardrails that are enforced and checked every session, and a development log that serves as the agents' memory.",
+    "version": "1.11.0"
   },
   "plugins": [
     {
       "name": "brent-tools",
-      "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, claude-cloud-sessions and automating-agent-guardrails",
+      "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, claude-cloud-sessions, automating-agent-guardrails and devlog",
       "source": "./"
     }
   ]

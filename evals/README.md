@@ -8,11 +8,12 @@ tests Claude rather than the skill, and so it can't detect an edit that breaks t
 
 ## What it covers
 
-Nineteen cases: one to three for each of the eleven skills and one for each of the four agents. Each case is a small
+Twenty cases: one to four for each of the eleven skills and one for each of the four agents. Each case is a small
 scenario, written inline in its `prompt.md`, that can only be handled correctly by following that skill's rule.
-The scores below come from the last full run (3 runs per arm, 2026-09-25), except three cases added later and
-measured on their own: `automating-agent-guardrails-guard-design` (2 runs per arm), and `agent-fleet-file-clusters`
-and `agent-fleet-orientation` (3 runs per arm, 2026-09-27).
+The scores below come from the last full run (3 runs per arm, 2026-09-25), except four cases added later and
+measured on their own: `automating-agent-guardrails-guard-design` (2 runs per arm), `agent-fleet-file-clusters`
+and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), and `agent-fleet-stamped-handoff` (3 runs per arm,
+2026-09-28).
 
 | Case | Covers | The rule it checks | WITH | W/OUT |
 |---|---|---|---|---|
@@ -29,6 +30,7 @@ and `agent-fleet-orientation` (3 runs per arm, 2026-09-27).
 | `agent-fleet-brief-limits` | agent-fleet | Uses the measured turn cap (~150–160) and a graceful STOP file in a dispatch brief | 1.00 | 0.50 |
 | `agent-fleet-file-clusters` | agent-fleet | Assigns defects to implementer slots by COMPUTED per-file clusters ranked by summed harm, naming the bundled `fix_clusters.py` | 1.00 | 0.00 |
 | `agent-fleet-orientation` | agent-fleet | Tells implementers to orient with the bundled `orient.py --notes …` (outline, covering tests, what earlier fixes learned) before reading source | 1.00 | 0.00 |
+| `agent-fleet-stamped-handoff` | agent-fleet | Stamps the handoff summary with the commit it describes (`STATUS-AT: <sha>`) and has a resuming or successor agent run the bundled `status_delta.py` to read only the commits the summary does not cover | 1.00 | 0.00 |
 | `claude-cloud-sessions-multi-repo-hooks` | claude-cloud-sessions | Explains that multi-repo sessions start in `/home/user` and load no repo hooks, and fixes it with a user-level hook shim | 1.00 | 0.00 |
 | `agent-pr-test-analyzer` | pr-test-analyzer | Checks determinism: names a work-count or growth-ratio replacement for a Stopwatch ceiling (`Check:` findings) | 1.00 | 0.00 |
 | `agent-silent-failure-hunter` | silent-failure-hunter | Ranks the silent default price above the crash; findings carry `Harm: silent wrong answer` | 1.00 | 0.50 |
@@ -125,6 +127,7 @@ Each is kept here so nobody spends money writing it again.
 | agent-fleet fresh vs resume | a fresh agent from the checkpoint beats resuming a 280-turn transcript | W/OUT 1.00 |
 | agent-fleet no early peek | never read a two-stage fleet's output before it signals completion | W/OUT 1.00 |
 | agent-fleet landing batch size | 4–6 clusters per landing | W/OUT 1.00 (the baseline also picks the middle) |
+| agent-fleet workflow liveness | judge a background workflow alive by its processes and journal, never by transcript file times | W/OUT 0.83–1.00 across two prompt variants: the baseline already keys a watchdog on live processes and says quiet output is not death. A first grader that forbade the word "transcript" also failed the plugin arm, which names transcript times in order to reject them |
 | spec-oracle spec over reference | the golden value is derived from a supplied spec excerpt, not copied from the reference tool | W/OUT 1.00 when the excerpt is in the prompt |
 | spec-oracle inherited citation | re-derive a ticket's clause number instead of copying it | W/OUT 1.00 |
 | engineering-standards complete, not test-scoped | implement the whole documented format, not only the case the failing test covers | W/OUT 1.00 |

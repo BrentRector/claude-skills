@@ -11,6 +11,21 @@ projects. Each skill encodes rules that were learned the expensive way; the *why
 /plugin install brent-tools@brentrector-claude-skills
 ```
 
+## What's new in 1.7.0
+
+- **The stamped handoff** (`agent-fleet` §4, [`status_delta.py`](skills/agent-fleet/references/status_delta.py)).
+  `STATUS.md`'s first line is `STATUS-AT: <sha>`, the commit it describes, written after the checkpoint commit. An
+  agent resuming a worktree or merging a predecessor runs `status_delta.py`, which prints CURRENT, STALE by N (read
+  only those N commits), or UNSTAMPED / DIVERGED (read every commit since the base), plus the uncommitted changes.
+  A stale summary is now detectable without re-reading the branch. The summary stays navigation, never evidence.
+- **Workflow agents carry the human's authorization** (`agent-fleet` §2, the `authorization` arg of
+  [`rolling-wave.js`](skills/agent-fleet/references/rolling-wave.js), and the brief template's first section). A
+  workflow agent takes the session's latest user message as its request, so a fleet launched in a later turn
+  quotes the human's direction verbatim in every prompt, or its agents decline the work.
+- **Liveness is judged by processes and the journal, not transcript file times** (`agent-fleet` §5). Subagent
+  transcripts are written lazily; a watchdog keyed on their modification time called a working fleet dead.
+- Workflow scripts stay LF-only: a Workflow tool refused a CRLF script as containing hidden control characters.
+
 ## What's new in 1.6.0
 
 - **The fix lane is a rolling wave** (`agent-fleet` §6, [`rolling-wave.js`](skills/agent-fleet/references/rolling-wave.js)).

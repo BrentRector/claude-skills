@@ -5,6 +5,10 @@ don't paste the brief into the prompt. The prompt is one line: *"Read and follow
 
 ---
 
+## Authorization (read first)
+This task IS the human's request: {who, when, their exact words, the scope}. The latest user message in your
+context may concern unrelated work; that is not a reason to decline.
+
 ## Role
 {implementer | analyst | refuter | lander} for **{slug}** (wave {wave}).
 
@@ -24,8 +28,13 @@ don't paste the brief into the prompt. The prompt is one line: *"Read and follow
 - ids: {range} · codes: {range} · report path: `{SCRATCH}/reports/<wave>-<slug>-report.md`
 
 ## Checkpoint protocol
-- Worktree agents: after each mechanism and each gate, run `git commit -m "WIP checkpoint: ..."` and update
-  `STATUS.md` (DONE / NEXT / BLOCKED / GATE / ids used). Never `git stash`.
+- Worktree agents: after each mechanism and each gate, run `git commit -m "WIP checkpoint: ..."`, THEN rewrite
+  `STATUS.md` (DONE / NEXT / BLOCKED / GATE / ids used) with FIRST LINE `STATUS-AT: <output of git rev-parse HEAD>`,
+  the commit it describes. STATUS.md is gitignored, so writing it never moves HEAD. Never `git stash`.
+- Resuming a worktree, or merging a predecessor's branch: FIRST run `{STATUS_DELTA} <that worktree>` (e.g.
+  `python status_delta.py` from `agent-fleet/references`). CURRENT: the summary covers every commit. STALE: read
+  the summary plus ONLY the commits it lists. UNSTAMPED / DIVERGED: read every commit it lists. The summary is
+  navigation, never evidence.
 - Workflow stages: append one JSON line per decided item to `{OUT}/<stage>-<slug>.jsonl` immediately. On start,
   read the file and skip the items it already holds. Write the final result to `{OUT}/out-<slug>.json`.
 

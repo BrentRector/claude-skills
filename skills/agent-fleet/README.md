@@ -36,9 +36,12 @@ A campaign run under the skill looks like this:
    and parallel slots get one group per subsystem. The groups are computed, not hand-picked:
    [`references/fix_clusters.py`](references/fix_clusters.py) clusters open defects by the source file their
    code sites name, so every defect in one file is fixed in one pass.
-3. **Agents checkpoint after every unit**: implementers make a WIP commit and update `STATUS.md`
-   (`DONE` / `NEXT` / `BLOCKED` / `GATE` / ids used); workflow stages append one JSON line per decided item and skip
-   items already on disk when they start.
+3. **Agents checkpoint after every unit**: implementers make a WIP commit and then rewrite `STATUS.md`
+   (`DONE` / `NEXT` / `BLOCKED` / `GATE` / ids used), whose first line `STATUS-AT: <sha>` names the commit it
+   describes; workflow stages append one JSON line per decided item and skip items already on disk when they start.
+   An agent that resumes a worktree or merges a predecessor runs
+   [`references/status_delta.py`](references/status_delta.py) first, which prints exactly the commits the summary
+   does not cover.
 4. **Agents obey the stop rules**: a hard turn cap per role (e.g. ~160 read-only, ~220 implementer), a graceful
    `{SCRATCH}/STOP` file checked before every step, and never ending a turn while their own background gate runs.
 5. **Reconcile the returns** against the expected worklist (missing, duplicated, extra) and re-run only the gaps.
@@ -48,8 +51,13 @@ A campaign run under the skill looks like this:
 8. **After the fleet**, run `git status --short` and account for every unexpected path before staging.
 
 On restart after a cutoff, the skill's recovery procedure is: read the reset time from the limit message, check
-`git status` on main (a dead lander may already have applied its patch), inspect each worktree's `STATUS.md`, and
-dispatch **fresh** agents from the checkpoints in landing order.
+`git status` on main (a dead lander may already have applied its patch), run `status_delta.py` on each worktree,
+and dispatch **fresh** agents from the checkpoints in landing order. Before calling a background workflow dead,
+check its run status and journal and its agents' processes and worktrees; transcript file times are not a signal.
+
+A fleet launched in a later turn than your request carries that request, quoted verbatim, at the top of every
+agent prompt (the `authorization` arg of [`rolling-wave.js`](references/rolling-wave.js), or the brief's first
+section).
 
 ### The brief template
 
@@ -57,12 +65,13 @@ dispatch **fresh** agents from the checkpoints in landing order.
 
 | Section | What you fill in |
 |---|---|
+| Authorization | who directed this work, when, their exact words and the scope, so an agent never declines it for lack of a visible request |
 | Role | implementer, analyst, refuter or lander, plus the slug and wave |
 | Your input | the items for this agent only, embedded or as a path to a file holding only this slice |
 | Contract | code sites (`file:line`), exact repro, verified governing rule, narrow gate command |
 | The bar | what would make the output worthless even though it is well-formed |
 | Allocated to you | id ranges, code ranges, the report path — agents never mint their own |
-| Checkpoint protocol | WIP commits + `STATUS.md` for worktree agents; JSONL-per-item for workflow stages |
+| Checkpoint protocol | WIP commits + a stamped `STATUS.md` (`STATUS-AT: <sha>`) for worktree agents, and `status_delta.py` first when resuming or merging a predecessor; JSONL-per-item for workflow stages |
 | Stop rules | the STOP file, the turn cap, and blocking on background jobs with `timeout 580 bash -c 'tail -n +1 -f <log> \| grep -m1 "<verdict>"'` |
 | Ground rules | write only in your worktree or scratch; every reported lead carries repro and code site |
 | Report | 60 lines or fewer: status, one section per item, leads, NEXT if split |
@@ -82,6 +91,9 @@ Every rule in the skill carries its own *Why*. The main ones:
 | Only verified facts in a brief | Agents inherit a confident wrong citation and carry it into code. |
 | State the bar, not just the format | Agents optimize the criterion you wrote down; a shape validator passes worthless-but-valid work. |
 | Checkpoint to disk after every unit | Un-checkpointed refuters lost 100 % of their decisions to a single session kill. |
+| Stamp the handoff (`STATUS-AT: <sha>`, read with `status_delta.py`) | An agent killed between its commit and its summary leaves a summary that silently omits the last commits. Without a stamp, a successor can't tell stale from current and must re-read the whole branch every time. |
+| A workflow's prompts carry the human's authorization verbatim | A workflow agent takes the session's latest user message as its request. A fleet launched in a turn whose latest message was about something else had every implementer decline and return BLOCKED. |
+| Judge a workflow's liveness by its processes and journal | Subagent transcripts are written lazily: they went 20+ minutes without a write while their agents ran gates, and a watchdog keyed on transcript modification time called a healthy fleet dead. |
 | Never `git stash` (including `--autostash`) | The stash stack is shared by every linked worktree, so one agent's `stash pop` can take another's work. |
 | Concurrency budget and a token tally | ~28 concurrent agents burned ~20 % of a window in 11 minutes; ~50 exhausted a window in ~2.5 h. The limit kills landers mid-landing. |
 | Graceful STOP file | Workflow agents can't be messaged, and a hard kill lands mid-step. |
@@ -137,6 +149,7 @@ Every rule in the skill carries its own *Why*. The main ones:
 | [`SKILL.md`](SKILL.md) | The rules Claude follows, each with its reason |
 | [`references/brief-template.md`](references/brief-template.md) | Copy-and-fill dispatch brief carrying the checkpoint, STOP, turn-cap, blocking-gate and report rules |
 | [`references/fix_clusters.py`](references/fix_clusters.py) | Groups open defect notes by the source files their code sites name, ranked by summed harm, so each implementer fixes one file's defects in one pass |
-| [`references/rolling-wave.js`](references/rolling-wave.js) | Reference Workflow script for the fix lane: a rolling pool of implementers over a queue of groups, same-file successors (`after`) that inherit their predecessor's branch and handoff notes, and serialized lander trains started as branches finish. Agent types, spec paths, stop file and landing command are args |
+| [`references/rolling-wave.js`](references/rolling-wave.js) | Reference Workflow script for the fix lane: a rolling pool of implementers over a queue of groups, same-file successors (`after`) that inherit their predecessor's branch and handoff notes, and serialized lander trains started as branches finish. Agent types, spec paths, stop file, landing command and the human's verbatim `authorization` are args |
+| [`references/status_delta.py`](references/status_delta.py) | Reads a worktree's stamped `STATUS.md` against its branch and prints CURRENT, STALE by N (with only those commits), or UNSTAMPED / DIVERGED (with every commit since the base), plus the uncommitted changes |
 | [`references/orient.py`](references/orient.py) | One-call orientation for the files an implementer will change: outline with line numbers, cited spec references, covering tests, what closed notes learned about each file, open notes naming it, recent commits |
 | `README.md` | This page |

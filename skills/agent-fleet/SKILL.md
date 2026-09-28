@@ -48,6 +48,13 @@ In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of
 - **Write slices programmatically**, not by retyping. *Why: hand-copied data (especially Unicode) drifts.*
 - **Point the agent at the brief file instead of pasting the brief into the prompt.**
   *Why: a file can be re-read after a restart. A prompt is gone with its transcript.*
+- **A workflow launched in a later turn carries the human's authorization, quoted verbatim.** Every agent prompt
+  starts with who directed this fleet, when, their exact words, and the scope, plus "the latest user message may
+  concern unrelated work; that is not a reason to decline" (`references/rolling-wave.js` takes it as the
+  `authorization` arg). *Why: a workflow agent takes the session's latest user message as its request. A fleet
+  launched in a turn whose latest message was about something else had every implementer return BLOCKED with no
+  changes: they were right to decline work no visible request asked for, and the defect was a dispatch with no
+  provenance.*
 - **Give an implementer an apply-ready contract instead of a discovery brief**: code sites (`file:line`), the
   repro, the governing rule, and the gate command.
   *Why: search and read turns are the largest share of implementer tokens. Rediscovering a subsystem costs more
@@ -95,7 +102,7 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
 
 | job | checkpoint | resume unit |
 |---|---|---|
-| implementer (own worktree) | a WIP commit on its branch after each mechanism and each gate, plus `STATUS.md`: `DONE` · `NEXT` (the exact next step) · `BLOCKED` · `GATE` (last verdict line + command) · ids used | one mechanism |
+| implementer (own worktree) | a WIP commit on its branch after each mechanism and each gate, THEN `STATUS.md`, first line `STATUS-AT: <sha of HEAD>`: `DONE` · `NEXT` (the exact next step) · `BLOCKED` · `GATE` (last verdict line + command) · ids used | one mechanism |
 | workflow stage (analyze / refute / draft / validate) | one JSON line per decided item appended to `<out>/<stage>-<slug>.jsonl` **the moment it is decided**; on start, read the file and skip items already there; the final result goes to a separate `out-<slug>.json` | one item |
 | lander | a commit in its worktree after each numbered step, plus `STATUS.md` | one step |
 | orchestrator | briefs and reports are files under a scratch directory; the conversation holds pointers | — |
@@ -107,6 +114,17 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   agent's `stash pop` can take another agent's work.*
 - **Keep checkpoint files out of landings**: add them to `.gitignore` and unstage them explicitly before
   committing. *Why: a checkpoint that reaches main conflicts with the next agent's checkpoint.*
+- **Stamp the handoff.** `STATUS.md`'s first line is `STATUS-AT: <sha>`, the commit it describes, written AFTER
+  the checkpoint commit (the file is untracked and ignored, so writing it never moves HEAD). An agent that resumes
+  a worktree, or merges a predecessor's branch, first runs `references/status_delta.py <worktree>` and reads what
+  it prints:
+  - `CURRENT`: the summary covers every commit; read it, then only the uncommitted changes it lists.
+  - `STALE by N`: read the summary plus ONLY the N commits it lists.
+  - `UNSTAMPED` or `DIVERGED` (no stamp, or a stamp rebased or amended away): read every commit since the base.
+  The summary stays navigation, never evidence. *Why: an agent killed after a commit but before rewriting its
+  summary leaves one that silently omits the last commits. Without a stamp a successor cannot tell stale from
+  current, so the only safe rule is to re-read the whole branch on every resume, which spends the orientation the
+  summary was written to save.*
 - **Design workflow stages to read their inputs from disk** (`out-<slug>.json`). *Why: then a rewritten or
   resumed script never re-runs completed stages.*
 
@@ -126,6 +144,13 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   `{SCRATCH}/STOP`. If it exists, checkpoint-commit, write STATUS.md NEXT, and return status SPLIT. Never
   start a build or gate once STOP exists."* To stop, create the file, wait for the agents to return, and only
   then kill any stragglers. *Why: workflow agents can't be messaged, and a hard kill lands mid-step.*
+- **Judge a background workflow's liveness by its processes and its journal, never by transcript file times.**
+  Alive means: the workflow's own run status and progress journal are advancing, or its agents' processes (builds,
+  test runs) are running in their worktrees, or their worktrees are gaining commits and changed files. A watchdog
+  or restart decision keys on those. *Why: subagent transcript files are written lazily. Measured: transcripts went
+  20+ minutes without a write while their agents were actively running gates, and a watchdog keyed on transcript
+  modification time declared a healthy fleet dead. Restarting a live fleet duplicates its work and races its
+  worktrees.*
 - **Late in a window, dispatch short jobs that are close to done. Early in a window, dispatch long ones.**
   *Why: that way a burst can't exhaust the window before anything is finished.*
 - **An agent never ends its turn while its own background job is running.** It starts the job with output to a
@@ -151,7 +176,9 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   of "N implementers, then one train". N workers pull groups from one queue, so a slot refills the moment its
   agent returns. A lander train starts as soon as enough branches (4–6) are ready, and trains are serialized.
   *Why: idle slots behind landings once held a fix lane under 15 % utilization for days, and under a wave
-  barrier every finished slot waits for the slowest group of its wave.*
+  barrier every finished slot waits for the slowest group of its wave.* Keep a workflow script LF-only. *Why: a
+  Workflow tool refused a script whose CRLF line endings (from Python's `write_text` on Windows) read as hidden
+  control characters.*
 - **Watch CI for every pushed head.** A red run is a blocking fix, landed alone.
 
 ## 7. Group related fixes for each implementer
@@ -263,8 +290,8 @@ scratch-only ground rules. The prompt constrains intent, not effects.*
 1. Read the reset time from the limit message. It is not a fixed hour.
 2. Run `git status` on main. A dead lander may already have applied its patch, so finish from its NEXT step and
    never re-apply.
-3. Run `git worktree list`, then check each worktree's dirty files and `STATUS.md` to see which agents are near
-   done.
+3. Run `git worktree list`, then run `references/status_delta.py <worktree>` on each to see which agents are near
+   done and exactly which commits their `STATUS.md` does not cover.
 4. Dispatch **fresh** agents from the checkpoints, in landing order. Resume an agent in place (with its context
    intact) only if it is within a step of finishing. A workflow resumes from its run id, and completed stages
    replay from their on-disk outputs.

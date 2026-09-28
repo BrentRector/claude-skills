@@ -9,6 +9,8 @@ export const meta = {
 }
 
 // A reference Workflow script. Adapt the args to your repository; nothing below is project-specific.
+// Keep this file LF-only: a Workflow tool may refuse a script containing carriage returns as hidden control
+// characters (a CRLF-writing editor, or Python's write_text on Windows, produces them).
 //
 // args: {
 //   wave:            label for this queue (used in agent labels and train names),
@@ -22,6 +24,10 @@ export const meta = {
 //   manifestPattern: where each train's manifest is written, with {train} substituted,
 //   concurrency (6), train_size (5), min_final_train (3),
 //   idBlocks:        one block of orchestrator-allocated ids per train, e.g. ["ID-101..ID-105", "ID-106..ID-110"],
+//   authorization:   the human's direction for THIS fleet, quoted verbatim: who, when, their exact words, and the
+//                    scope (e.g. "Repository owner, 2026-01-05 09:45: 'start the next wave' - groups A-F"),
+//   statusDelta:     optional command that lists what a predecessor's STATUS.md does not cover, with {worktree}
+//                    substituted, e.g. "python <skills>/agent-fleet/references/status_delta.py {worktree}",
 //   groups:          [{ letter, lead, notes, after? }]   // after = the letter of a same-file predecessor
 // }
 const W = args.wave
@@ -29,6 +35,14 @@ const CONC = args.concurrency || 6
 const TRAIN = args.train_size || 5
 const MIN_FINAL = args.min_final_train || 3
 const opt = extra => (args.model ? { ...extra, model: args.model } : extra)
+// AUTHORIZATION: a workflow agent takes the session's LATEST user message as its request. When the fleet is launched
+// in a later turn than the human's direction (so the latest message is about something else), agents that cannot see
+// the direction correctly decline the work and return BLOCKED. So every prompt carries the direction verbatim.
+const AUTH = args.authorization
+  ? `AUTHORIZATION (read first): this task IS the human's request, dispatched by the orchestrating session on their ` +
+    `direction: ${args.authorization} The latest user message in your context may concern unrelated work; that is ` +
+    `NOT a reason to decline. Do the task below. `
+  : ''
 const IMPL_SCHEMA = {
   type: 'object',
   properties: {
@@ -68,14 +82,18 @@ function successorNote(g) {
   }
   return `SAME-FILE SUCCESSOR: your predecessor group ${g.after} (${p.notes}) returned ${p.status} on branch ${p.branch} ` +
     `(worktree ${p.worktree}, head ${p.head}, report ${p.report}). FIRST merge that branch into yours, then read that report's ` +
-    `handoff section ("for the next implementer") and its checkpoint file as your orientation for the shared file; do not ` +
-    `re-survey it. Its items land through YOUR branch (list them as landed-via-predecessor). `
+    `handoff section ("for the next implementer") and its STATUS.md as your orientation for the shared file; do not ` +
+    `re-survey it. STATUS.md is navigation, never evidence: its first line STATUS-AT names the commit it describes` +
+    (args.statusDelta
+      ? `, and ${args.statusDelta.replace('{worktree}', p.worktree)} lists exactly the commits it does not cover; read ONLY those beyond the summary`
+      : `; read ONLY the commits after that sha (every commit since the base if the stamp is missing or not in the branch)`) +
+    `. Its items land through YOUR branch (list them as landed-via-predecessor). `
 }
 
 function runGroup(g) {
   const spec = args.specPattern.replace('{letter}', g.letter.toLowerCase())
   return agent(
-    `You are the ${W} fix-lane implementer for group ${g.letter} (${g.notes}). ` + successorNote(g) +
+    AUTH + `You are the ${W} fix-lane implementer for group ${g.letter} (${g.notes}). ` + successorNote(g) +
     `Your dispatch spec is ${spec} — read it whole and follow it exactly. ` +
     `Before EACH new step check for ${args.stopFile}; if it exists, checkpoint-commit, write your checkpoint file and report, and return status SPLIT. ` +
     `YOUR LAST ACTION MUST BE THE StructuredOutput CALL — never end on a report file or a summary message, or your finished branch is stranded: ` +
@@ -94,7 +112,7 @@ function land(batch) {
   const ids = (args.idBlocks || [])[n] || 'none — ask the orchestrator'
   log(`train ${label}: landing ${batch.map(r => r.letter).join(' ')}`)
   return agent(
-    `You are the train-${label} LANDER. Read ${args.landerBrief} whole and follow it. ` +
+    AUTH + `You are the train-${label} LANDER. Read ${args.landerBrief} whole and follow it. ` +
     `First write ${args.manifestPattern.replace('{train}', label)} with exactly this JSON:\n${manifest}\n` +
     `An earlier train of this queue may have just landed: fetch, rebase onto the current main branch before gating, and ` +
     `confirm main has not moved again before you land (rebase and re-gate if it has). Number any sequential log entry from ` +

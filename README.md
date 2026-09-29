@@ -8,6 +8,9 @@ projects. Each skill encodes rules that were learned the expensive way; the *why
 project's development log that survived validation against primary sources and an independent refuter. Rules in
 the skills that are not yet proven say so where they stand.
 
+**[GLOSSARY.md](GLOSSARY.md)** defines the fleet vocabulary these skills use (orchestrator, implementer, lander,
+train, refuter, register, stamp, watchdog, and more), with the closest industry term for each and where it lives here.
+
 ## Install
 
 ```
@@ -31,6 +34,18 @@ repository as a git submodule (say at `tools/claude-skills`) and declare it in t
 Project skills that extend one of these can then open by invoking the base (`brent-tools:<skill>`) and keep only
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
+
+## What's new in 1.13.3
+
+- **[GLOSSARY.md](GLOSSARY.md)**: the fleet vocabulary these skills use, with industry equivalents and pointers to
+  each term's skill or script.
+
+## What's new in 1.13.2
+
+- **Run CI's other-OS legs locally before pushing** (`agent-fleet` §6). A new test planted a Windows path literal
+  that is relative on Linux: green in every Windows gate, red in CI's Linux unit job, for a ~30-minute round trip and
+  a dropped cluster. The local unit leg reproduced exactly that one red in about 2.5 minutes. The whole Linux
+  population measured at about 5 minutes, so every lander and implementer runs all of it.
 
 ## What's new in 1.13.1
 

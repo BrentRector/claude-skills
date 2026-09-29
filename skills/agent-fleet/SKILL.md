@@ -251,6 +251,24 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   Workflow tool refused a script whose CRLF line endings (from Python's `write_text` on Windows) read as hidden
   control characters.* *(Practice — not yet validated: the LF rule has held since, but has not been re-validated on its own.)*
 - **Watch CI for every pushed head.** A red run is a blocking fix, landed alone. *(Validated 2026-09-28.)*
+- **Run CI's other-OS legs locally before pushing.** When CI runs on an operating system your agents' gates do not
+  (Linux CI, Windows gates), give every gate a local run of those legs, for example under WSL, and write it into
+  the briefs and the brief checker, not into memory.
+  - Measure the legs before deciding who runs what. In the incident below, the whole other-OS population took about
+    5 minutes, so every implementer and every lander runs all of it. A detector that adds the expensive legs only
+    for "platform-sensitive" diffs (OS checks, path APIs, drive letters, shells, newlines) was built and dropped
+    the same night: at that cost no selection is worth its misses. If your legs are expensive, such a detector may
+    ADD a leg, but never remove one or select tests.
+  - Reuse the Windows-built binaries where IL is portable, but BUILD on the target OS for any test that embeds build
+    paths (`[CallerFilePath]`, source-relative fixtures), or it false-reds.
+  - Make git readable from the other OS: a Windows worktree's `.git` file names a Windows path, and mounted trees
+    trip git's ownership check.
+  - Keep a drift test holding the local legs equal to the CI jobs' test projects.
+  *Why: a new test planted a Windows path literal that `Path.GetFullPath` treats as relative on Linux. It was green
+  in every Windows gate and red in CI's Linux unit job. The CI round trip cost ~30 minutes and dropped the cluster;
+  the local unit leg reproduced exactly that one red in about 2.5 minutes. The practice had existed only as a memory
+  note, so no agent ran it.* *(Practice — not yet validated: built after one incident; not yet exercised across
+  waves.)*
 
 ## 7. Group related fixes for each implementer
 

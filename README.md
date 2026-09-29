@@ -32,6 +32,15 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.13.1
+
+- **The stall watchdog no longer trusts the scheduler.** `agent-fleet/references/stall_watch.py` watched only
+  agents in flight, so a scheduler that reported "running" with nothing in flight gave it nothing to flag. It now
+  exits IDLE once no agent has been in flight or active for 10 minutes (`--idle`), and reports an agent the journal
+  records as `failed` as dead rather than waiting. *Evidence:* the workflow that sat "running" for 16 hours after
+  an agent died, replayed: IDLE fires 10 minutes after its last agent finished. A workflow still running an agent
+  is not flagged.
+
 ## What's new in 1.13.0
 
 Four vetted learnings that were in no skill yet are now encoded where an agent meets them, each marked

@@ -196,7 +196,13 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
 - **Run `references/stall_watch.py <workflow transcript dir>` in the background next to EVERY fleet workflow.** It
   exits, and so wakes the orchestrator, the moment a pending agent's transcript has been silent:
   - more than 10 minutes while waiting on the MODEL (its last record is not an open tool call), or
-  - more than 12 minutes INSIDE one tool call.
+  - more than 12 minutes INSIDE one tool call,
+  or the moment the workflow has had NO agent in flight and no agent activity for 10 minutes (IDLE). IDLE does
+  not take the scheduler's word that it is running: a workflow reported running with no agent working is hung in
+  its own scheduler. *Once, an agent died on an API error, a scheduler bug left its successor waiting forever,
+  and the workflow showed "running" for 16 hours. Replaying that workflow's journal, IDLE fires 10 minutes after
+  the last agent finished.* An agent the journal records as `failed` is reported as dead, never as waiting. Stop
+  the watcher when the workflow's completion notice arrives; otherwise its IDLE exit is one false wake-up.
   It reads each record's own timestamp, not file times. *Why, measured over 150 transcripts (~27,800
   silences): model waits were under 94 s at the 99.9th percentile; tool calls peaked at 585 s. A model call CAN
   hang: two implementers in one wave stopped producing tokens after a successful tool result, one of them after it

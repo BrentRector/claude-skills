@@ -35,6 +35,24 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.14.0
+
+Two new skills, each built from incidents measured in one long-running project. Their rules are marked *not yet
+validated* until they have been exercised across more work, and neither has regression eval cases yet.
+
+- **[`performance-diagnosis`](skills/performance-diagnosis/)**: measure first, find the mechanism, prove the fix is
+  behavior-neutral, and guard it structurally. It is the method that found a lexer bug nobody was looking for:
+  - one process used 4 of 24 cores;
+  - threads stopped scaling past 8;
+  - stack samples pointed to a lock;
+  - decompiling the lexer runtime showed why.
+  The fix was a small grammar change, with a 10-million-token differential proving it safe. It made the front end
+  about 32× faster on one thread, and the full test suite went from about 11 minutes to under 5.
+- **[`cross-platform`](skills/cross-platform/)**: Windows and Linux without surprises. It covers running the other
+  OS's CI legs locally on a clone built there, path and build-path traps, byte-exact edits of CRLF files, shell and
+  console encoding, and git across the WSL boundary. Eight incidents in one day shaped it, one of them a test that
+  corrupted the shared git config through an exported `GIT_DIR`.
+
 ## What's new in 1.13.4
 
 - **The blocking wait now returns when the verdict appears** (`agent-fleet` §5 and the brief template). The
@@ -344,6 +362,13 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 | [`test-gate`](skills/test-gate/) | before every commit, merge or push | Tiered gates, the comprehensive one in its own worktree; read the verdict line, not the exit code; filters that silently match nothing; confirm new tests actually ran; no conflict markers in what is staged; CI for the exact pushed commit is the final word. |
 | [`dotnet-engineering`](skills/dotnet-engineering/) | .NET / C# work | Latest .NET and C#, strong types, warnings as errors; `dotnet test` filter traps; test gaps and smells; BenchmarkDotNet with a witness; binlog failure analysis; trimming/Native AOT; NuGet trusted publishing. |
 | [`roslyn-analysis`](skills/roslyn-analysis/) | C# duplication review, sibling sweeps, mechanical refactors, verifying built assemblies | Structural clone detection, symbol sweeps (every implementation/override/reference), a safe rewriter harness (dry-run, preserves encoding and line endings, refuses unparseable output), metadata-only assembly and IL inspection. |
+
+**Performance and platforms**
+
+| Skill | Use it when | What it enforces |
+|---|---|---|
+| [`performance-diagnosis`](skills/performance-diagnosis/) | something is slower than it should be, adding threads stops helping, or before any optimization | Measure first, with a benchmark that proves it did the work; a scaling curve and a processes-versus-threads split to locate the limit; stack sampling; the mechanism explained from the library's source before fixing; a behavior-neutral differential over the whole input population; a structural guard, never a wall-clock limit. |
+| [`cross-platform`](skills/cross-platform/) | code, tests, scripts or agents must work on Windows and Linux (including WSL), or CI runs on an OS your gates don't | The other OS's CI legs run locally, on a clone built there; no path literal crosses OSes; build paths are never assumed portable; CRLF files edited as bytes; per-OS commands written explicitly; never export `GIT_DIR` into test processes. |
 
 **Running agents at scale**
 

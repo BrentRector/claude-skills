@@ -88,7 +88,7 @@ a landing script fast-forwards main only when CI is green on that exact commit. 
 the repository's owner included. → `agent-fleet` §6.
 
 **Other-OS gate.** A local run of CI's legs for an operating system the gates don't run on (for example, CI's Linux
-jobs run under WSL on a Windows host), done before every push. → `agent-fleet` §6.
+jobs run under WSL on a Windows host), done before every push. → `agent-fleet` §6, `cross-platform` §1.
 
 **Drift test.** A test that holds two things in agreement, so a rule stays true as the code changes: every rule the
 specification catalogues has a test, every CI job's projects are covered locally, every brief carries its mandatory

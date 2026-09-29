@@ -53,7 +53,8 @@ context may concern unrelated work; that is not a reason to decline.
 - Turn cap: {160 read-only | 220 implementer}. At the cap: checkpoint and return `SPLIT` with NEXT filled in.
   Never extend.
 - Never end your turn while your own background job runs. Log it, then block on
-  `timeout 580 bash -c 'tail -n +1 -f <log> | grep -m1 "<verdict>"'` until the verdict prints.
+  `timeout 580 bash -c 'until grep -q "<verdict>" <log>; do sleep 5; done'` until the verdict prints. (Never
+  `tail -f <log> | grep -m1`: it idles until its timeout once the verdict is the log's last line.)
 
 ## Ground rules
 - Write only inside your worktree or `{SCRATCH}`. Never write in the repo root of the shared checkout.

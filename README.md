@@ -35,6 +35,13 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.13.4
+
+- **The blocking wait now returns when the verdict appears** (`agent-fleet` §5 and the brief template). The
+  documented `tail -f <log> | grep -m1 <verdict>` idles until its timeout whenever the verdict is the log's last line,
+  because `tail` only notices `grep` has exited at its next write. A gate that went green at 11:56 held its agent
+  until 12:03:48. The form is now `until grep -q <verdict> <log>; do sleep 5; done`.
+
 ## What's new in 1.13.3
 
 - **[GLOSSARY.md](GLOSSARY.md)**: the fleet vocabulary these skills use, with industry equivalents and pointers to

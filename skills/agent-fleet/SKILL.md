@@ -217,9 +217,13 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
 - **Late in a window, dispatch short jobs that are close to done. Early in a window, dispatch long ones.**
   *Why: that way a burst can't exhaust the window before anything is finished.*
 - **An agent never ends its turn while its own background job is running.** It starts the job with output to a
-  log, then blocks in the foreground (for example `timeout 580 bash -c 'tail -f <log> | grep -m1 "<verdict>"'`),
+  log, then blocks in the foreground with `timeout 580 bash -c 'until grep -q "<verdict>" <log>; do sleep 5; done'`,
   reissuing that until the verdict prints. *Why: an agent that returns early gets its background gate killed,
   and it reports "PENDING".* *(Validated 2026-09-28.)*
+  ⛔ Never block with `tail -f <log> | grep -m1 <verdict>`. `grep` exits on the match, but `tail` only notices at its
+  next write, and a verdict is usually the log's LAST line, so the wait idles until its timeout. *Measured: a gate
+  went green at 11:56 and its `tail -f` wait returned at 12:03:48 (exit 124). A 10-line test log shows the same:
+  `tail -f` returns at the timeout, `until grep` at once.* *(Validated 2026-09-29.)*
 
 ## 6. Land finished work before starting new work
 

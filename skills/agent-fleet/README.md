@@ -78,7 +78,7 @@ section).
 | The bar | what would make the output worthless even though it is well-formed |
 | Allocated to you | id ranges, code ranges, the report path — agents never mint their own |
 | Checkpoint protocol | a staged-output conflict-marker assertion before every commit; WIP commits + a stamped `STATUS.md` (`STATUS-AT: <sha>`) for worktree agents, and `status_delta.py` first when resuming or merging a predecessor; JSONL-per-item for workflow stages |
-| Stop rules | the STOP file, the turn cap, and blocking on background jobs with `timeout 580 bash -c 'tail -n +1 -f <log> \| grep -m1 "<verdict>"'` |
+| Stop rules | the STOP file, the turn cap, and blocking on background jobs with `timeout 580 bash -c 'until grep -q "<verdict>" <log>; do sleep 5; done'` (never `tail -f \| grep -m1`, which idles to its timeout) |
 | Ground rules | write only in your worktree or scratch; every reported lead carries repro and code site |
 | Report | 60 lines or fewer: status, one section per item, leads, NEXT if split |
 

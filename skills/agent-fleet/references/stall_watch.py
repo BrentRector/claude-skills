@@ -12,6 +12,12 @@ timestamp, never the file's mtime):
   waiting on the MODEL (last record is not an unanswered tool call)  silent > --model-stall seconds  -> STALLED
   inside a TOOL call  (last record is an unanswered tool_use)          silent > --tool-stall seconds   -> STALLED
   NO agent in flight  (every started agent finished or failed)        idle > --idle seconds          -> IDLE
+  an agent DIES while the watch runs (a journal `failed` record)      at once                       -> FAILED
+
+A death is work to recover: the scheduler moves on, but the dead agent's checkpoint needs a finisher, so a NEW
+death wakes the orchestrator. (Measured: three of six implementers in one wave died near the end with no error
+recorded, and nothing noticed until someone looked.) Deaths already present when a live watch starts are listed,
+not alarmed; `--once` replays history and alarms on every death.
 
 The IDLE check does not trust the scheduler's own claim to be running. A workflow whose scheduler has hung
 reports "running" indefinitely, but no agent is working and no transcript is being written. That happened once:
@@ -96,12 +102,17 @@ def last_activity(wf):
     return max(stamps, default=None)
 
 
-def check(wf, model_stall, tool_stall, idle_limit, watch_start):
+def check(wf, model_stall, tool_stall, idle_limit, watch_start, known_failed=frozenset()):
     now = datetime.datetime.now(datetime.timezone.utc)
     stalled, report = [], []
     pending, failed = journal(wf)
     for aid, label in sorted(failed.items(), key=lambda x: x[1]):
-        report.append(f"{label} ({aid}): FAILED (the agent died; the journal holds no result)")
+        line = f"{label} ({aid}): FAILED (the agent died; the journal holds no result)"
+        report.append(line)
+        # A death is work to recover (a finisher from its checkpoint), so a NEW one wakes the orchestrator even though
+        # the scheduler moves on. Deaths already present when the watch started were reported then.
+        if aid not in known_failed:
+            stalled.append(line + " — dispatch a finisher from its checkpoint")
     for aid, label in sorted(pending.items(), key=lambda x: x[1]):
         rec = last_record(wf / f"agent-{aid}.jsonl")
         if rec is None:
@@ -143,8 +154,10 @@ def main():
     # A live watch counts idleness from its own start at the earliest, so a watcher started between two agents
     # does not fire on the gap before it began; --once replays history and counts from the last activity alone.
     watch_start = None if a.once else datetime.datetime.now(datetime.timezone.utc)
+    # A live watch alarms on deaths that happen WHILE it watches; --once replays history and reports every death.
+    known_failed = frozenset() if a.once else frozenset(journal(wf)[1]) if (wf / "journal.jsonl").exists() else frozenset()
     while True:
-        stalled, report = check(wf, a.model_stall, a.tool_stall, a.idle, watch_start)
+        stalled, report = check(wf, a.model_stall, a.tool_stall, a.idle, watch_start, known_failed)
         if a.once:
             print("\n".join(report))
         if stalled:

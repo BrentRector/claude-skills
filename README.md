@@ -35,6 +35,14 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.15.1
+
+- **The stall watchdog wakes you when an agent dies.** `agent-fleet/references/stall_watch.py` used to list a
+  journal `failed` agent without exiting, because the scheduler moves on. But a dead agent's checkpoint needs a
+  finisher: three of six implementers in one wave died near the end with no error recorded, and nobody noticed until
+  someone looked. A death during a live watch now exits the watcher (`FAILED`); deaths present when it starts are
+  listed, not alarmed. A simulated live death alarms; a pre-existing one does not.
+
 ## What's new in 1.15.0
 
 - **[`architecture-audit`](skills/architecture-audit/)**: a comprehensive review AND restructuring of a whole

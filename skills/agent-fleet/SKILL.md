@@ -201,7 +201,9 @@ When a batch looks uniformly right, spot-check the **substance** of the results 
   not take the scheduler's word that it is running: a workflow reported running with no agent working is hung in
   its own scheduler. *Once, an agent died on an API error, a scheduler bug left its successor waiting forever,
   and the workflow showed "running" for 16 hours. Replaying that workflow's journal, IDLE fires 10 minutes after
-  the last agent finished.* An agent the journal records as `failed` is reported as dead, never as waiting. Stop
+  the last agent finished.* An agent the journal records as `failed` is reported as dead, never as waiting, and a death
+  during the watch EXITS the watcher: the scheduler moves on, but the dead agent's checkpoint needs a finisher. *Three
+  of six implementers in one wave died near the end with no error recorded, and nothing woke the orchestrator.* Stop
   the watcher when the workflow's completion notice arrives; otherwise its IDLE exit is one false wake-up.
   It reads each record's own timestamp, not file times. *Why, measured over 150 transcripts (~27,800
   silences): model waits were under 94 s at the 99.9th percentile; tool calls peaked at 585 s. A model call CAN

@@ -26,12 +26,15 @@ files; load the one for the task in hand, not all of them.
 | A build fails and the console output doesn't explain it | [references/build-failures.md](references/build-failures.md) |
 | Trim or AOT analyzer warnings, `IsAotCompatible`, `PublishAot` | [references/aot.md](references/aot.md) |
 | Publishing to nuget.org from GitHub Actions | [references/publishing.md](references/publishing.md) |
+| Moving an existing codebase to the latest .NET and C# (SDK upgrade, analyzer-driven feature waves) | [references/modernization.md](references/modernization.md) |
 
 ## The language and runtime bar
 
 - **Target the latest stable .NET and the C# version it ships with.** One TFM, the current one. No
   `netstandard2.0`, no `net4x`, no multi-targeting and no polyfill packages unless a named, real consumer needs
-  them, and then say who. Compatibility shims for users who don't exist are pure maintenance cost.
+  them, and then say who. Compatibility shims for users who don't exist are pure maintenance cost. (The standing
+  example of a real consumer: a Roslyn source generator or analyzer targets `netstandard2.0` because the compiler
+  hosts it there.)
 - **Modern idioms by default:** file-scoped namespaces, primary constructors, `record` / `record struct` for
   values, `required` and `init` members, collection expressions, pattern matching and switch expressions over
   `if` ladders, `Span<T>` / `ReadOnlySpan<T>` / `stackalloc` on hot paths, `field`-backed properties, generic

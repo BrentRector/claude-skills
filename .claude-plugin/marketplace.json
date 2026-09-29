@@ -5,12 +5,12 @@
   },
   "metadata": {
     "description": "Engineering-discipline skills for Claude Code, distilled from long-running production work: a production engineering bar, adversarial code review, spec-driven correctness, test gates that can't lie, multi-agent campaigns, cloud sessions, agent guardrails that are enforced and checked every session, and a development log that serves as the agents' memory.",
-    "version": "1.14.1"
+    "version": "1.15.0"
   },
   "plugins": [
     {
       "name": "brent-tools",
-      "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, claude-cloud-sessions, automating-agent-guardrails, devlog, performance-diagnosis and cross-platform",
+      "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, claude-cloud-sessions, automating-agent-guardrails, devlog, performance-diagnosis, cross-platform and architecture-audit",
       "source": "./"
     }
   ]

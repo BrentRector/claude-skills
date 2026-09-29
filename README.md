@@ -35,6 +35,30 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.15.0
+
+- **[`architecture-audit`](skills/architecture-audit/)**: a comprehensive review AND restructuring of a whole
+  codebase, run as a campaign:
+  1. a measured baseline and a behavior-neutrality oracle (emitted artifacts, diagnostics, tokens and parse trees,
+     tests on every OS, performance);
+  2. an adversarially reviewed target architecture with dependency rules enforced by tests;
+  3. a review fleet by subsystem and dimension whose findings become tracked work;
+  4. behavior-neutral restructuring waves (extract, unify, move and rename with every caller, data-ize);
+  5. analyzer-driven modernization.
+  It is the plan for a campaign that has not yet run, so its rules are marked not yet validated.
+- **`dotnet-engineering` → [references/modernization.md](skills/dotnet-engineering/references/modernization.md)**:
+  moving an existing codebase to the latest stable .NET and C#.
+  - The SDK/TFM/language pins change alone, in their own wave.
+  - Analyzers at `latest-all`.
+  - One feature per wave through its IDE code fix (`dotnet format`) or the Roslyn rewriter harness, kept only if
+    it is neutral and not slower.
+  - The `netstandard2.0` exception for source generators and analyzers is now stated.
+
+## What's new in 1.14.1
+
+- The last copy of the `tail -f … | grep -m1` blocking wait (in the `agent-fleet` README) now shows the
+  `until grep -q` form.
+
 ## What's new in 1.14.0
 
 Two new skills, each built from incidents measured in one long-running project. Their rules are marked *not yet
@@ -347,6 +371,7 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 |---|---|---|
 | [`review`](skills/review/) | reviewing a diff, branch or PR | Four dimensions (architecture · full code · performance · duplication/efficiency) as parallel reviewers, plus specialist agents; every finding carries a concrete failure scenario; an adversarial skeptic tries to refute each one; confirmed bugs trigger a sibling sweep. |
 | [`variant-analysis`](skills/variant-analysis/) | right after any defect is confirmed | Name the mechanism, not the symptom; textual, structural (Roslyn, ANTLR, tree-sitter, Semgrep) and semantic queries; "which arm of the dispatch did you fix?"; a probe per candidate; a sweep report in which zero hits is evidence. |
+| [`architecture-audit`](skills/architecture-audit/) | the whole codebase needs a comprehensive review and restructure, not one diff | A measured baseline and a behavior-neutrality oracle before any change; an adversarially reviewed target architecture with dependency rules enforced by tests; a review fleet by subsystem × dimension whose findings become tracked work; behavior-neutral waves (extract · unify · move and rename with every caller · data-ize); analyzer-driven modernization; architecture tests left behind. |
 
 **Specs and standards**
 

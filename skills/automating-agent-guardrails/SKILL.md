@@ -136,6 +136,11 @@ command. The line is OK only when both the plugin and the binary are present. Ot
 nothing is installed without asking. When the LSP line is OK, find definitions, references and symbols with the LSP
 tool before grep, and use grep for text.
 
+The language server also reports diagnostics (unnecessary `using`, unused locals, analyzer hints) on every file an
+agent edits. Tell agents to act on them: fix each diagnostic on a file they touched in the same change, or name in
+the report why they did not. *(Practice, not yet validated: adopted 2026-10-01 after hints scrolled past in-flight
+worktrees; no count yet of hints fixed or of review findings avoided.)*
+
 ## 6. Regression gates
 
 - **Skill and agent edits:** plugin evals are the regression gate. Each changed rule ships with an eval case that

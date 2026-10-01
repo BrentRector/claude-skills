@@ -17,7 +17,8 @@ session that has this rule loaded. It loads every session even when a hook fails
 - **A new or edited role definition is live only after a restart.** Then prove it with a smoke dispatch (the
   readiness check's TODO line says how).
 - **Navigate code with the LSP tool** (definition, references, symbols) before grep when the readiness check shows
-  the language server OK.
+  the language server OK. **Act on the language server's diagnostics** for files you edit: fix each in the same
+  change, or say why not.
 - **Before a landing push, run the review step** <command or skill>. A finding blocks the push.
 - **A skill or agent edit ships with its eval.** Run `claude plugin eval` for the changed cases before pushing, and
   treat a shrinking delta as a regression.

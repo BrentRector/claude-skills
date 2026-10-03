@@ -186,7 +186,7 @@ the project's development log.
 ### C40. A regression guard that compares against recorded output can lock bugs in
 - **Problem:** wrong results had been recorded as "expected".
 - **Root cause:** the baselines were captured from the implementation, not derived from the authority.
-- **Fix in the skills:** [test-gate, Standards](skills/test-gate/SKILL.md#standards);
+- **Fix in the skills:** [test-gate, Standards](skills/test-gate/references/ci-flakes-standards.md#standards);
   [engineering-standards §5](skills/engineering-standards/SKILL.md#5-verification-and-invariants).
 - **Evidence:** 232 wrong results locked in across 19 tests; a purge fixed 147. The failure recurred later and was
   resolved each time by re-deriving the expected value from the spec, never by re-baselining.
@@ -207,7 +207,7 @@ the project's development log.
 - **Problem:** eleven clusters in a row went red on CI while the local guard was green; three pushes went red from a
   check compiled only into Debug builds.
 - **Root cause:** the local battery ran on one OS, in Debug, and was not a superset of CI.
-- **Fix in the skills:** [test-gate, After the push](skills/test-gate/SKILL.md#after-the-push-ci-is-the-final-authority).
+- **Fix in the skills:** [test-gate, After the push](skills/test-gate/references/ci-flakes-standards.md#after-the-push-ci-is-the-final-authority).
 - **Evidence:** 11 red pushes; 3 consecutive red pushes. After CI was read on every landing, it held main untouched
   on reds the local gates missed, several times.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 515, 691, 774, 1617.
@@ -227,7 +227,7 @@ the project's development log.
 - **Problem:** a static-analysis scan printed "Scan completed successfully" while 4 of its 6 rules were dead; drift
   guards were drafted that could not have caught the defect they commemorated.
 - **Root cause:** guards were never watched failing. "A guard nobody has watched fail is a guess about a guess."
-- **Fix in the skills:** [test-gate, A gate that has never failed proves nothing](skills/test-gate/SKILL.md#a-gate-that-has-never-failed-proves-nothing);
+- **Fix in the skills:** [test-gate, A gate that has never failed proves nothing](skills/test-gate/references/verdict-and-evidence.md#a-gate-that-has-never-failed-proves-nothing);
   [engineering-standards §5](skills/engineering-standards/SKILL.md#5-verification-and-invariants).
 - **Evidence:** 4 of 6 rules dead; once fixed, one found 423 hits. Seen-to-fail checks later caught several guards
   and goldens that could not fail.
@@ -250,7 +250,7 @@ the project's development log.
   outcomes; a killed process was scored as a rejection.
 - **Root cause:** harnesses counted only failures and inferred verdicts from absent data; the launcher logic was
   copied seven times.
-- **Fix in the skills:** [test-gate, A missing observation](skills/test-gate/SKILL.md#a-missing-observation-is-not-a-negative-one).
+- **Fix in the skills:** [test-gate, A missing observation](skills/test-gate/references/verdict-and-evidence.md#a-missing-observation-is-not-a-negative-one).
 - **Evidence:** 352/353; seven copies merged into one. A later population audit caught a program with no verdict
   line, and a CI read that came back empty now reports UNVERIFIED instead of red.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 1150, 1151, 1309, 1735.
@@ -258,7 +258,7 @@ the project's development log.
 ### C48. Compare differentials case by case, never by totals
 - **Problem:** for weeks, "0 per-case flips" rested on four matching totals; no per-case record had been kept.
 - **Root cause:** identical totals are consistent with offsetting flips.
-- **Fix in the skills:** [test-gate, A missing observation](skills/test-gate/SKILL.md#a-missing-observation-is-not-a-negative-one)
+- **Fix in the skills:** [test-gate, A missing observation](skills/test-gate/references/verdict-and-evidence.md#a-missing-observation-is-not-a-negative-one)
   "Compare ... case by case, never by totals".
 - **Evidence:** 1,323 cases; two planted offsetting flips left all four totals unchanged and were caught by name.
   Later batteries found 12 flips (one a real regression) and a flip that produced a blocking fix.
@@ -269,7 +269,7 @@ the project's development log.
   itself as the whole population.
 - **Root cause:** the ranking predicate omitted two harm classes; the regex required an optional keyword that the
   author's own example happened to contain.
-- **Fix in the skills:** [test-gate](skills/test-gate/SKILL.md#a-missing-observation-is-not-a-negative-one) "A filter,
+- **Fix in the skills:** [test-gate](skills/test-gate/references/verdict-and-evidence.md#a-missing-observation-is-not-a-negative-one) "A filter,
   ranker or selector tells you ... nothing about what it dropped";
   [engineering-standards §5](skills/engineering-standards/SKILL.md#5-verification-and-invariants) "Vary the axis".
 - **Evidence:** actionable items went from 10 to 19 on one predicate change (4 + 5 items in the two missing
@@ -281,7 +281,7 @@ the project's development log.
 - **Problem:** 16 consecutive CI runs failed over ~29 h while about ten landings each reported a green local gate.
 - **Root cause:** every written landing procedure stopped at the push; the reds were host-dependent behaviors of the
   CI runners (Windows and Linux) that no gate on the owner's desktop could see.
-- **Fix in the skills:** [test-gate, After the push](skills/test-gate/SKILL.md#after-the-push-ci-is-the-final-authority);
+- **Fix in the skills:** [test-gate, After the push](skills/test-gate/references/ci-flakes-standards.md#after-the-push-ci-is-the-final-authority);
   [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work) "Watch CI for every
   pushed head".
 - **Evidence:** 16 failed runs plus 6 cancelled, 28 h 50 min. After landings pushed a verified sha and waited for
@@ -319,7 +319,7 @@ the project's development log.
 - **Problem:** a new negative test shipped without its expected-error file, because the implementer's gate ran only
   the "every program is registered" test.
 - **Root cause:** registration proves presence, not execution.
-- **Fix in the skills:** [test-gate, Confirm the new tests actually ran](skills/test-gate/SKILL.md#confirm-the-new-tests-actually-ran-by-name).
+- **Fix in the skills:** [test-gate, Confirm the new tests actually ran](skills/test-gate/references/build-and-filters.md#confirm-the-new-tests-actually-ran-by-name).
 - **Evidence:** one incident, caught by the lander's whole-suite gate (2026-09-24). By-name execution of new cases is
   recorded on every later train.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 1697, 1699, 1700, 1702, 1715, 1758.
@@ -363,7 +363,7 @@ the project's development log.
   referenced. The owner: "you regularly prefer to accumulate technical debt rather than do it correctly."
 - **Root cause:** the smallest diff that fits the stated estimate.
 - **Fix in the skills:** [engineering-standards §4](skills/engineering-standards/SKILL.md#4-completeness) "Tests
-  verify; they do not scope" and "Deferral is debt"; [§2](skills/engineering-standards/SKILL.md#when-re-architecture-is-required-not-optional)
+  verify; they do not scope" and "Deferral is debt"; [§2](skills/engineering-standards/references/quality-and-structure.md#when-re-architecture-is-required-not-optional)
   "A stated scope is an estimate".
 - **Evidence:** at least six owner corrections from 2026-03-14 to 2026-07-21; one "deferral" turned out to be a path
   that already rejected legal input. No further owner rebuke for deferral after July.
@@ -375,7 +375,7 @@ the project's development log.
 - **Problem:** the transcribed standard was "basically unintelligible" as rendered, with every gate green.
 - **Root cause:** "every gate reads the file as TEXT and the reader reads it as a RENDERED PAGE"; a consistency
   check proved agreement with a generator that shared its blind spot.
-- **Fix in the skills:** [test-gate](skills/test-gate/SKILL.md#a-gate-that-has-never-failed-proves-nothing) "ask what
+- **Fix in the skills:** [test-gate](skills/test-gate/references/verdict-and-evidence.md#a-gate-that-has-never-failed-proves-nothing) "ask what
   its scope leaves out"; [engineering-standards §5](skills/engineering-standards/SKILL.md#5-verification-and-invariants).
 - **Evidence:** four instances in one session, all under green gates; 4,161 rule labels parsed as list items. The
   same discipline later found a filter green over zero of 349 cases.
@@ -413,7 +413,7 @@ the project's development log.
 - **Problem:** a nine-agent sweep lost all nine agents to API errors, and its summary said every use was correct.
 - **Root cause:** a `defects.length ? … : fallback` branch "unable to distinguish 'nothing was wrong' from 'nothing
   ran'".
-- **Fix in the skills:** [test-gate, A missing observation](skills/test-gate/SKILL.md#a-missing-observation-is-not-a-negative-one);
+- **Fix in the skills:** [test-gate, A missing observation](skills/test-gate/references/verdict-and-evidence.md#a-missing-observation-is-not-a-negative-one);
   [agent-fleet §2](skills/agent-fleet/references/inputs-and-briefs.md#2-inputs-one-agent-one-self-contained-input-file) "Reconcile the returns".
 - **Evidence:** 9 of 9 dead; later runs lost 9 and 3 and correctly reported INCONCLUSIVE.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 1105, 1106, 1124, 1754.
@@ -509,7 +509,7 @@ the project's development log.
   bug; a figure audit reported 76 findings, 1 real.
 - **Root cause:** quoted labels, captures spanning blocks, a wrong nearest-clause heuristic, and a population chosen
   by directory (source comments were never scanned).
-- **Fix in the skills:** [test-gate, A gate that has never failed proves nothing](skills/test-gate/SKILL.md#a-gate-that-has-never-failed-proves-nothing)
+- **Fix in the skills:** [test-gate, A gate that has never failed proves nothing](skills/test-gate/references/verdict-and-evidence.md#a-gate-that-has-never-failed-proves-nothing)
   (make it fail once, then ask what its scope leaves out).
 - **Evidence:** the broad check was abandoned as unfixable; a narrow check went 9 → 4 → 0 and 5 real defects were
   fixed; the figure audit went 76 → 1 as three tool bugs came out.

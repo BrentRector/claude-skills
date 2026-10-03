@@ -78,13 +78,29 @@ docs = [ROOT / "README.md", *ROOT.glob("*.md")]
 for d in skills:
     docs += [d / "SKILL.md", *sorted((d / "references").rglob("*.md")), *d.glob("README.md")]
 docs += list((ROOT / "agents").glob("*.md")) + list((ROOT / "evals").glob("*.md"))
+def heading_slugs(path):
+    slugs = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        hm = re.match(r"#{1,6}\s+(.*)$", line)
+        if hm:
+            slugs.add(re.sub(r"[^\w\- ]", "", hm.group(1).strip().lower()).replace(" ", "-"))
+    return slugs
+
+
+LINK_ANCHOR = re.compile(r"\]\(([^)\s#]+\.md)#([^)\s]+)\)")
 for f in {p for p in docs if p.exists()}:
-    for m in LINK.finditer(f.read_text(encoding="utf-8")):
+    text = f.read_text(encoding="utf-8")
+    for m in LINK.finditer(text):
         t = m.group(1)
         if re.match(r"[a-z]+:", t):
             continue
         if not (f.parent / t).resolve().exists():
             bad(f"{f.relative_to(ROOT)}: broken link {t}")
+    for m in LINK_ANCHOR.finditer(text):
+        t, anc = m.group(1), m.group(2)
+        target = (f.parent / t).resolve()
+        if target.exists() and anc not in heading_slugs(target):
+            bad(f"{f.relative_to(ROOT)}: link {t}#{anc} points at a heading that is not in that file")
 
 for d in skills:
     f = d / "SKILL.md"

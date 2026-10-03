@@ -35,6 +35,25 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.16.0
+
+- **Six long skills load a short core and read the rest on demand.** `agent-fleet` (40.8 KB to 14.6 KB),
+  `engineering-standards`, `test-gate`, `spec-compliance-audit`, `review` and `automating-agent-guardrails` each keep the
+  rules in `SKILL.md` as one line per rule, with a "read `references/<file>.md` before ..." pointer, and hold the reasons,
+  measurements and procedures verbatim in `references/`. The skills in this repo total 146 KB of `SKILL.md`, down from 218 KB.
+  Each split was checked mechanically: every paragraph of the original is present in the core plus references, and the
+  skills' evals score the same as before (with the skill 1.00 on every case run).
+- **A lint with CI.** `scripts/lint_skills.py` checks front matter, the plugin manifest against the skill and agent files
+  and the marketplace version, relative links and heading anchors, named references, and that the tokens an eval's
+  graders look for are still in the skill the case covers. `.github/workflows/lint.yml` runs it with actions pinned by
+  commit SHA, and Dependabot tracks them. No model calls.
+- **Agents act on the language server's diagnostics** (`automating-agent-guardrails`): fix each diagnostic on a file you
+  touched in the same change, or say why not. *Practice, not yet validated.*
+- **Cap what an agent returns** (`agent-fleet`, `rolling-wave.js`): a summary of about 900 characters, 6 leads of 500, a
+  lander's final text of 25 lines, with the detail in a report file, because everything returned is re-read by the
+  orchestrator on every later turn. *Practice, not yet validated.*
+- **A premium model needs the quota owner's explicit approval each time** (`agent-fleet`). *Practice, not yet validated.*
+
 ## What's new in 1.15.1
 
 - **The stall watchdog wakes you when an agent dies.** `agent-fleet/references/stall_watch.py` used to list a

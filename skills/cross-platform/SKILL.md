@@ -36,7 +36,7 @@ come from one incident.)*
   a planted gap.
 
 *Why: a new test was green in every Windows gate and red in CI's Linux unit job, a ~30-minute round trip and a
-dropped change. The local Linux leg reproduced exactly that one red in about 2.5 minutes.* `agent-fleet` §6 carries
+dropped change. The local Linux leg reproduced exactly that one red in about 2.5 minutes.* `agent-fleet/references/landing.md` carries
 the fleet rule. *(Practice — not yet validated.)*
 
 ## 2. Paths: never assume the host's shape

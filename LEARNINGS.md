@@ -75,7 +75,7 @@ the project's development log.
 ### C4. Refuters overturn a large share, and almost always downward
 - **Problem:** adjudicators closed rules as conforming after sampling outputs or reading one of two code paths.
 - **Root cause:** the author of a verdict is biased toward it, and sampled outputs miss the branch that matters.
-- **Fix in the skills:** [agent-fleet §10](skills/agent-fleet/SKILL.md#10-adversarial-refuters-on-closing-verdicts);
+- **Fix in the skills:** [agent-fleet §10](skills/agent-fleet/references/refuters-and-routing.md#10-adversarial-refuters-on-closing-verdicts);
   [spec-compliance-audit §6](skills/spec-compliance-audit/SKILL.md#6-the-adversarial-refuter-on-every-closing-verdict).
 - **Evidence:** 26 agents, 16 overturns, all downgrades; 19 of 70; 44 of 120 ("not one overturn went upward"); 3 of
   10; 21 of 51; later batches 39/74, 67/158, 41/115, 36/112, 39/135. One batch (2026-08-29) overturned in both
@@ -87,7 +87,7 @@ the project's development log.
 ### C5. Review fleets on a green wave find the wave's own defects
 - **Problem:** waves gated green still carried defects their implementers had introduced, widened or certified.
 - **Root cause:** only the implementer had read the change.
-- **Fix in the skills:** [agent-fleet §11](skills/agent-fleet/SKILL.md#11-measure-cost-per-unit-and-route-to-the-cheapest-lane)
+- **Fix in the skills:** [agent-fleet §11](skills/agent-fleet/references/refuters-and-routing.md#11-measure-cost-per-unit-and-route-to-the-cheapest-lane)
   "Self-review before a large review fleet": each implementer reviews its own diff, and the lander reviews the
   merged batch.
 - **Evidence:** a 106-agent fleet confirmed 26 findings; 5 of the 11 resulting items were defects the wave itself
@@ -100,7 +100,7 @@ the project's development log.
 ### C6. Re-probe a stale backlog before fixing it
 - **Problem:** 331 known-bad rules had been judged before several fix waves landed.
 - **Root cause:** a note's word is not evidence, and the code had moved on.
-- **Fix in the skills:** [agent-fleet §2](skills/agent-fleet/SKILL.md#2-inputs-one-agent-one-self-contained-input-file)
+- **Fix in the skills:** [agent-fleet §2](skills/agent-fleet/references/inputs-and-briefs.md#2-inputs-one-agent-one-self-contained-input-file)
   "The implementer's first step is to re-run each item's repro on its own build"; the brief template's Contract.
 - **Evidence:** a 24-agent probe-and-refute pass found 114 already FIXED, 170 still live and 47 not implemented, with
   20 prober claims overturned. A later 17-agent pass had refuters break 14 FIXED claims. Re-probing on the
@@ -111,7 +111,7 @@ the project's development log.
 - **Problem:** leads forwarded from implementer reports were often wrong, and a second agent repeated them verbatim:
   "a registrar that copies a report's measurement forward is a second place for the report's mistakes to live".
 - **Root cause:** unverified self-reports.
-- **Fix in the skills:** [agent-fleet §2](skills/agent-fleet/SKILL.md#2-inputs-one-agent-one-self-contained-input-file)
+- **Fix in the skills:** [agent-fleet §2](skills/agent-fleet/references/inputs-and-briefs.md#2-inputs-one-agent-one-self-contained-input-file)
   "The agent that files leads as work items (the registrar) re-checks every lead", in the current form: run the
   lead's given repro once on your own build; write a fresh probe only when the lead has no runnable repro and code
   site. Also the brief template's Contract.
@@ -126,7 +126,7 @@ the project's development log.
 - **Problem:** workflow agents cannot be messaged, and a hard kill lands mid-step; landers had been killed
   mid-landing.
 - **Root cause:** no channel into a running workflow agent.
-- **Fix in the skills:** [agent-fleet §5](skills/agent-fleet/SKILL.md#5-the-concurrency-budget-and-stopping-before-the-limit)
+- **Fix in the skills:** [agent-fleet §5](skills/agent-fleet/references/concurrency-and-watchdog.md#5-the-concurrency-budget-and-stopping-before-the-limit)
   "Use a graceful STOP file"; the brief template's stop rules.
 - **Evidence:** a lander stopped cleanly before its push for a session reset, with all seven clusters gated green;
   two registrars stopped with their work in checkpoint commits, and finishers completed it. Graceful stops were used
@@ -139,7 +139,7 @@ the project's development log.
 ### C23. Idle slots, not work, were the bottleneck: fill a slot the turn it frees
 - **Problem:** the defect register filled much faster than it drained.
 - **Root cause:** implementers were dispatched one cluster at a time, behind landings.
-- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/SKILL.md#6-land-finished-work-before-starting-new-work)
+- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work)
   "Fill a freed implementer slot in the same turn it frees". (The rolling-wave script that mechanizes it is not
   itself validated.)
 - **Evidence:** ~16 mechanisms in six days (~2.7/day) against a modelled capacity of ~24/day, about 11 %
@@ -152,7 +152,7 @@ the project's development log.
 - **Problem:** the batch test battery rebuilds the tree, so a battery on the shared tree froze the lander.
 - **Root cause:** a shared build tree; one battery measured a half-edited change and had to be redone.
 - **Fix in the skills:** [test-gate](skills/test-gate/SKILL.md#the-three-tiers) "Run the comprehensive gate in its
-  own detached worktree"; [agent-fleet §6](skills/agent-fleet/SKILL.md#6-land-finished-work-before-starting-new-work)
+  own detached worktree"; [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work)
   "Run the comprehensive battery in its own detached worktree".
 - **Evidence:** the battery took ~45 min of machine time. From the next battery on, every battery ran in a detached
   worktree without freezing the lander. The saving is a slowdown rather than a full freeze: the lander's gate ran
@@ -163,7 +163,7 @@ the project's development log.
 - **Problem:** two clusters, each green, composed wrongly: one renamed a method, and the other's later batch wrote
   the old name back.
 - **Root cause:** each cluster's own gate cannot see its siblings.
-- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/SKILL.md#6-land-finished-work-before-starting-new-work)
+- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work)
   "The lander gates the WHOLE test suite, unfiltered", on the merged tree.
 - **Evidence:** 1 red of 27,772 tests on the merged tree; the same shape recurred the next train; a set missed a
   member a sibling had added. The merged-tree gate kept catching composition defects through later trains.
@@ -282,7 +282,7 @@ the project's development log.
 - **Root cause:** every written landing procedure stopped at the push; the reds were host-dependent behaviors of the
   CI runners (Windows and Linux) that no gate on the owner's desktop could see.
 - **Fix in the skills:** [test-gate, After the push](skills/test-gate/SKILL.md#after-the-push-ci-is-the-final-authority);
-  [agent-fleet §6](skills/agent-fleet/SKILL.md#6-land-finished-work-before-starting-new-work) "Watch CI for every
+  [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work) "Watch CI for every
   pushed head".
 - **Evidence:** 16 failed runs plus 6 cancelled, 28 h 50 min. After landings pushed a verified sha and waited for
   CI, CI caught reds with main untouched on at least six later trains.
@@ -295,7 +295,7 @@ the project's development log.
   and no test touching the file.
 - **Fix in the skills:** [test-gate](skills/test-gate/SKILL.md#between-staging-and-committing-no-conflict-markers)
   "Between staging and committing: no conflict markers";
-  [agent-fleet §4](skills/agent-fleet/SKILL.md#4-checkpoint-to-disk-after-every-unit-of-work) "Assert on conflict
+  [agent-fleet §4](skills/agent-fleet/references/checkpointing.md#4-checkpoint-to-disk-after-every-unit-of-work) "Assert on conflict
   markers between staging and committing"; the brief template's checkpoint protocol. Both assert on the OUTPUT of
   `git grep --cached` and `git diff --cached --check` (not their exit codes: a CRLF file makes every line "trailing
   whitespace"), backed by a repo-wide conflict-marker test.
@@ -308,7 +308,7 @@ the project's development log.
 - **Root cause:** the leftover set is by construction the population no term names, so one more term per failure
   never converges.
 - **Fix in the skills:** [test-gate, The three tiers](skills/test-gate/SKILL.md#the-three-tiers) "A landing gate
-  covers the whole affected assembly"; [agent-fleet §6](skills/agent-fleet/SKILL.md#6-land-finished-work-before-starting-new-work).
+  covers the whole affected assembly"; [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work).
 - **Evidence:** a new missing term on each of five landings; a 25-term union green while five external programs were
   red. The whole-assembly gate measured 7,632 cases in 11 min 30 s (9,317 cases later) and ran on every train after,
   with "not one red on any leg" on the next.
@@ -414,14 +414,14 @@ the project's development log.
 - **Root cause:** a `defects.length ? … : fallback` branch "unable to distinguish 'nothing was wrong' from 'nothing
   ran'".
 - **Fix in the skills:** [test-gate, A missing observation](skills/test-gate/SKILL.md#a-missing-observation-is-not-a-negative-one);
-  [agent-fleet §2](skills/agent-fleet/SKILL.md#2-inputs-one-agent-one-self-contained-input-file) "Reconcile the returns".
+  [agent-fleet §2](skills/agent-fleet/references/inputs-and-briefs.md#2-inputs-one-agent-one-self-contained-input-file) "Reconcile the returns".
 - **Evidence:** 9 of 9 dead; later runs lost 9 and 3 and correctly reported INCONCLUSIVE.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 1105, 1106, 1124, 1754.
 
 ### C101. An agent that ends its turn kills its own background gate
 - **Problem:** five implementers and a lander returned "gate PENDING" with logs stopping mid-leg.
 - **Root cause:** a workflow agent that stops has ended its turn, and its background process dies with it.
-- **Fix in the skills:** [agent-fleet §5](skills/agent-fleet/SKILL.md#5-the-concurrency-budget-and-stopping-before-the-limit)
+- **Fix in the skills:** [agent-fleet §5](skills/agent-fleet/references/concurrency-and-watchdog.md#5-the-concurrency-budget-and-stopping-before-the-limit)
   "An agent never ends its turn while its own background job is running".
 - **Evidence:** one incident of six agents. Across six later workflows, 36 of 38 agents blocked in the foreground and
   got verdict lines back; none returned a pending gate.
@@ -434,7 +434,7 @@ the project's development log.
 - **Problem:** a fan-out told "read the shared config and process element k" processed four items twice and skipped
   five.
 - **Root cause:** agents miscount positional indices into shared input.
-- **Fix in the skills:** [agent-fleet §2](skills/agent-fleet/SKILL.md#2-inputs-one-agent-one-self-contained-input-file);
+- **Fix in the skills:** [agent-fleet §2](skills/agent-fleet/references/inputs-and-briefs.md#2-inputs-one-agent-one-self-contained-input-file);
   [spec-compliance-audit §3](skills/spec-compliance-audit/SKILL.md#3-one-agent-per-rule-with-a-self-contained-input).
   Refinements: file names unique across every run, and returns compared by id set, not by count.
 - **Evidence:** 4 double-processed, 5 skipped. Used continuously since. One later agent read another run's
@@ -445,7 +445,7 @@ the project's development log.
 - **Problem:** 7 of 19 adjudicated rows cited a differential test as evidence, and all 7 passed the validator.
 - **Root cause:** the prompt and the schema said which reference forms resolve, never that evidence must be derived
   from the specification.
-- **Fix in the skills:** [agent-fleet §3](skills/agent-fleet/SKILL.md#3-state-the-bar-not-just-the-output-format)
+- **Fix in the skills:** [agent-fleet §3](skills/agent-fleet/references/inputs-and-briefs.md#3-state-the-bar-not-just-the-output-format)
   (state it, then encode it in the schema or validator);
   [spec-compliance-audit §3](skills/spec-compliance-audit/SKILL.md#3-one-agent-per-rule-with-a-self-contained-input).
 - **Evidence:** 7 of 19. The lasting fix was the schema and validator, which every later batch passed through; with

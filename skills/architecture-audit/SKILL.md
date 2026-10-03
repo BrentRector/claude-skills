@@ -65,7 +65,7 @@ every test stays green. Output differentials see what tests don't.*
 ## Phase 1: The target architecture, designed and broken before it is built
 
 An architect agent writes the target; an adversarial reviewer tries to break it; a reviser answers every blocking
-finding; the owner approves. (`agent-fleet` §10 for refuters; the design gets the same treatment as a verdict.)
+finding; the owner approves. (`agent-fleet/references/refuters-and-routing.md` for refuters; the design gets the same treatment as a verdict.)
 The target states:
 - **Layers and the allowed dependency edges.** Every other edge fails an **architecture test** (a Roslyn or
   metadata-based test, or NetArchTest/ArchUnit-style), so the direction is enforced, not hoped for.
@@ -88,7 +88,7 @@ The target states:
 - **Every finding carries** its site, the rule it breaks, a concrete scenario, the proposed target and its wave
   kind.
 - **Findings become tracked work items, never prose.** File them grouped by the file they touch, so restructuring
-  waves are computed from the findings (`agent-fleet` §7), not picked by hand.
+  waves are computed from the findings (`agent-fleet/references/grouping-fixes.md`), not picked by hand.
 - **A defect found here is not fixed here.** It becomes a normal work item for the fix lane. Mixing fixes into
   refactors destroys the neutrality proof.
 

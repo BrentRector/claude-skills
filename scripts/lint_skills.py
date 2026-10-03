@@ -130,7 +130,7 @@ def text_of(case_name):
     return None, None
 
 
-for case in sorted(p for p in (ROOT / "evals").iterdir() if p.is_dir()):
+for case in sorted(p for p in (ROOT / "evals").iterdir() if p.is_dir() and p.name != "results"):  # results/ is gitignored run output
     owner, body = text_of(case.name)
     if body is None:
         bad(f"evals/{case.name}: cannot tell which skill or agent it covers")

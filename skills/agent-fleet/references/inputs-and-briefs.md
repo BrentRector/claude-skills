@@ -62,6 +62,12 @@ The full text of agent-fleet sections 2 and 3: what goes into an agent's input f
   at the gate — a full gate cycle per rule.*
 - **Don't put a fact in a brief that you haven't verified in this session** (a spec clause number, an API name,
   a path). *Why: agents inherit a confident wrong citation and carry it into code.* *(Validated 2026-09-28.)*
+- **Cap what an agent returns, and put the detail in a report file.** Set a maximum on the structured return's `summary`
+  (about 900 characters), on the number and length of its `leads` (6 of 500), and on a lander's final text (25 lines), in
+  the schema and in the prompt. *Why: everything an agent returns lands in the orchestrator's conversation and is
+  re-read on every later turn. On 2026-10-01 one day's telemetry put the orchestrator's thread at about 10 % of spend
+  with about 300 k cache-read tokens per call, and one wave's workflow result was 27 to 32 KB.* *(Practice, not yet
+  validated: the baseline sizes are recorded; the effect of the caps is measured on the next wave.)*
 - **Reconcile the returns against the expected worklist** before you act: which items came back, which came
   back twice, which are missing. Then re-run only the missing slices.
   *Why: silent gaps in coverage look like a clean result.* Compare by item identity (the set of ids), never by

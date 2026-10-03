@@ -37,6 +37,11 @@ value derived from the authority), not its format. *(Validated 2026-09-28.)*
   costs more of the same pool. Use it only as a per-item escalation, for one item the everyday tier has failed
   twice. *Why: a "separate weekly limit" label read as free capacity would have moved refuters onto a model
   that drains the shared weekly quota faster for similar results.* *(Practice — not yet validated: the premium model's draw per unit was never measured.)*
+  **When a person owns the quota, each premium dispatch needs their explicit approval**: name the task, why the
+  everyday tier is not enough and what it will draw, and wait for a yes for THAT dispatch; one approval never carries to
+  the next. Ration it to the work that truly benefits, because the premium unit costs far more and the premium row caps
+  it at a share of the whole weekly quota. *Why: the owner of a long campaign set this rule on 2026-10-02 after the
+  quota turned out to be shared with another project that had used the premium model the same day.* *(Practice — not yet validated: adopted as an owner rule; no measurement of premium spend avoided.)*
 - **Precompute discovery.** If most of a fleet's turns are spent searching, build a dossier once and hand it to
   every agent. *(Practice — not yet validated: no like-for-like cost before and after.)*
 - **Self-review before a large review fleet.** *Why: a large share of what the fleet finds are defects that the

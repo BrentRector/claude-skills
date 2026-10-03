@@ -64,8 +64,9 @@ const IMPL_SCHEMA = {
     branch: { type: 'string' }, worktree: { type: 'string' }, base: { type: 'string' }, head: { type: 'string' },
     report: { type: 'string' }, gate_verdict: { type: 'string' },
     items_landed: { type: 'array', items: { type: 'string' } },
-    leads: { type: 'array', items: { type: 'string' } },
-    summary: { type: 'string' },
+    // Orchestrator context cap: what an agent returns is re-read on every later turn, so the detail goes in the report file.
+    leads: { type: 'array', maxItems: 6, items: { type: 'string', maxLength: 500 } },
+    summary: { type: 'string', maxLength: 900 },
   },
   required: ['status', 'branch', 'worktree', 'report', 'gate_verdict', 'summary'],
 }

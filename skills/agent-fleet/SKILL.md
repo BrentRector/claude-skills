@@ -53,6 +53,7 @@ In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of
 - Tell the implementer to run the repo's rule query before editing.
 - Put no fact in a brief that you have not verified in this session.
 - Reconcile the returns against the expected worklist by item identity, then re-run only the missing slices.
+- Cap what an agent RETURNS (a summary of a few hundred characters, a short list of leads, a final text of a couple of dozen lines) and put the detail in a report file: everything returned enters the orchestrator's conversation and is re-read on every later turn. Read references/inputs-and-briefs.md for the reason.
 - Prefer idempotent outputs over appends to a shared file.
 
 Read `references/inputs-and-briefs.md` before writing any dispatch brief or input slice (it carries the reasons, the measurements and the exact brief wording).
@@ -152,7 +153,7 @@ the tree.)*
 ## 11. Measure cost per unit and route to the cheapest lane
 
 - Measure tokens per closed unit for each lane and route each item to the cheapest lane that moves the reported metric.
-- The model follows the ROLE, set in the role definition, never per call; a premium model is a per-item escalation, never a default.
+- The model follows the ROLE, set in the role definition, never per call; a premium model is a per-item escalation, never a default, and where a person owns the quota each premium dispatch needs their explicit approval.
 - Precompute discovery; self-review before a large review fleet.
 
 Read `references/refuters-and-routing.md` before dispatching a refuter, and before choosing a lane or a model for a role.

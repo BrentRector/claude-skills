@@ -19,189 +19,61 @@ the targeted gate. A batch gets the full suite. The CI run for the pushed commit
 | **Targeted** | every commit | fresh build · the change's own tests and its neighbours · fast whole-suite smoke tests · one real end-to-end probe of the changed behaviour | ~minutes |
 | **Comprehensive** | once per batch, before merge or landing | every affected test assembly or package, **unfiltered** · slow differential/integration legs | ~10–30 min |
 | **CI** | after every push | whatever the pipeline runs: other OSes, Release config, clean checkout | final authority |
+Size the gate to the blast radius, not to anxiety. Run the targeted gate after each step of serial work and one comprehensive gate at the end.
+A landing gate covers the whole affected assembly, unfiltered, never a union of per-change filters.
+A change that REJECTS input the tool used to accept runs the whole accepted-input corpus in its own gate.
+Fix a test that encodes deliberately changed behaviour so it asserts the new behaviour; never exclude it.
+Run the comprehensive gate in its own detached worktree cut at the batch head when other work goes on while it runs.
 
-- **Size the gate to the blast radius, not to anxiety.** Running the full suite on every commit makes the slow
-  gate the bottleneck, and a long run that gets waved off is where a real regression slips through as a "flake".
-- **Serial work still gets one comprehensive gate.** If a batch has to be built one step at a time (a shared
-  parser, a shared schema), run the targeted gate after each step and the comprehensive gate once at the end.
-- **A landing gate covers the whole affected assembly, not a hand-picked union of filters.** Merging several
-  changes behind `A|B|C|D`, one term per change, leaves out every test that no term names. That leftover set is
-  where the breakage shows up, and adding one more term after each failure never covers it. The unfiltered run
-  costs less than a red CI run plus a re-push. *(Validated 2026-09-28.)*
-- **A change that REJECTS input the tool used to accept runs the whole accepted-input corpus.** A new diagnostic, a
-  tightened validation or a stricter parser is a targeted change with a global blast radius: every "this must be
-  accepted" sample, fixture and compatibility matrix is now a candidate red. Add that corpus to the change's own gate,
-  not only the landing gate. *Why: an implementer gated a tightening on its own tests; the landing gate found 15
-  compatibility cases (5 samples at 3 language versions) it had broken.* *(Practice — not yet validated: one use so far.)*
-- **The comprehensive gate will turn up tests that the targeted filters never loaded,** including tests that
-  still encode behaviour someone deliberately changed. Fix the test so it asserts the new behaviour. Don't
-  exclude it.
-- **Run the comprehensive gate in its own detached worktree**, cut at the batch head
-  (`git worktree add --detach <path> <sha>`, then build and run there), never in the main checkout, when other
-  work (edits, landings) goes on while it runs. *Why: a battery that rebuilds mid-run measures whatever the tree
-  holds at that moment: on the main checkout one measured a half-finished edit and had to be redone, and nothing
-  could land for its whole run (~45 min of machine time; the landing work that blocks was modelled at about seven
-  clusters, not measured). From the first worktree battery on, landings continued in parallel. It still competes
-  for the same cores, so expect other gates to run slower while it does.* *(Validated 2026-09-28.)*
+Read references/tiers-and-landing.md before sizing a landing gate, gating a change that rejects input, or starting a comprehensive run.
 
 ## Always first: build fresh
 
-A no-build test run tests whatever binary was copied into the test output at the last full build.
+Build the whole solution or workspace fresh before any no-build test run, then confirm the build succeeded.
 
-- .NET: `dotnet build <Solution>.sln`, **the solution rather than one project**, then `dotnet test --no-build`.
-  Building only the library does not re-copy it into the test projects' `bin`. Or just drop `--no-build`.
-- Python: reinstall editable or compiled extensions (`pip install -e .`, rebuild the C extension) and clear
-  stale `__pycache__` / `.pyc` only when you have a reason to think they're stale.
-- JS/TS: rebuild workspace packages the tests import from `dist/` (`npm run build -w <pkg>`) before running.
-
-The symptom: local stays green commit after commit while CI, which checks out clean and builds everything, has
-been red since the first one.
-
-Then confirm the build itself **succeeded**: a failed or incremental build can still leave a stale assembly
-behind, so when in doubt, hash the assemblies the tests load. *(Validated 2026-09-28.)*
+- .NET: `dotnet build <Solution>.sln` (the solution, not one project), then `dotnet test --no-build`; or drop `--no-build`.
+- Python: reinstall editable or compiled extensions. JS/TS: rebuild workspace packages imported from `dist/`.
 
 ## A filter that matches nothing is a silent green
 
-The most common false green is a selector that selects nothing and still exits 0.
+- .NET `--filter`: every OR/AND term needs its own property (`FullyQualifiedName~A|FullyQualifiedName~B`); a bare `~A|~B` matches nothing and exits 0.
+- pytest `-k` exits 5 on nothing collected, and Jest/Vitest `-t` skips everything and exits 0.
+- Read the COUNT, not the pass/fail word: `Total: 0` or "0 passed, N skipped" means the gate did not run. Check each OR'd term's own count.
+- After adding tests, find their names in the run output or the test list, and check that the count rose by the number added.
 
-- **.NET `dotnet test --filter`: every OR/AND term needs its own property.**
-  `--filter "FullyQualifiedName~Parser|FullyQualifiedName~Lexer"` works.
-  `--filter "~Parser|~Lexer"` matches **nothing**, and so does the mixed form `"FullyQualifiedName~Parser|~Lexer"`.
-  Both print "No test matches the given testcase filter" and **exit 0**.
-- **pytest `-k`**: an expression that deselects everything exits **5** ("no tests collected"), and CI scripts
-  often swallow that code (`|| true`, or `[ $? -eq 5 ]` treated as a pass). `-k` also matches substrings, so a
-  typo can quietly pick a different, smaller set than you meant.
-- **Jest / Vitest `-t`**: a name pattern that matches nothing still loads the files, marks every test skipped
-  and exits 0. (A `testPathPattern` that matches no file does fail, unless `--passWithNoTests` is set, which
-  many configs set.)
-
-**Fix:** read the **count**, not just the pass/fail word. `Total: 0` or "0 passed, 312 skipped" means the gate
-did not run. Better still, wrap the gate in a script that normalises the filter and **fails on a zero or missing
-count**. With several OR'd terms, check each term's own count: one dead term among live ones still prints
-a clean verdict. *(Validated 2026-09-28.)*
-
-## Confirm the new tests actually ran, by name
-
-A test that was written but never discovered (wrong attribute, missing `test_` prefix, a file outside the glob,
-a data-driven source that yields no cases, a class that isn't public) passes by never running. It is a red
-failure even though nothing printed red. After adding tests, search the run's output for **their names** or list
-them (`dotnet test --list-tests`, `pytest --collect-only -q`, `jest --listTests`) and check that the count went up
-by the number you added. *(Validated 2026-09-28.)*
+Read references/build-and-filters.md before writing or changing a test filter, running a no-build gate, or adding tests.
 
 ## Read the verdict line, not the exit code
 
-1. **Redirect the full output to a file.** Never `| tail -N` it: that drops the failing test's name, which is
-   the one thing you need. Then grep the file for the summary (`Passed!|Failed!|Total:`,
-   `=== .* passed`, `Tests: `) and for crashes (`crash|abort|Segmentation|OutOfMemory|Failed: *[1-9]`).
-2. **Never chain anything after a test or build run** with `&&`, `||` or `;`, and above all never `git commit`
-   or `git push`. In `test | tail && git push`, the exit code is `tail`'s. Run the gate alone to a log, read the
-   verdict, then take the next step in a separate command. To keep the status in the same call, append
-   `; echo "EXIT=$?"` (read-only commands on the log may follow that). This is cheap to enforce with a guard hook
-   (`automating-agent-guardrails`, rule `no-chain-after-verdict`); a prose rule alone was broken after it was
-   written. *(Validated 2026-09-28; the hook form is not yet proven in production.)*
-3. **Never edit source while a gate is running.** Legs that compile from the working tree will pick up
-   half-made edits and report failures that aren't real. Staging first doesn't protect you. Work on docs or the
-   commit message while it runs. *(Practice — not yet validated: no before/after measure of false reds.)*
-4. **Run long legs one at a time** when one of them rebuilds. A rebuild in the middle of another leg's
-   `--no-build` run leaves that leg with no verdict at all.
-5. **Know which kind of failure you're looking at before you diagnose it.** A stack trace, a compile error, a
-   validation or diagnostic message and a timeout (usually an infinite loop) are four different problems.
+1. Redirect the full output to a file; never `| tail -N` it. Grep the file for the summary and for crashes.
+2. Never chain anything after a test or build run with `&&`, `||` or `;`, above all never `git commit` or `git push`. Run the gate alone to a log, read the verdict, then take the next step in a separate command.
+3. Never edit source while a gate is running.
+4. Run long legs one at a time when one of them rebuilds.
+5. Identify the kind of failure (stack trace, compile error, diagnostic, timeout) before diagnosing.
+6. A missing observation is not a negative one: a killed process or a non-zero exit with no reason is NO VERDICT, reported loudly, never folded into pass or fail. Pass, fail and no-verdict must add up to the declared set; compare against a committed baseline, and differential results case by case, never by totals.
+7. A gate that has never failed proves nothing: make a new check, guard test or watcher fail once, for the right reason, before trusting it.
+
+Read references/verdict-and-evidence.md before reading a gate's result, handling a killed or partial run, or adding a new check or watcher.
 
 ## Between staging and committing: no conflict markers
 
-A green gate says nothing about a file no test loads. After `git add` and before `git commit` (every commit,
-including WIP checkpoints and merge resolutions), run both:
+After `git add` and before every `git commit` (including WIP checkpoints and merge resolutions), run both; both must print nothing. Read the OUTPUT, not the exit code:
 
 ```
 git grep --cached -nI -e "^<<<<<<< " -e "^||||||| " -e "^>>>>>>> "
 git diff --cached --check | grep -i "conflict marker"
 ```
 
-Both must print **nothing**. Read the OUTPUT, not the exit code: `--check` also reports whitespace errors, and on a
-CRLF file it flags every line as trailing whitespace, so a rule gated on its exit code is red on every commit and
-gets abandoned. Then add a **repo-wide conflict-marker test** to the suite (scan every tracked text file for the
-three marker lines) and see it fail once on a planted hunk before trusting it.
-*Why: a blanket `git add -A` committed four unresolved conflict hunks into a script that no test imports, and they
-passed three green gates, none of which looked at that file. Since the test was adopted, no marker has reached
-main.* *(Validated 2026-09-28.)*
+Add a repo-wide conflict-marker test and see it fail once on a planted hunk.
 
-## A missing observation is not a negative one
+Read references/conflict-markers.md before adding that test or when the commands print anything.
 
-A verdict needs the evidence it claims to have. "Passed" means the thing ran to completion and was checked. A
-killed process leaves truncated output, and truncated output can compare exactly like a wrong answer, or like a
-correct one. A non-zero exit with no reason attached is a **lost result**, not a failure you can reason about.
-Anything like that is **no verdict**, and should be reported loudly as such, never folded into pass or fail. *(Validated 2026-09-28.)*
+## Flakes, CI, standards
 
-- **Check the population, not only the failure count.** Pass, fail and no-verdict should add up to the declared
-  set. A harness that only counts failures will report "all green" when a case disappears.
-- **Compare against a committed baseline or manifest,** never a number someone remembers.
-- **Compare differential or snapshot results case by case, never by totals.** Totals that barely move can hide
-  one fix plus two regressions. *(Validated 2026-09-28.)*
-- **A filter, ranker or selector tells you about what it returned and nothing about what it dropped.** Before
-  you trust one, look at its complement. *(Validated 2026-09-28.)*
-- Re-running something that produced no observation is legitimate. Re-running a failed assertion until it
-  passes is not.
+- Never call a red a flake without naming the test and the cause, and a clean isolated re-run of that test.
+- Attribute every red against the batch's base commit; a red that was there before the batch still blocks the merge. Attribute it honestly and file it; don't step around it.
+- CI for the exact pushed commit is the final authority. Until it finishes green, report "local gates green; CI pending", never "all green". A failed status lookup is no verdict: retry, report it as its own outcome.
+- Fix a red at its root cause: never weaken an assertion, widen a tolerance, add a skip or re-baseline. Never scope a test to the bug. Expected values come from the authority, not current output. Bar: the engineering-standards skill.
+- Project commands, baseline counts and the required CI check belong in the repo's `CLAUDE.md` "Testing" section.
 
-## A gate that has never failed proves nothing
-
-Before trusting a new check, a new guard test or a watcher on a long job, **make it fail once**: restore the
-defect, point it at an older revision, kill the process it watches. Make sure it fails **for the right reason**,
-not because some unrelated problem had already turned it red. Then ask **what its scope leaves out** and whether
-the reasoning behind each exclusion still holds. A guard can be green, correct, and aimed at the wrong
-population. For long jobs, only positive evidence (the process exists, the log shows the expected phase line,
-artifacts are growing) counts as proof that the job is alive. A broken monitor and a healthy job both look like
-silence. *(Validated 2026-09-28.)*
-
-## Flakes and attribution
-
-- **Never call something a flake without naming the test and the cause.** Get the name, run it on its own
-  (serially if the suite runs in parallel), and then decide. A flake verdict needs a clean isolated re-run of
-  **that** test. The fact that other suites passed is not evidence.
-- **Attribute every red before calling it yours, and before calling it someone else's.** Check it against the
-  commit the batch started from (`git stash` / a worktree at the base, `git log -S "<symbol or message>"`). A
-  red that was already there before your batch **still blocks the merge**. *(Practice — not yet validated: the record shows such reds later stepped around, so it is not yet shown to hold.)* Attribute it honestly and file it.
-  Don't step around it.
-
-## After the push: CI is the final authority
-
-Local green is evidence about one host, one OS and one build configuration. CI runs a clean checkout, often
-other operating systems and a Release build. Tests that depend on file locks, ACLs, path separators, locale or
-timing can pass locally and fail there. *(Validated 2026-09-28.)*
-
-- Read the run for **the exact commit you pushed**:
-  `gh run list --commit <sha> --json databaseId,status,conclusion` → `gh run watch <id> --exit-status`, and
-  `gh run view <id> --log-failed` on a red run.
-- Until that run has finished green, report "local gates green; CI pending", never "all green".
-- A status lookup that FAILS (an API timeout, an empty or unknown conclusion) is **no verdict**: retry it, and report
-  it as its own outcome - never as red, never as green. *Why: a push script read a transient TLS timeout as an empty
-  conclusion and reported "CI is red" on a green run.* *(Practice — not yet validated: the retry path has not been exercised yet.)*
-- A red CI run blocks further work. Attribute it by job, step and test, and land the fix on its own before the
-  next change.
-- If behaviour can differ between Debug and Release, run a local Release leg before pushing. Better still,
-  don't write code whose behaviour depends on the build configuration.
-
-## Standards
-
-The bar is the **engineering-standards** skill. At the gate it means:
-
-- A red is fixed at its root cause. Never weaken an assertion, widen a tolerance, add a skip, re-baseline an
-  expected value, or edit valid input to make it pass.
-- Never scope a test to the bug. Tests verify the complete behavior the spec or design requires; a test that
-  covers only the reproduced case leaves the siblings (and the other arm of the dispatch) unguarded.
-- A green test that pins wrong behavior is a defect, not a decision. Check rejections and "fails loud" tests
-  against the authority.
-- Expected values come from the authority, not from copying the current output. *(Validated 2026-09-28.)*
-- Every new guard or drift test is seen to fail once, for the right reason, before its green counts.
-
-## Project hooks
-
-This skill is generic. The commands belong to the repository. Look for them, and record them if they're
-missing, in the project's `CLAUDE.md` under a **"Testing"** section (or `CONTRIBUTING.md`, or the CI workflow
-file):
-
-- the build command (which solution or workspace) and each tier's exact test commands
-- the **baseline counts** for each suite (total / passed / skipped), so a vanished population can be seen
-- which legs are slow, which ones rebuild, and which have to run alone
-- a wrapper script, if one exists, that expands filter shorthand and fails on a missing verdict line; prefer it
-  over raw commands
-- which CI check is required on the default branch, and how pushes get verified against it
+Read references/ci-flakes-standards.md before pushing, attributing a red or flake, or when the project's gate commands are not recorded.

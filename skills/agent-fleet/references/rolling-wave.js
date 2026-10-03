@@ -1,7 +1,7 @@
 export const meta = {
   name: 'rolling-wave',
   description: 'Rolling fix lane: implementer groups run N at a time from one queue (a freed slot refills at once), same-file successors inherit their predecessor\'s branch, and lander trains start as branches finish',
-  whenToUse: 'The standard fix-lane dispatch for an agent fleet (agent-fleet SKILL §6-§7).',
+  whenToUse: 'The standard fix-lane dispatch for an agent fleet (agent-fleet references/landing.md and references/grouping-fixes.md).',
   phases: [
     { title: 'Implement', detail: 'one implementer per group, isolated worktrees, rolling pool' },
     { title: 'Land', detail: 'serialized lander trains over ready branches' },

@@ -7,7 +7,7 @@ work that moves the result. This skill is a set of orchestration rules that make
 costs at most one step, a restart never repeats work) and **budget-aware** (tokens are spent where they move the
 metric you report).
 
-The full rules are in [`SKILL.md`](SKILL.md). This page explains what they are and why they exist.
+The core rules are in [`SKILL.md`](SKILL.md), which names the `references/` file to read before each step that needs its full text and reasons. This page explains what they are and why they exist.
 
 ## When Claude uses it
 
@@ -175,7 +175,14 @@ Every rule in the skill carries its own *Why*. The main ones:
 
 | File | Role |
 |---|---|
-| [`SKILL.md`](SKILL.md) | The rules Claude follows, each with its reason |
+| [`SKILL.md`](SKILL.md) | The core rules Claude follows at every dispatch: roles, cost law and turn caps, checkpointing, STOP file, central ids, isolation, with a pointer to the reference to read for each remaining step |
+| [`references/inputs-and-briefs.md`](references/inputs-and-briefs.md) | Sections 2 and 3 in full: inputs, briefs, orientation, registrar re-checks, stating the bar |
+| [`references/checkpointing.md`](references/checkpointing.md) | Section 4's rules in full: stash, conflict markers, the stamped handoff |
+| [`references/concurrency-and-watchdog.md`](references/concurrency-and-watchdog.md) | Section 5 in full: the budget, liveness, the stall watchdog, blocking waits |
+| [`references/landing.md`](references/landing.md) | Section 6 in full: landers, trains, the battery, rolling wave, CI and other-OS legs |
+| [`references/grouping-fixes.md`](references/grouping-fixes.md) | Section 7 in full: computed groups and same-file successors |
+| [`references/refuters-and-routing.md`](references/refuters-and-routing.md) | Sections 10 and 11 in full: refuters and cost routing |
+| [`references/restart-and-standards.md`](references/restart-and-standards.md) | Section 12 and the Standards in full |
 | [`references/brief-template.md`](references/brief-template.md) | Copy-and-fill dispatch brief carrying the checkpoint, STOP, turn-cap, blocking-gate and report rules |
 | [`references/fix_clusters.py`](references/fix_clusters.py) | Groups open defect notes by the source files their code sites name, ranked by summed harm, so each implementer fixes one file's defects in one pass |
 | [`references/rolling-wave.js`](references/rolling-wave.js) | Reference Workflow script for the fix lane: a rolling pool of implementers over a queue of groups, same-file successors (`after`) that inherit their predecessor's branch and handoff notes, and serialized lander trains started as branches finish. Agent types, spec paths, stop file, landing command and the human's verbatim `authorization` are args |

@@ -8,7 +8,7 @@ one exists, and points to where it lives in these skills.
 ## The fleet
 
 **Fleet.** Many AI agents working the same codebase at once, each on its own piece. A typical fleet here is up to
-six implementers, one lander and a few read-only reviewers. → `agent-fleet` §5 (the concurrency budget).
+six implementers, one lander and a few read-only reviewers. → `agent-fleet/references/concurrency-and-watchdog.md` (the concurrency budget).
 
 **Orchestrator.** The one session a person talks to. It plans the work, dispatches agents, reads their reports and
 decides what lands. It writes almost no code itself, and it keeps its own transcript short: briefs and reports are
@@ -17,21 +17,21 @@ pattern.* → `agent-fleet`, "Roles".
 
 **Subagent.** Any agent the orchestrator starts. Each gets a narrow job, a fresh context and a turn cap, and returns
 a structured report. The model follows the ROLE: judgment roles (implementer, lander, refuter, reviewer) run the top
-everyday model, and mechanical roles (filing notes, lookups) run a cheaper one. → `agent-fleet` §11.
+everyday model, and mechanical roles (filing notes, lookups) run a cheaper one. → `agent-fleet/references/refuters-and-routing.md`.
 
 **Implementer.** A subagent that fixes a group of related defects. It works in its own **git worktree** (a separate
 working copy of the repository on its own branch), so several can run side by side without touching each other's
-files. → `agent-fleet` §2, `references/brief-template.md`.
+files. → `agent-fleet/references/inputs-and-briefs.md`, `references/brief-template.md`.
 
 **Lander.** A subagent that merges finished branches and puts them on the main branch. It re-runs the whole test
 suite on the merged result, checks each claimed fix against its commit and its tests, and drops anything that doesn't
 verify. *Closest industry term: a merge queue (GitHub's merge queue, Bors, Zuul).* "Landing" a change is Mozilla and
-Chromium usage. → `agent-fleet` §6.
+Chromium usage. → `agent-fleet/references/landing.md`.
 
 **Train.** One landing's worth of finished branches, usually three to five, merged and tested together, with one
 commit per branch so a red result bisects cleanly. Most of a landing's cost is fixed (merge, build, test, push), so
 batching lowers the cost per fix; that saving is modelled, not measured. *Industry term: GitLab's merge trains.*
-→ `agent-fleet` §6.
+→ `agent-fleet/references/landing.md`.
 
 **Wave, rolling wave.** One batch of implementer work. It is rolling: when an implementer returns, the next group
 starts in its slot at once, and a train starts whenever enough branches are ready, so no slot waits for the slowest
@@ -40,10 +40,10 @@ agent. *Industry terms: batch, worker pool. Not PMBOK's "rolling-wave planning",
 
 **Refuter.** An adversarial reviewer whose only job is to overturn a verdict. It sees the claim and the evidence, not
 the reasoning that produced them, so it isn't anchored by it. *Industry terms: red team, adversarial reviewer,
-critic.* → `agent-fleet` §10.
+critic.* → `agent-fleet/references/refuters-and-routing.md`.
 
 **Registrar.** The agent that files other agents' leads as work items, re-running each lead's repro once before
-filing it. *Industry term: triager.* → `agent-fleet` §2.
+filing it. *Industry term: triager.* → `agent-fleet/references/inputs-and-briefs.md`.
 
 ## The work
 
@@ -54,7 +54,7 @@ none of them tracked. *Industry term: backlog, or issue tracker.*
 **Cluster, group.** Defects grouped by the source file they live in, so one agent fixes everything in that file in
 one pass. The groups are computed from each note's code location, never picked by hand. A file with more defects
 than one agent should take gets a **same-file successor**: a fresh agent that inherits the first one's branch and
-handoff. → `agent-fleet` §7, `references/fix_clusters.py`.
+handoff. → `agent-fleet/references/grouping-fixes.md`, `references/fix_clusters.py`.
 
 **Brief, dispatch spec.** The file an agent is pointed at instead of a pasted prompt: its slice of the work, the
 code sites, the repro, the rule, the gate command and the report format. A file survives a restart; a prompt does
@@ -75,7 +75,7 @@ McKeeman, 1998.* → `test-gate`.
 
 **Discharge.** Closing a work item WITHOUT a fix, because re-running its repro on today's build shows it no longer
 reproduces. A discharge closes something, so a refuter checks it like any other closing verdict. *Borrowed from
-formal verification's "discharging a proof obligation".* → `agent-fleet` §2.
+formal verification's "discharging a proof obligation".* → `agent-fleet/references/inputs-and-briefs.md`.
 
 ## The gates
 
@@ -85,10 +85,10 @@ lander's whole-suite run before it lands, CI before anything reaches main. *Indu
 
 **Protected main.** The main branch accepts only commits that passed CI. The lander pushes to a staging branch, and
 a landing script fast-forwards main only when CI is green on that exact commit. The server enforces it for everyone,
-the repository's owner included. → `agent-fleet` §6.
+the repository's owner included. → `agent-fleet/references/landing.md`.
 
 **Other-OS gate.** A local run of CI's legs for an operating system the gates don't run on (for example, CI's Linux
-jobs run under WSL on a Windows host), done before every push. → `agent-fleet` §6, `cross-platform` §1.
+jobs run under WSL on a Windows host), done before every push. → `agent-fleet/references/landing.md`, `cross-platform` §1.
 
 **Drift test.** A test that holds two things in agreement, so a rule stays true as the code changes: every rule the
 specification catalogues has a test, every CI job's projects are covered locally, every brief carries its mandatory
@@ -106,11 +106,11 @@ its token cost grows roughly with the square of its length. That one fact drives
 small fresh agents, and splitting work instead of extending it. → `agent-fleet` §1.
 
 **Checkpoint.** Work saved to disk as the agent goes: a commit after each fix, plus a status file. If an agent dies,
-a fresh one continues from the checkpoint instead of starting over. → `agent-fleet` §4.
+a fresh one continues from the checkpoint instead of starting over. → `agent-fleet/references/checkpointing.md`.
 
 **Handoff.** The short written note a finishing agent leaves for the next agent on the same files: what it did,
 what it learned, where to look next. The next agent is a fresh agent. It inherits the note and the branch, never
-the transcript. The note is navigation, never evidence. → `agent-fleet` §4 and §7.
+the transcript. The note is navigation, never evidence. → `agent-fleet/references/checkpointing.md` and `agent-fleet/references/grouping-fixes.md`.
 
 **Stamp.** The first line of the status file (`STATUS-AT: <sha>`) names the commit it was written at. A script
 compares that with the branch, so the next agent knows whether the note covers everything, or exactly which newer
@@ -122,7 +122,7 @@ fixes learned about it, in a single call. → `references/orient.py`.
 
 **STOP file.** A file whose presence tells every running agent to checkpoint and return at its next step. Workflow
 agents can't be messaged, so this is how a fleet stops gracefully before a usage limit instead of dying mid-step.
-→ `agent-fleet` §5.
+→ `agent-fleet/references/concurrency-and-watchdog.md`.
 
 ## When agents fail
 

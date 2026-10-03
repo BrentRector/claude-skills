@@ -129,7 +129,8 @@ review. The four specialist agents live in the repository's `agents/` folder.
 
 | File | Role |
 |---|---|
-| [`SKILL.md`](SKILL.md) | The review procedure, finding format, verification and report, as instructions to Claude |
+| [`SKILL.md`](SKILL.md) | The review procedure, finding format, verification and report, as instructions to Claude (the short core) |
+| [`references/`](references/) | Detail read on demand: target, triage and calibration; the dimension criteria and specialists; verification and the sibling sweep; report format and scale; standards and project hooks |
 
 ## Credits
 

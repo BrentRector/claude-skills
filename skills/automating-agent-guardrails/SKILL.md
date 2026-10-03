@@ -27,152 +27,48 @@ them from the clone. Every script runs as `python <script>` and has a `--selftes
 
 ## 1. Guard hooks that block forbidden commands
 
-1. Encode **only the rules the owner stated**. A rule you think is missing (a refspec rule, "PRs only") is a
-   proposal: ask, never add it silently. Every extra rule blocks the owner's own work.
-2. Write one rule per forbidden command in `guard-rules.json`: `pattern`, `reason`, `instead` (the right
-   alternative, as a command), `block` examples, and `allow` examples. The allow list holds the rule's legitimate
-   neighbours, for example `git stash list` for a stash rule, or a feature-branch push for a push-to-main rule.
-3. Set `"scope": "repo"` on every rule that encodes this repository's policy: its landing route, protected
-   branches, stash hygiene. Only rules about the harness itself, such as escapes in heredocs, stay `"any"`.
-4. Register the guard for every shell tool (`"matcher": "Bash|PowerShell"`, see `templates/settings.json`), with a
-   plain `python ...` command and no `|| exit 2`.
-5. Run `python .claude/hooks/guard_commands.py --selftest --settings .claude/settings.json` until it is GREEN, and
-   add the same command to CI. A workflow file that has never run is not a gate: until you have seen a green CI
-   run, report CI as unproven.
+- Encode only the rules the owner stated; a rule you think is missing is a proposal, so ask.
+- One rule per forbidden command in `guard-rules.json`: `pattern`, `reason`, `instead`, `block` and `allow` examples.
+- `"scope": "repo"` on every rule that encodes this repository's policy.
+- Register the guard for every shell tool (`"matcher": "Bash|PowerShell"`), plain `python ...` command, no `|| exit 2`.
+- The guard exits 2 with an `Instead:` message, **fails OPEN** on every internal error, writes UTF-8 stderr, and has a CI
+  self-test that includes an unrelated repo.
+- Run `python .claude/hooks/guard_commands.py --selftest --settings .claude/settings.json` until GREEN and add it to CI;
+  report CI as unproven until you have seen a green run. Never use `permissions.deny` for these rules.
 
-**Contract.** Every item is required.
-
-| The guard… | Why |
-|---|---|
-| exits 2 with a stderr message naming the rule and an `Instead:` command | A bare "no" invites the agent to rephrase the command; a named alternative gets followed. |
-| covers every shell tool (Bash and PowerShell) | A rule on Bash alone is bypassed by the first PowerShell call. |
-| **fails OPEN**: unparseable input, a missing or corrupt rules file, a git error or a crash all exit 0 (with a stderr note) | A guard that fails closed turns one bad field, a missing interpreter or a harness format change into a block on every shell call in every session and subagent. These rules are workflow conventions with real backstops (branch protection, CI). A security boundary belongs in permissions, a sandbox or the server. *(Practice — not yet validated: no production measure of fail-open silent passes against fail-closed blocks.)* |
-| writes stderr as UTF-8 | Windows otherwise writes the console code page, and the agent reads mojibake. *(Practice — not yet validated: one incident so far.)* |
-| is **scoped to this repository**: a `repo` rule fires only when the command's working tree has the same git common dir as `$CLAUDE_PROJECT_DIR`, following `cwd`, `cd`/`Set-Location` and `git -C` | The same session also works in other repos, and each has its own rules. A push rule keyed on the branch name alone blocks `git push origin main` everywhere. *(Practice — not yet validated: not yet exercised across a rename or a second checkout in production.)* |
-| has a self-test in CI proving each rule fires on `block`, passes `allow`, and passes when the same command runs in an **unrelated** repo | A guard is only trusted once its failure branch has fired. Two checkouts of one repo don't test scope, because they share it. *(Validated 2026-09-28.)* |
-
-Don't use `permissions.deny` for these rules. Deny rules match a prefix, can't see which repository a command runs
-in, and can't tell the agent what to do instead.
+Read `references/guard-hooks.md` before writing or auditing any guard rule, hook registration or the guard's self-test (it holds the full contract and the reason for each item).
 
 ## 2. Role agent definitions
 
-1. Copy `templates/agents/*.md` and adapt the roles. **Every** role sets `model`, `effort` and `maxTurns`: the
-   quality gate (refuter) gets the highest effort, implementers and analysts get high, and the two MECHANICAL
-   roles get a cheaper model and lower effort: `chore` for work that writes (filing notes, doc sweeps) and
-   `locator` for READ-ONLY lookups (code sites, orientation or cluster summaries, measurements). Without a
-   read-only mechanical role, lookups end up on the top-tier analyst by default.
-2. **Every role that waits on gates, builds or CI** sets `experimental:` / `cacheTtl: 1h`. With the default 5-minute
-   TTL, each wait longer than 5 minutes ends with the whole context written to the cache again. The 1-hour TTL
-   turns those rewrites into cache reads. Roles that never wait keep the default. Measured over 208 agents: every
-   wait over 5 minutes was followed by a cache read instead of a rewrite, an estimated net saving of about 44 M
-   base-token units at API cache prices, while roles that never waited paid the 1-hour write premium for nothing. *(Validated 2026-09-28.)*
-3. **Read-only roles carry `readonly_guard.py` in their OWN frontmatter `hooks:`**, with matcher
-   `Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell`. Don't put it in project settings keyed on the hook input's
-   `agent_type`: when that field is missing, such a hook can't tell the role from the main session, and it allows
-   the write. The guard blocks file-tool writes, repo-changing git and shell writes (`>`, `>>`, `tee`, `Out-File`,
-   `Set-Content`) inside any git tree, resolves Git Bash paths (`/e/repo`), and lets scratch writes through. It
-   cannot see a write made inside a script; say so in your report. *(Practice — not yet validated: no recorded production block yet.)*
-4. Select roles by name: `agentType: '<role>'` in workflow scripts, and `subagent_type: "<role>"` with the Agent
-   tool. Never set model or effort per call: a per-call `model` OVERRIDES the role's frontmatter. One campaign's
-   "pass the top model on every agent" rule silently ran its cheaper chore role on the top tier. If you keep a
-   brief or workflow checker, make it fail a mechanical role's call that carries a `model`. *(Practice — not yet validated: the cost of the override was never measured.)*
-5. **Restart, then prove each role.** The agent registry loads at session start, so a new or edited definition
-   does nothing until a restart. Then send one short smoke agent per role. Each one reports its model and effort.
-   Each read-only role tries a Write inside the repo, which must be BLOCKED, and a Write in scratch, which must
-   pass. Record the proof with `python .claude/hooks/readiness_check.py --stamp roles-smoke`. The readiness check
-   prints a TODO line until the proof matches the current files. *(Practice — not yet validated: not yet a standing practice with a recorded catch.)*
-6. **Roll back on quality.** After lowering a role's model or effort, watch its quality metric: the refuters'
-   overturn rate on its output, rework, or red CI. If the metric drops, move the role back up. Telemetry (§4)
-   supplies the cost side. *(Practice — not yet validated: no before/after overturn rate per role yet.)*
+- Every role sets `model`, `effort` and `maxTurns`; mechanical roles (`chore`, read-only `locator`) get a cheaper model and lower effort.
+- Every role that waits on gates, builds or CI sets `experimental:` / `cacheTtl: 1h`; roles that never wait keep the default.
+- Read-only roles carry `readonly_guard.py` in their OWN frontmatter `hooks:`, never in project settings keyed on `agent_type`.
+- Select roles by name (`agentType` / `subagent_type`); never set `model` or effort per call.
+- Restart, then prove each role with a smoke agent and `--stamp roles-smoke`; roll a role back up if its quality metric drops.
+
+Read `references/role-agents.md` before creating, editing or auditing any role definition, and before dispatching a role smoke test.
 
 ## 3. The session-start readiness check
 
-1. Copy `readiness_check.py`, `session_start.py` and `readiness.json`, deleting any config section you have not
-   adopted, and register SessionStart (`templates/settings.json`). Run `readiness_check.py --ci` and `--selftest` in
-   CI.
-2. Every capability is checked each session, and each line ends in one status:
-   - **OK**: present and working.
-   - **REPAIRED**: fixed with no permission needed, such as starting the telemetry receiver.
-   - **N/A**: does not apply here, with the reason.
-   - **TODO**: needs no permission, so Claude does it this session.
-   - **ASK-OWNER**: needs permission or an owner-only action, and carries the exact On-yes step.
-3. Repair automatically only what needs no permission. Anything that edits committed files, installs software,
-   changes user settings, or is owner-only or billed is an ASK-OWNER line.
-4. **Put the asking rule in `CLAUDE.md`**: paste `templates/CLAUDE-guardrails.md`. Every ASK-OWNER line becomes
-   one AskUserQuestion at session start, before other work, and none is skipped silently. Hook output alone is not
-   enough, because a rule that exists only there disappears when the hook fails. *(Practice — not yet validated: no recorded silent skip or measured effect.)*
-5. **It fails open at every level**, including config loading. Any failure becomes an ASK-OWNER line saying "run it
-   by hand", never a traceback or a non-zero exit.
-6. **It detects the environment.** With `CLAUDE_CODE_REMOTE=true` (cloud) or `CI` set, machine-local capabilities
-   (telemetry receiver, LSP install, smoke proof, recurring owner commands) are N/A with the reason. They are never
-   asked about and never "repaired" on a VM that is thrown away.
-7. **Recurring owner-only commands**, such as a weekly `/skill-doctor`, are `recurring` entries with a timestamp
-   stamp. When one is due it becomes ASK-OWNER. After the owner runs it: `--stamp <id>`.
-8. **Owner-only or billed steps that belong to a trigger** (only those the owner named; the template's entries are
-   examples), such as `/code-review ultra` before a landing push or
-   paid plugin evals before pushing a skill edit, go in `ask_at_trigger`. They are listed every session and asked
-   when the trigger arrives, never skipped.
+- Every capability gets one status each session: OK, REPAIRED, N/A (with reason), TODO, or ASK-OWNER (with the exact On-yes step).
+- Repair automatically only what needs no permission; anything else is ASK-OWNER.
+- Paste `templates/CLAUDE-guardrails.md` into `CLAUDE.md`: every ASK-OWNER line becomes one AskUserQuestion at session start.
+- Fail open at every level, including config loading; detect `CLAUDE_CODE_REMOTE=true` / `CI` and mark machine-local capabilities N/A.
+- Recurring owner-only commands are `recurring` entries (`--stamp <id>` after the owner runs one); trigger-bound owner steps go in `ask_at_trigger`.
 
-## 4. Local cost telemetry
+Read `references/readiness-check.md` before installing or changing the readiness check, its config or its CI run.
 
-1. Ask first, and on a yes run `python .claude/hooks/readiness_check.py --enable-telemetry`. That writes
-   `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the OTLP `http/json` exporters and endpoint `http://127.0.0.1:4318` into the
-   **user settings** (`~/.claude/settings.json`, or `$CLAUDE_CONFIG_DIR/settings.json`). That is per machine and never
-   committed. It takes effect in the next session. *Why the user settings: Claude Code ignores telemetry-ENABLING
-   variables in a project's `.claude/settings.json` and `.claude/settings.local.json`; a project may only turn
-   telemetry off. Measured: with the switch in `settings.local.json`, nothing was exported while a check reading that
-   same file reported "OK". The readiness check now flags a project file that sets the switch as dead
-   configuration.* *(Practice — not yet validated: one instance so far.)*
-2. `otlp_sink.py` is the loopback receiver. It is standard-library only and refuses protobuf with a 415. The
-   readiness check starts it when it is down and reports REPAIRED.
-3. `python .claude/hooks/usage_report.py [--by agent,skill,model] [--all]` reports tokens and cost per group. On
-   the first real data, run `--keys` and add your Claude Code version's attribute names if a dimension shows only
-   `-`.
+## 4-6. Telemetry, LSP navigation, regression gates
 
-## 5. LSP-first navigation
+- Telemetry is enabled only in the USER settings, only after asking (`readiness_check.py --enable-telemetry`).
+- Use the LSP tool before grep for definitions and references when the LSP line is OK; fix diagnostics on files you touched.
+- Skill and agent edits ship with an eval case and a plugin eval run (ask first, it is billed); landings get a review step on the merged diff, and a finding blocks the push.
 
-Add a `readiness.json` `lsp` entry per language: the plugin, the server binary, extra paths and the install
-command. The line is OK only when both the plugin and the binary are present. Otherwise it is ASK-OWNER, and
-nothing is installed without asking. When the LSP line is OK, find definitions, references and symbols with the LSP
-tool before grep, and use grep for text.
+Read `references/telemetry-lsp-gates.md` before enabling telemetry, adding an `lsp` entry or running a regression gate.
 
-The language server also reports diagnostics (unnecessary `using`, unused locals, analyzer hints) on every file an
-agent edits. Tell agents to act on them: fix each diagnostic on a file they touched in the same change, or name in
-the report why they did not. *(Practice, not yet validated: adopted 2026-10-01 after hints scrolled past in-flight
-worktrees; no count yet of hints fixed or of review findings avoided.)*
+## Common mistakes and rationalizations
 
-## 6. Regression gates
-
-- **Skill and agent edits:** plugin evals are the regression gate. Each changed rule ships with an eval case that
-  beats the no-plugin baseline (this repo's `evals/README.md` explains the rule and how to read Δ). Run it before
-  the push, and because it is billed, ask at that trigger.
-- **Landings:** run a review step on the merged diff before the landing push (the lander template's step; the
-  `review` skill or `/code-review`). A finding blocks the push. *(Practice — not yet validated: six or more reviewed batches have produced no confirmed finding yet.)*
-
-## Common mistakes (each made by a baseline agent without this skill)
-
-| Mistake | What happened | Instead |
-|---|---|---|
-| Guard fails closed (`except: return 2`, `\|\| exit 2`, "unparseable git command → block") | Malformed JSON blocked the call; a crash or a missing Python would block every tool in every session | Exit 0 on every internal error; `--selftest` asserts it |
-| Push rule scoped to the branch name | `git -C <other repo> push origin main` blocked; a "pre-push guard not installed" check blocked feature pushes in unrelated repos | `scope: "repo"` (git common dir vs `$CLAUDE_PROJECT_DIR`); test with an unrelated repo |
-| Read-only role enforced by a settings hook reading `agent_type` | Missing field → treated as main session → write allowed | `hooks:` in the role's own frontmatter |
-| `maxTurns` on one role | Four of five roles had no turn cap | `maxTurns` on every role; `readiness_check.py --ci` fails without it |
-| No 1-hour cache, or a checker that rejects it | Gate-blocked roles re-wrote their whole context after each wait | `cacheTtl: 1h` on every `long_wait` role; measure with §4, don't argue billing from memory |
-| No restart and smoke dispatch | Role definitions shipped unproven; no one knew they load only at session start | Restart, one smoke agent per role, `--stamp roles-smoke` |
-| No N/A status or environment detection | A cloud session would start a receiver and ask to install tools on a throwaway VM | Detect `CLAUDE_CODE_REMOTE` / `CI`; N/A with reason |
-| The ask rule only in hook output | No `CLAUDE.md` rule; a failed hook would take the rule with it | The `CLAUDE.md` section from the template |
-| Config loaded outside the try | Corrupt config → traceback, exit 1, no line asking anyone anything | Whole `main` inside the fail-open path |
-
-## Rationalizations
-
-| Excuse | Reality |
-|---|---|
-| "Failing closed is safer." | For a workflow guard, failing closed wedges the owner's whole Claude Code on one bug. The server and CI are the backstop. |
-| "Blocking pushes to main anywhere is harmless." | It blocks legitimate work in every other repo the session touches, and it teaches agents to work around the guard. |
-| "The 1-hour cache costs more per write." | It costs more per *write*. A role that waits past 5 minutes rewrites its whole context each time. Measure with telemetry, and roll back if cost per unit rises. |
-| "A settings-level hook can work out the role." | Only if every dispatch path fills in `agent_type`. A frontmatter hook needs no identification. |
-| "Every environment difference is a question for the owner." | A capability that cannot apply is N/A. Asking about it is noise the owner learns to ignore. |
-| "The hook output already tells Claude to ask." | Only on the days the hook works. The rule belongs in `CLAUDE.md`. |
+Every contract item exists because a baseline agent without it got it wrong. Read `references/mistakes-and-rationalizations.md` when an excuse for skipping a rule sounds reasonable or when auditing an existing setup.
 
 ## Red flags
 
@@ -198,3 +94,4 @@ scope or fail-mode shortcut is reported as debt, not shipped.
 
 Your `CLAUDE.md` supplies the project half: the landing command named in the push rule's `instead`, the roles and
 their gate commands, the review step, and the list of trigger-bound owner steps. Project rules win on conflict.
+

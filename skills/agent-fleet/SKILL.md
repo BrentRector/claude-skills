@@ -106,6 +106,7 @@ Read `references/concurrency-and-watchdog.md` before sizing a fleet, before star
 - Run the comprehensive battery in its own detached worktree, never in the checkout the lander builds in.
 - Fill a freed implementer slot in the same turn, with the rolling wave (`references/rolling-wave.js`), never a barrier; keep workflow scripts LF-only.
 - Watch CI for every pushed head; a red run is a blocking fix, landed alone.
+- Review the train before it leaves, and FIX a confirmed small finding in the train while the evidence is in the lander's context; drop the cluster only for a redesign (`references/landing.md`).
 - Run CI's other-OS legs locally before pushing, and write them into the briefs.
 
 Read `references/landing.md` before dispatching a lander, running the battery, scripting a wave, or pushing.
@@ -161,6 +162,7 @@ Read `references/refuters-and-routing.md` before dispatching a refuter, and befo
 ## 12. After a fleet, and on restart
 
 - After any fleet that could touch the tree, run `git status --short` and account for every path before `git add -A`.
+- Measure where the tokens go before optimizing the orchestrator, and consider running it as short units with deterministic scripts doing the planning (`references/orchestrator-loop.md`, which also lists the published techniques that bear on a campaign).
 - On restart: read the reset time, check the dead lander's worktree and `STATUS.md`, run `references/status_delta.py` on each worktree, and dispatch fresh agents from the checkpoints in landing order.
 
 ## Standards

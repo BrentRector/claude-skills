@@ -18,7 +18,7 @@ export const meta = {
 //                    (lower-cased), e.g. "<scratch>/specs/w12-{letter}.txt",
 //   stopFile:        graceful-stop flag file checked before every step,
 //   implementerAgent, landerAgent: the agent types to use (judgment roles),
-//   model:           optional model alias for those roles (omit to inherit),
+//   model:           optional model alias for those roles (omit to inherit); a group's own `model` overrides it,
 //   landerBrief:     path of the lander's brief,
 //   landCommand:     the ONLY command that may put a commit on the main branch (e.g. a CI-gated push script),
 //   manifestPattern: where each train's manifest is written, with {train} substituted,
@@ -36,7 +36,8 @@ const W = args.wave
 const CONC = args.concurrency || 6
 const TRAIN = args.train_size || 5
 const MIN_FINAL = args.min_final_train || 3
-const opt = extra => (args.model ? { ...extra, model: args.model } : extra)
+// A group may carry its own `model` ('sonnet' | 'opus'), which overrides args.model: size the model to the group's work.
+const opt = (extra, model) => ((model || args.model) ? { ...extra, model: model || args.model } : extra)
 const CEILING_MIN = args.implementerCeilingMin === undefined ? 240 : args.implementerCeilingMin
 
 // A model call can HANG: measured, an implementer that had finished and gated its work never produced another
@@ -113,7 +114,7 @@ function runGroup(g) {
     `Before EACH new step check for ${args.stopFile}; if it exists, checkpoint-commit, write your checkpoint file and report, and return status SPLIT. ` +
     `YOUR LAST ACTION MUST BE THE StructuredOutput CALL — never end on a report file or a summary message, or your finished branch is stranded: ` +
     `status, your actual branch, worktree path, base sha, head sha, report path, gate verdict line, items landed, and new leads (text only; do not allocate ids).`,
-    opt({ label: `impl-${g.letter}-${g.lead}`, phase: 'Implement', agentType: args.implementerAgent, isolation: 'worktree', schema: IMPL_SCHEMA })
+    opt({ label: `impl-${g.letter}-${g.lead}`, phase: 'Implement', agentType: args.implementerAgent, isolation: 'worktree', schema: IMPL_SCHEMA }, g.model)
   ).then(r => r ? { ...r, letter: g.letter, lead: g.lead, notes: g.notes } : { letter: g.letter, lead: g.lead, notes: g.notes, status: 'NO-RESULT' }),
   CEILING_MIN, () => {
     log(`${g.letter}: no return after ${CEILING_MIN} min; recorded STALLED, the wave moves on`)

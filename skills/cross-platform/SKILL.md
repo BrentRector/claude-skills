@@ -39,6 +39,33 @@ come from one incident.)*
 dropped change. The local Linux leg reproduced exactly that one red in about 2.5 minutes.* `agent-fleet/references/landing.md` carries
 the fleet rule. *(Practice — not yet validated.)*
 
+## 1b. CI's environment is a build input: pin it, declare it, reproduce it locally
+
+**The invariant: CI should never fail when the same code was tested locally by the same processes.** CI is the
+verification of the local process, never its first run. So every CI red is a defect in the LOCAL process as well as in the
+code: find why the local gate did not see it and fix that in the same change (a missing leg, an unpinned tool, a setting
+CI has and the local run lacks), then sweep for the others like it. Keep a drift test that maps every CI job to a local leg
+or to a recorded reason it cannot run locally.
+
+- **Pin the runner image and keep the local environment the same release.** A floating label (`ubuntu-latest`) moves when
+  the provider decides, so no local gate can match it. Pin the image (`ubuntu-26.04`) and keep the local distro on the same
+  release (a WSL distro can be upgraded in place). The provider's own migration notice is the warning: read it.
+- **A tool that reads text with the platform's default charset has a hidden input.** A parser generator on the JVM read a
+  grammar as UTF-8 locally (Java 18+ defaults to UTF-8) and as Cp1252 on the Windows CI runner, so a set of Unicode
+  characters became repeated Latin characters: an error only in CI, invisible to every local gate. Declare the encoding in
+  the tool's invocation (`-encoding UTF-8`) and use UTF-8 everywhere, rather than avoiding non-ASCII text. Reproduce the
+  CI behaviour locally with the JVM option `-Dfile.encoding=COMPAT`, which makes the JVM use the native charset, and keep a
+  drift test that the invocation passes the encoding. Write characters that do not display (controls, noncharacters) as
+  Unicode escapes so a reader can see them.
+- **Run every CI job that can run locally.** A CI job with no local equivalent (here a guard job whose conformance loop ran
+  only on CI) is the next CI-only red. Survey the differences once (runner image, SDK, JDK and shell patch versions, Debug
+  versus Release, locale and time zone, compile caches, shard composition, jobs and audits with no local counterpart) and
+  settle each as identical, reproduced locally, or irreducible with the reason recorded.
+
+*Why: two clusters were dropped from landing trains in a day for failures that only CI could see (the charset, and the
+guard job), each costing a ~30-minute CI round trip.* *(Practice — not yet validated: two measured incidents; the pin and
+the survey are recent.)*
+
 ## 2. Paths: never assume the host's shape
 
 - **Never feed a path literal from one OS to another OS's path API.** `Path.GetFullPath(@"E:\repo\x")` on Linux is a
@@ -105,6 +132,7 @@ the fleet rule. *(Practice — not yet validated.)*
 ## Checklist before pushing a change that touches paths, processes, files, shells or git
 
 - [ ] The other OS's legs ran locally, on a clone built there, and are green.
+- [ ] CI's runner image is pinned and the local environment is the same release; tools that read text declare their encoding; every CI job that can run locally does.
 - [ ] No path literal from one OS reaches another OS's path API; tests plant host-native paths.
 - [ ] Nothing depends on build-machine paths, or the tests are built on the OS that runs them.
 - [ ] CRLF files were edited as bytes, and the diff touches only the intended lines.

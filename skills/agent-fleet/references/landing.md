@@ -50,3 +50,19 @@ The full text of agent-fleet section 6. Read it before dispatching a lander, run
   the local unit leg reproduced exactly that one red in about 2.5 minutes. The practice had existed only as a memory
   note, so no agent ran it.* *(Practice — not yet validated: built after one incident; not yet exercised across
   waves.)*
+
+## Review the train before it leaves, and fix a confirmed finding in the train
+
+Run a full-code review over the train's diff (`git diff origin/main...HEAD`: correctness first, then the project's drift
+rules, time limits in tests and a citation spot-check) before the landing script. A CONFIRMED correctness finding is FIXED
+by the lander in that cluster's own commit while the evidence is in its context: the repro becomes a regression test, the
+root cause is fixed once, the sibling arms are swept, and the whole-population gate is re-run. DROP the cluster only when
+the fix is a redesign (more than one mechanism, or more than about 60 changed lines outside tests), when the gate cannot be
+made green, or when the finding questions the cluster's premise; then revert its commits and report the finding with its
+repro and fix shape.
+
+*Why: a train's review dropped four finished work items over a one-line defect (a chain walk that started one level too
+high, so a legal table inside an enclosing OCCURS group was refused). Fixing it afterwards took about ten tool calls
+because the finding, the code site and the repro were already in hand; a fresh agent would have paid a full orientation to
+re-derive them.* *(Practice — not yet validated: one measured case, owner decision 2026-10-04; the earlier rule here was to
+drop the cluster and never fix up in the lander.)*

@@ -34,7 +34,9 @@ workflow, and dispatch the remainder by hand (see the skill's "A stalled agent" 
 stall is noticed.
 
 Exit codes: 3 = at least one agent stalled, or the workflow is IDLE (printed with the label, silence and last
-action); 0 = with --once, nothing stalled. A transcript that cannot be read is reported, never treated as healthy.
+action); 0 = with --once, nothing stalled. A transcript that cannot be read is reported, never treated as healthy:
+a live watch alarms once it has stayed unreadable past --model-stall (a just-started agent's transcript is briefly
+empty), and --once alarms at once. A transcript holding only the agent's prompt is waiting on the model.
 """
 import argparse, datetime, json, pathlib, sys, time
 
@@ -56,11 +58,17 @@ def last_record(path):
             continue
         content = (o.get("message") or {}).get("content")
         ts = o.get("timestamp")
-        if not ts or not isinstance(content, list):
+        if not ts or content is None:
+            continue
+        when = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        # A just-started agent's only record is its prompt, whose content is a plain string: it is waiting on the
+        # model, not unreadable. Skipping it reported every newly started agent as stalled on the first poll.
+        if isinstance(content, str):
+            return when, False, "", "text"
+        if not isinstance(content, list):
             continue
         parts = [p for p in content if isinstance(p, dict)]
         uses = [p for p in parts if p.get("type") == "tool_use"]
-        when = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
         if o.get("type") == "assistant" and uses:
             u = uses[-1]
             return when, True, u.get("name", ""), json.dumps(u.get("input", {}))[:160]
@@ -102,7 +110,10 @@ def last_activity(wf):
     return max(stamps, default=None)
 
 
-def check(wf, model_stall, tool_stall, idle_limit, watch_start, known_failed=frozenset()):
+def check(wf, model_stall, tool_stall, idle_limit, watch_start, known_failed=frozenset(), unreadable_since=None):
+    """`unreadable_since` ({agentId: first time seen}) belongs to a live watch: an agent whose transcript has no record
+    yet is only alarmed once it stays that way past --model-stall, so a just-started agent is not reported. `--once`
+    passes None and reports every unreadable transcript, having no earlier observation to time it from."""
     now = datetime.datetime.now(datetime.timezone.utc)
     stalled, report = [], []
     pending, failed = journal(wf)
@@ -116,8 +127,19 @@ def check(wf, model_stall, tool_stall, idle_limit, watch_start, known_failed=fro
     for aid, label in sorted(pending.items(), key=lambda x: x[1]):
         rec = last_record(wf / f"agent-{aid}.jsonl")
         if rec is None:
-            stalled.append(f"{label} ({aid}): transcript unreadable or empty")
+            line = f"{label} ({aid}): transcript unreadable or empty"
+            if unreadable_since is None:
+                stalled.append(line)
+                continue
+            first = unreadable_since.setdefault(aid, now)
+            unread = (now - first).total_seconds()
+            line += f" for {int(unread // 60)}m{int(unread % 60):02d}s (limit {model_stall // 60}m)"
+            report.append(line)
+            if unread > model_stall:
+                stalled.append(line)
             continue
+        if unreadable_since is not None:
+            unreadable_since.pop(aid, None)
         when, in_tool, tool, preview = rec
         silent = (now - when).total_seconds()
         limit = tool_stall if in_tool else model_stall
@@ -156,8 +178,9 @@ def main():
     watch_start = None if a.once else datetime.datetime.now(datetime.timezone.utc)
     # A live watch alarms on deaths that happen WHILE it watches; --once replays history and reports every death.
     known_failed = frozenset() if a.once else frozenset(journal(wf)[1]) if (wf / "journal.jsonl").exists() else frozenset()
+    unreadable_since = None if a.once else {}
     while True:
-        stalled, report = check(wf, a.model_stall, a.tool_stall, a.idle, watch_start, known_failed)
+        stalled, report = check(wf, a.model_stall, a.tool_stall, a.idle, watch_start, known_failed, unreadable_since)
         if a.once:
             print("\n".join(report))
         if stalled:

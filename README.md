@@ -35,6 +35,14 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.17.1
+
+- **The stall watchdog no longer reports a just-started agent as stalled.** `agent-fleet/references/stall_watch.py`
+  skipped a transcript's prompt record (its content is a plain string), so an agent whose only record was its prompt
+  read as "unreadable or empty", and the watch exited on its first poll after any agent started. Seen twice in one
+  wave: at the fleet's start, and again when a freed slot started the next group. The prompt record now reads as
+  waiting on the model, and a live watch alarms on a transcript that is still empty only after `--model-stall`.
+
 ## What's new in 1.16.0
 
 - **Six long skills load a short core and read the rest on demand.** `agent-fleet` (40.8 KB to 14.6 KB),

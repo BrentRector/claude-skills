@@ -162,7 +162,7 @@ Read `references/refuters-and-routing.md` before dispatching a refuter, and befo
 ## 12. After a fleet, and on restart
 
 - After any fleet that could touch the tree, run `git status --short` and account for every path before `git add -A`.
-- Measure where the tokens go before optimizing the orchestrator, and consider running it as short units with deterministic scripts doing the planning (`references/orchestrator-loop.md`, which also lists the published techniques that bear on a campaign).
+- For a long or unattended campaign, run the orchestrator as a supervisor of short units with deterministic scripts doing the planning (`references/orchestrator-loop.md`, validated in live runs of one campaign). Three rules from those runs: the SUPERVISOR owns each unit's lifetime (a one-shot `claude -p` terminates background tasks 600 s after its model ends a turn; start the unit with `--input-format stream-json` and keep stdin open, closing it only when the model is idle with no background task); write frequent handoffs (a supervisor-written checkpoint, model milestone lines, and a handoff synthesized when a unit dies); and make STOP a wind-down that checkpoints the fleet, never a kill. Measure where the tokens go first; the reference also lists the published techniques that bear on a campaign.
 - On restart: read the reset time, check the dead lander's worktree and `STATUS.md`, run `references/status_delta.py` on each worktree, and dispatch fresh agents from the checkpoints in landing order.
 
 ## Standards

@@ -35,6 +35,19 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.18.0
+
+- **The orchestrator as a supervisor of short units, validated in live runs** (`agent-fleet/references/orchestrator-loop.md`,
+  which was "not yet validated" and now records what a quota-meter unit, a resume unit and a 2.5-hour rolling-wave unit
+  taught). A one-shot `claude -p` terminates background tasks 600 seconds after its model ends a turn (a workflow of eight agents
+  died that way); the fix is not a prompt rule but a supervisor that owns the session's lifetime: start the unit with
+  `--input-format stream-json`, keep stdin open, and close it only when the model is idle with no background task. Also:
+  frequent handoffs (a supervisor-written checkpoint, model milestone lines, a handoff synthesized when a unit dies), a STOP
+  that winds a running fleet down without losing work, a fast unit that handed off done is not a failure, the budget decision
+  must be passed into the unit, plan from branches and worktrees rather than remembered reports, and a headless session may
+  lack tools (such as artifact publishing) that the attended one has. *Practice, validated in one campaign; the measurements
+  are from that campaign.*
+
 ## What's new in 1.17.1
 
 - **The stall watchdog no longer reports a just-started agent as stalled.** `agent-fleet/references/stall_watch.py`

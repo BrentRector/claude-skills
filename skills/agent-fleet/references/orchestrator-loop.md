@@ -75,7 +75,17 @@ supervisor against a fake `claude` that emits canned stream-json, but expect the
    the owner's status page could not be published by a unit. Split the work where the capability is: the unit renders the
    page, a small script compares the page's stamp with the last published one, the supervisor announces an owed publish after
    every unit, and the attended session publishes and marks it.
-9. **Recovery was measured, not assumed.** After the killed wave, a resume unit (141 s, about one dollar) read the six
+9. **Never write to a child's stdin synchronously before you are reading its stdout.** The CLI writes a large `init` event
+   (tools, MCP servers, slash commands) to stdout BEFORE it reads stdin. Once that fills the stdout pipe the child blocks until
+   you read; a synchronous write of a prompt larger than the stdin pipe buffer (about 4 KB on Windows) blocks until the child
+   reads. Each waits for the other: a unit sat two hours with a 0-byte log and a child at under a second of CPU. It appeared only
+   when a unit prompt grew past the buffer (a 3 KB prompt always worked), so a green history proves nothing about it. Write the
+   prompt as a task and start the read loop at once, and add a startup watchdog: a unit that has emitted NO event after a number
+   of loop ticks is killed and its handoff synthesized. Count ticks (one per second waited), not wall time, so a suspended
+   machine cannot trip it. Test it with a fake CLI that writes several hundred KB before reading stdin, run under a time bound so
+   a regression fails instead of hanging the suite; a fake that merely stays quiet must emit NOTHING, not even `init`, or it
+   disarms the watchdog it is meant to test.
+10. **Recovery was measured, not assumed.** After the killed wave, a resume unit (141 s, about one dollar) read the six
    worktrees, committed the uncommitted work in four of them, wrote a status file in each, and named the next unit; nothing was
    lost. The next wave then ran 2.5 hours, well past the old 600-second ceiling, and landed all eight groups in two trains with
    none dropped.

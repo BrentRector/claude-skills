@@ -36,6 +36,12 @@ item), or a redesign that changes behavior (that is a feature, with its own spec
 - **The owner has decided** timing, the runtime/language target (stable only, or a preview allowed), and whether
   public names (packages, assemblies) may change.
 
+**When completion work still remains** (a conformance burn-down, a feature backlog), the start can be SPLIT rather
+than waited for: run Phase 0 and Phase 1 now, so the remaining work is written into the target layout instead of
+into the classes about to be split; run leaf waves (the layers nothing depends on) and Delete waves in subsystems
+the active lane does not touch; keep the hot subsystems' waves for after that work lands. The merge-conflict
+mitigation is the partition, enforced by which files a wave may touch, not by hope. The owner decides the split.
+
 ## Phase 0: Measure the baseline and record the oracle
 
 Opinions come after measurements.
@@ -43,7 +49,10 @@ Opinions come after measurements.
   - per type, including every partial file: lines, members, fan-in, fan-out, and namespace-to-folder agreement;
   - the dependency graph between projects and namespaces;
   - clone families (`roslyn-analysis`, type-2 detection);
-  - unreachable code, measured with a probe (`engineering-standards`: reachability is measured, not deduced).
+  - unreachable code, measured with a probe (`engineering-standards`: reachability is measured, not deduced);
+  - dead artifacts beyond code: scripts, configuration, docs, test scaffolds and drift-test literals with no caller
+    or reader, measured by a caller query per artifact. A subsystem kept alive "as an oracle" after its goldens
+    were baked is the largest item this census usually finds.
 - **God-class candidates.** Types past a size threshold, or with more than one reason to change. Name each one's
   responsibilities before deciding anything.
 - **The behavior-neutrality oracle** (the contract below), captured at the baseline commit.
@@ -94,13 +103,16 @@ The target states:
 
 ## Phase 3: Restructuring waves (behavior-neutral, one mechanism each)
 
-**Four wave kinds.** Each wave is one of them, and each proves the contract:
+**Five wave kinds.** Each wave is one of them, and each proves the contract:
 - **Extract:** one responsibility out of a god class, behind a named seam.
 - **Unify:** one clone family, or one duplicated RULE, into one place (`engineering-standards`: one rule, one place).
 - **Move and rename:** layout, namespaces, file and type names, with EVERY caller changed in the same change. There
   is no alias, forwarder, `[Obsolete]` twin or shim: a compatibility layer for callers that no longer exist is a
   second mechanism to maintain.
 - **Data-ize:** code that is a table becomes data plus one loader or generator.
+- **Delete:** a census-measured dead member, type, file, script, doc or scaffold, removed with every caller and
+  with the drift test that pinned it. The wave records HOW the item was measured dead. A deletion that changes
+  behavior is not a deletion; it is a defect for the fix lane.
 
 **Order.** Leaves first (the layers nothing depends on), then inward. Renames land before extractions in the same
 area, so extraction diffs stay readable.
@@ -122,6 +134,18 @@ fixes via `dotnet format`, and grammar edits followed by the token and parse-tre
 
 For .NET, `dotnet-engineering` lists the features and how to apply them at scale.
 
+## Who does what: model tiers
+
+Price a wave per completed wave, not per token, and spend the expensive model only where its error would compound.
+- **The frontier model** (the most capable, most expensive tier) writes the Phase 1 target architecture, the one
+  artifact every later wave executes against, and runs a second adversarial round only when the mid-tier refuter
+  cannot break the design. Each such dispatch gets the owner's explicit approval; it is never a role's default.
+- **The mid tier** reviews (Phase 2), refutes, lands trains, and runs the extract and unify waves, where a
+  responsibility boundary is a judgment.
+- **The small tier** runs the census, the move-and-rename and analyzer waves driven by a rewriter or a code fix,
+  and the Delete waves whose items the census already measured dead. The oracle proves a mechanical wave; the
+  model does not. A small-tier agent that meets a judgment call returns it to the mid tier instead of guessing.
+
 ## Phase 5: Close
 
 - Run the full battery on every OS.
@@ -138,3 +162,6 @@ For .NET, `dotnet-engineering` lists the features and how to apply them at scale
 - A rename that leaves an alias "for compatibility" with callers that no longer exist.
 - A layering rule written in a document but not in a test.
 - Refactoring code that a planned cut-over deletes.
+- Keeping a retired subsystem alive "as an oracle" after its goldens are baked: it costs every gate and every
+  grammar change, and finds nothing the goldens do not.
+- Spending the frontier model on a mechanical wave the oracle already proves.

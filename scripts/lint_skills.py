@@ -122,7 +122,9 @@ def anchors(pattern):
 def text_of(case_name):
     for d in sorted(skills, key=lambda p: -len(p.name)):
         if case_name == d.name or case_name.startswith(d.name + "-"):
-            return d.name, "\n".join(p.read_text(encoding="utf-8") for p in [d / "SKILL.md", *sorted((d / "references").rglob("*")) ] if p.is_file())
+            return d.name, "\n".join(p.read_text(encoding="utf-8") for p in [d / "SKILL.md", *sorted((d / "references").rglob("*"))]
+                             if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc")
+    # Running a reference's own script leaves bytecode beside it; bytecode is not reference text.
     if case_name.startswith("agent-"):
         a = ROOT / "agents" / (case_name[len("agent-"):] + ".md")
         if a.exists():

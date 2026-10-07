@@ -35,6 +35,18 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.19.0
+
+- **`architecture-audit` gains a fifth wave kind, Delete, and a dead-artifact census.** Dead and obsolete code is
+  removed census-measured (never deduced) and caller-complete, with the drift test that pinned it; a deletion
+  that changes behavior is a defect, not a deletion. Phase 0 now also counts scripts, configuration, docs and
+  test scaffolds with no caller or reader. The start may be SPLIT when completion work remains (Phase 0 and 1
+  now, leaf and Delete waves in partitioned subsystems, the hot subsystems after), and a model-tier section
+  says who does what: the frontier model writes the target architecture under explicit approval, the mid tier
+  reviews, refutes, lands and extracts, the small tier runs the census and the mechanical waves the oracle
+  proves. *Practice: the plan was applied to one compiler's completion campaign in 2026-10; its waves have not
+  yet run.*
+
 ## What's new in 1.18.0
 
 - **The orchestrator as a supervisor of short units, validated in live runs** (`agent-fleet/references/orchestrator-loop.md`,
@@ -419,7 +431,7 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 |---|---|---|
 | [`review`](skills/review/) | reviewing a diff, branch or PR | Four dimensions (architecture · full code · performance · duplication/efficiency) as parallel reviewers, plus specialist agents; every finding carries a concrete failure scenario; an adversarial skeptic tries to refute each one; confirmed bugs trigger a sibling sweep. |
 | [`variant-analysis`](skills/variant-analysis/) | right after any defect is confirmed | Name the mechanism, not the symptom; textual, structural (Roslyn, ANTLR, tree-sitter, Semgrep) and semantic queries; "which arm of the dispatch did you fix?"; a probe per candidate; a sweep report in which zero hits is evidence. |
-| [`architecture-audit`](skills/architecture-audit/) | the whole codebase needs a comprehensive review and restructure, not one diff | A measured baseline and a behavior-neutrality oracle before any change; an adversarially reviewed target architecture with dependency rules enforced by tests; a review fleet by subsystem × dimension whose findings become tracked work; behavior-neutral waves (extract · unify · move and rename with every caller · data-ize); analyzer-driven modernization; architecture tests left behind. |
+| [`architecture-audit`](skills/architecture-audit/) | the whole codebase needs a comprehensive review and restructure, not one diff | A measured baseline and a behavior-neutrality oracle before any change; an adversarially reviewed target architecture with dependency rules enforced by tests; a review fleet by subsystem × dimension whose findings become tracked work; behavior-neutral waves (extract · unify · move and rename with every caller · data-ize · delete, census-measured); analyzer-driven modernization; model tiers (frontier for the target architecture, mid for judgment waves, small for mechanical ones); architecture tests left behind. |
 
 **Specs and standards**
 

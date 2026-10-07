@@ -112,7 +112,10 @@ The target states:
 - **Data-ize:** code that is a table becomes data plus one loader or generator.
 - **Delete:** a census-measured dead member, type, file, script, doc or scaffold, removed with every caller and
   with the drift test that pinned it. The wave records HOW the item was measured dead. A deletion that changes
-  behavior is not a deletion; it is a defect for the fix lane.
+  behavior is not a deletion; it is a defect for the fix lane. A harness may refuse a whole-tree removal to a
+  subagent as irreversible; the answer is a permission GRANT scoped to the worktree branch (a hook when a settings
+  rule cannot see the working directory, `automating-agent-guardrails`), never a hand step per wave and never
+  `--force`: without it the VCS refuses a file with uncommitted edits, so every removal stays one commit from recovery.
 
 **Order.** Leaves first (the layers nothing depends on), then inward. Renames land before extractions in the same
 area, so extraction diffs stay readable.

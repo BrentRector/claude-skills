@@ -38,6 +38,20 @@ them from the clone. Every script runs as `python <script>` and has a `--selftes
 
 Read `references/guard-hooks.md` before writing or auditing any guard rule, hook registration or the guard's self-test (it holds the full contract and the reason for each item).
 
+### A hook can also GRANT, within a scope a settings rule cannot express
+
+A permission rule sees the command text, never the working directory or the resolved paths, so "allow `git rm -r`
+inside an agent's worktree, nowhere else" cannot be a settings rule. A PreToolUse hook can return
+`permissionDecision: allow` for exactly that shape — one command, run in a directory under the worktrees root, every
+path inside it, no `--force` — and no decision for anything else, so the harness's own safety classifier and every
+deny hook keep their say. The bar for a grant is the mirror of a guard's: its self-test must show every neighbour
+that is NOT allowed (the main checkout, a path that escapes, a chain, `--force`), because its failure branch is a
+permission that should not have been given. *Why: a safety classifier refused a subagent's whole-tree deletion as
+irreversible — correct for an unscoped command, wrong on a branch where every removal is one commit from recovery —
+and the alternative, a person performing the step per wave, cannot run unattended.* Pair it with the owner's
+never-lose-work rule in the cleanup script: remove a worktree only when its work is committed and landed, never one
+that is dirty, locked, recent or unlanded.
+
 ## 2. Role agent definitions
 
 - Every role sets `model`, `effort` and `maxTurns`; mechanical roles (`chore`, read-only `locator`) get a cheaper model and lower effort.

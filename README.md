@@ -35,6 +35,13 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.19.1
+
+- **A hook can GRANT within a scope a settings rule cannot express** (`automating-agent-guardrails`): a PreToolUse
+  `permissionDecision: allow` for one exact command shape — a whole-tree `git rm -r` inside an agent's worktree, no
+  `--force`, nothing chained — with a self-test that proves every neighbour is NOT allowed. `architecture-audit`'s Delete
+  wave points at it. *Practice: validated once, 2026-10-07, after a safety classifier refused a subagent's deletion.*
+
 ## What's new in 1.19.0
 
 - **`architecture-audit` gains a fifth wave kind, Delete, and a dead-artifact census.** Dead and obsolete code is

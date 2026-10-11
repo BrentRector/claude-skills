@@ -8,6 +8,17 @@ Moved out of `SKILL.md` verbatim. Read it before Step 1 when a PR already carrie
   never assume `main`), including staged and unstaged changes.
 - **PR number/URL:** `gh pr diff`, `gh pr view` for the description and linked issue.
 - **Branch or path:** diff the branch against its merge base, or review the named files/directories.
+- **Branch form (a finished branch before it lands):** one branch, one read-only reviewer, dispatched when the
+  implementer reports DONE, inside the wave and beside the other implementers. Target: `<default>...HEAD` in the
+  branch's worktree (read only; the reviewer's role carries a hook that refuses writes inside a git tree). Run the
+  dimensions the triage selects, correctness first, plus the project's drift rules for the changed files, fixed time
+  limits in tests and a citation spot-check. Output: a findings file at the path the dispatch names, one entry per
+  CONFIRMED finding (it survived Step 6) with its scenario, repro and code site, and a structured verdict (`CLEAN` or
+  `FINDINGS` with the count). The implementer, if still running, or a finisher answers each finding — fixed at its
+  root with a regression test and a sibling sweep, or refuted with evidence written beside the finding — and re-runs
+  the targeted gate; only then is the branch enqueued. *Why: in one measured campaign (2026-10-10) review inside the
+  landing step cost 23 % of the landing tokens and sat on the critical path between two gate runs; on the branch it
+  runs in parallel, and the landing step stays a script.* *(Practice — not yet validated.)*
 - **"Audit" / "be comprehensive" / a subsystem name:** whole-source mode (see *Scale* below).
 - **Incremental PR mode:** if the PR already carries a review from a previous run, read the full conversation first
   (`gh pr view --json reviews,comments`), diff only the commits pushed since that review, and open the report with

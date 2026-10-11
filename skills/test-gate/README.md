@@ -11,8 +11,9 @@ Claude loads a skill automatically when the request matches its `description`. T
 commit, merge or push. You can also ask directly ("run the gate before committing this", "gate this batch before
 merge") or name the skill (`test-gate`) in your request.
 
-Its first move is a self-check: **is this one change, or a batch that is about to merge?** One change gets the
-targeted gate, a batch gets the full suite, and the CI run for the pushed commit has the final say either way.
+Its first move is a self-check: **what does this run have to prove?** Locally, that the targeted change is correct:
+every change, including the landing (enqueue) step, gets the targeted gate. The whole population is CI's merge-group
+run, which has the final say.
 
 ## What it does
 
@@ -20,9 +21,9 @@ targeted gate, a batch gets the full suite, and the CI run for the pushed commit
 
 | Tier | When | What runs | Cost |
 |---|---|---|---|
-| **Targeted** | every commit | fresh build, the change's own tests and neighbours, fast whole-suite smoke tests, one real end-to-end probe of the changed behaviour | ~minutes |
-| **Comprehensive** | once per batch, before merge or landing | every affected test assembly or package, **unfiltered**, plus slow differential/integration legs | ~10–30 min |
-| **CI** | after every push | whatever the pipeline runs: other OSes, Release config, clean checkout | final authority |
+| **Targeted** (local, both hosts) | every change, implementer and enqueue step alike; natively, then in a clone on the other OS, fail-fast native first | fresh build, the change's own tests, neighbours, likely reds and reached cases, every host-only witness (by trait), the audits whose inputs changed, one real end-to-end probe of the changed behaviour | ~minutes |
+| **Whole population** (CI) | every merge group, before the default branch moves | every test assembly or package, **unfiltered**, on every OS, sharded | CI's wall; final authority |
+| **Battery** (local, own worktree) | once per accumulated batch | slow legs CI does not run | ~10–30 min |
 
 ### The procedure
 
@@ -30,8 +31,7 @@ targeted gate, a batch gets the full suite, and the CI run for the pushed commit
    solution (not one project) before `dotnet test --no-build`; in Python, reinstall editable or compiled
    extensions; in JS/TS, rebuild workspace packages that tests import from `dist/`.
 2. **Run the tier.** Size it to the blast radius. A change that rejects input the tool used to accept also runs
-   the whole accepted-input corpus. The comprehensive tier runs in its own detached worktree at the batch head
-   when other work goes on meanwhile.
+   the whole accepted-input corpus. The battery runs in its own detached worktree at the batch head.
 3. **Check the filter selected something.** Read the test count, not the pass/fail word.
 4. **Confirm new tests ran, by name** (`dotnet test --list-tests`, `pytest --collect-only -q`,
    `jest --listTests`), and that the count rose by the number added.
@@ -44,18 +44,26 @@ targeted gate, a batch gets the full suite, and the CI run for the pushed commit
    `git grep --cached -nI -e "^<<<<<<< " -e "^||||||| " -e "^>>>>>>> "` and
    `git diff --cached --check | grep -i "conflict marker"` must both print nothing (read the output, not the
    exit code).
-9. **After the push, read CI for the exact commit:**
-   `gh run list --commit <sha> --json databaseId,status,conclusion` then `gh run watch <id> --exit-status`, and
-   `gh run view <id> --log-failed` on a red run. Until it is green, the status is "local gates green; CI pending".
+9. **After the enqueue or push, read CI:** under a merge queue, the pull request's merge-group checks
+   (`gh pr view <n> --json mergeQueueEntry,statusCheckRollup`), and a bounce is fixed on its branch before
+   re-enqueue; otherwise `gh run list --commit <sha> --json databaseId,status,conclusion` then
+   `gh run watch <id> --exit-status`, and `gh run view <id> --log-failed` on a red run. Until it is green, the status
+   is "targeted gate green; queued" or "local gates green; CI pending".
 
 ## Why it works this way
 
 - **Size the gate to the blast radius, not to anxiety.** Running everything on every commit makes the slow gate
   the bottleneck, and a long run that gets waved off is where a real regression slips through as a "flake".
-- **A landing gate covers the whole affected assembly.** Merging several changes behind `A|B|C|D`, one filter term
-  per change, leaves out every test no term names, and that leftover set is where breakage shows up. The
-  unfiltered run costs less than a red CI run plus a re-push. *(Validated 2026-09-28.)*
-- **The comprehensive battery runs in its own worktree.** It rebuilds mid-run, so on the main checkout it once
+- **The landing gate covers the whole population.** Merging several changes behind `A|B|C|D`, one filter term
+  per change, leaves out every test no term names, and that leftover set is where breakage shows up.
+  *(Validated 2026-09-28.)* Under a merge queue that gate is CI's merge-group run, the merged tree itself.
+- **The local gate is targeted; CI is the regression net.** In one measured campaign (2026-10-10), local
+  whole-population gate runs were 41 % of the landing agents' time, 8 of 15 went RED mostly on fixed time limits
+  under load, and CI ran the same population on 20 free runners in 13 min. The targeted leg still runs on the other
+  OS too (3 of 38 landed changes had other-OS-only reds in their own tests, each caught before a CI round trip), and
+  host-only witnesses (a filesystem CI lacks) stay in the local leg by trait. *(Validated 2026-10-11 (measurement); the redesign's effect is not yet
+  measured.)*
+- **The battery runs in its own worktree.** It rebuilds mid-run, so on the main checkout it once
   measured a half-finished edit and had to be redone, and nothing could land during its ~45 min of machine time
   (the blocked landing work was modelled at about seven clusters, not measured). In a detached worktree at the
   batch head, landings continued in parallel; it still shares the cores, so other gates run slower meanwhile.
@@ -115,7 +123,9 @@ the project's `CLAUDE.md` under a **"Testing"** section (or `CONTRIBUTING.md`, o
 - which legs are slow, which rebuild, and which must run alone;
 - a wrapper script, if one exists, that expands filter shorthand and fails on a missing verdict line (preferred
   over raw commands);
-- which CI check is required on the default branch, and how pushes are verified against it.
+- which CI check is required on the default branch, whether a merge queue gates it, and how pushes or queued pull
+  requests are verified against it;
+- which tests are host-only witnesses (the trait), and which audits are reused when their inputs are unchanged.
 
 Prerequisites: the GitHub CLI (`gh`) for the CI step. The build and filter guidance covers .NET, Python and
 JS/TS; other stacks supply their own commands through the hooks above.

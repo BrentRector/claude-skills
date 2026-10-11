@@ -41,8 +41,8 @@ measured on their own: `agent-fleet-reprobe-backlog`, `agent-fleet-registrar-rer
 | `agent-type-design-analyzer` | type-design-analyzer | Replaces the kind enum with its per-kind fields by a closed hierarchy; findings carry a `Smell:` classification | 0.83 | 0.50 |
 | `agent-comment-analyzer` | comment-analyzer | Rejects a citation that answers a different question and finds the governing clause; findings carry `Scenario:`/`Evidence:` | 1.00 | 0.50 |
 | `devlog-correction-and-clock` | devlog | Records an overturned finding as a NEW entry (`OLD-ENTRY: LEAVE`, against a teammate's "fix it in place") and takes the header time from the clock (`date`), not from "around 4:30" | 1.00 | 0.50 |
-| `devlog-commit-hook` | devlog | Registers the missing-entry commit hook with NO `if` filter (which misses `git add -A && git commit`), although the prompt asks for one, and has it ASK rather than deny | 1.00 | 0.00 |
-| `devlog-insert-entry` | devlog | Adds an entry to a CRLF, newest-first log with the bundled `devlog.py new` instead of a hand-written splice | 1.00 | 0.00 |
+| `devlog-commit-hook` | devlog | Registers the missing-entry hook (now on `gh pr create`, one entry per landing) with NO `if` filter (which misses `git push … && gh pr create`), although the prompt asks for one, and has it ASK rather than deny. *Prompt revised 2026-10-11 from the per-commit form; scores are from the earlier form, not re-run.* | 1.00 | 0.00 |
+| `devlog-insert-entry` | devlog | Adds an entry to a CRLF, newest-first log with the bundled `devlog.py` (a one-time `migrate` to one file per entry, then `new`) instead of a hand-written splice. *Expected outcome revised 2026-10-11; scores are from the earlier form, not re-run.* | 1.00 | 0.00 |
 | `devlog-consolidate-brief` | devlog | A brief to consolidate the log into learnings closes with an open-problems list and a not-yet-acted-on list | 1.00 | 0.33 |
 | `automating-agent-guardrails-guard-design` | automating-agent-guardrails | A guard hook for "no stash / land main only via the script" fails OPEN on its own errors (`ON-ERROR: ALLOW`) and scopes the push rule to this repository (`OTHER-REPO: ALLOWED`) | 1.00 | 0.50 |
 
@@ -136,7 +136,7 @@ Each is kept here so nobody spends money writing it again.
 | agent-fleet fresh vs resume | a fresh agent from the checkpoint beats resuming a 280-turn transcript | W/OUT 1.00 |
 | test-gate battery in a worktree | run the comprehensive battery in its own detached worktree while landings continue | W/OUT 1.00 across two prompt variants (3 runs each): once the prompt mentions landings during the run, the baseline already cuts a `git worktree add` for it |
 | agent-fleet no early peek | never read a two-stage fleet's output before it signals completion | W/OUT 1.00 |
-| agent-fleet landing batch size | 4–6 clusters per landing | W/OUT 1.00 (the baseline also picks the middle) |
+| agent-fleet landing batch size | 4–6 clusters per landing (rule retired 2026-10-11: one pull request per branch through a merge queue) | W/OUT 1.00 (the baseline also picks the middle) |
 | agent-fleet workflow liveness | judge a background workflow alive by its processes and journal, never by transcript file times | W/OUT 0.83–1.00 across two prompt variants: the baseline already keys a watchdog on live processes and says quiet output is not death. A first grader that forbade the word "transcript" also failed the plugin arm, which names transcript times in order to reject them |
 | spec-oracle spec over reference | the golden value is derived from a supplied spec excerpt, not copied from the reference tool | W/OUT 1.00 when the excerpt is in the prompt |
 | spec-oracle inherited citation | re-derive a ticket's clause number instead of copying it | W/OUT 1.00 |

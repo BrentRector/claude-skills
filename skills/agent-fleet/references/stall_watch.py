@@ -28,7 +28,7 @@ then, or its IDLE exit is one harmless false wake-up.
 Why these thresholds, measured over 150 agent transcripts (~27,800 silences): waiting on the model, 99.9 % of
 silences were under 94 s; inside a tool call the maximum was 585 s (a 580 s blocking gate wait; shell tools cap at
 600 s). Why it exists: one implementer's model call hung after it had finished and gated its work; nothing
-noticed for 90 minutes, and the wave's final train waited on it the whole time. A workflow cannot stop one of
+noticed for 90 minutes, and the wave's final landing waited on it the whole time. A workflow cannot stop one of
 its own agents and nothing outside can either, so the remedy is to let the other agents finish, stop the
 workflow, and dispatch the remainder by hand (see the skill's "A stalled agent" rule) - which only works if the
 stall is noticed.

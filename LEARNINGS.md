@@ -11,6 +11,10 @@ primary sources:
   skill, the skill labels it *"Practice — not yet validated"*);
 - **9 REFUTED**, kept in the project's research record and removed or corrected in the skills.
 
+One later entry, [M1](#m1-the-landing-pipeline-ran-every-population-twice-and-serialized-on-the-slow-copy) (2026-10-11),
+is marked **MEASURED, NOT YET VETTED**: its problem, root cause and evidence are a validated measurement, but its fix
+has not yet been used long enough to meet criterion 4 below.
+
 A first validator ruled on every candidate, and an independent refuter re-checked every VETTED ruling; the refuters
 overturned 21 of the 67 that the first validator had vetted. The candidate ids (C1–C145) are the project's ledger
 ids, kept so a later run can re-check a learning without re-validating it.
@@ -139,7 +143,7 @@ the project's development log.
 ### C23. Idle slots, not work, were the bottleneck: fill a slot the turn it frees
 - **Problem:** the defect register filled much faster than it drained.
 - **Root cause:** implementers were dispatched one cluster at a time, behind landings.
-- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work)
+- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/references/landing.md#kept-from-the-earlier-pipeline)
   "Fill a freed implementer slot in the same turn it frees". (The rolling-wave script that mechanizes it is not
   itself validated.)
 - **Evidence:** ~16 mechanisms in six days (~2.7/day) against a modelled capacity of ~24/day, about 11 %
@@ -152,7 +156,7 @@ the project's development log.
 - **Problem:** the batch test battery rebuilds the tree, so a battery on the shared tree froze the lander.
 - **Root cause:** a shared build tree; one battery measured a half-edited change and had to be redone.
 - **Fix in the skills:** [test-gate](skills/test-gate/SKILL.md#the-three-tiers) "Run the comprehensive gate in its
-  own detached worktree"; [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work)
+  own detached worktree"; [agent-fleet §6](skills/agent-fleet/references/landing.md#kept-from-the-earlier-pipeline)
   "Run the comprehensive battery in its own detached worktree".
 - **Evidence:** the battery took ~45 min of machine time. From the next battery on, every battery ran in a detached
   worktree without freezing the lander. The saving is a slowdown rather than a full freeze: the lander's gate ran
@@ -163,8 +167,10 @@ the project's development log.
 - **Problem:** two clusters, each green, composed wrongly: one renamed a method, and the other's later batch wrote
   the old name back.
 - **Root cause:** each cluster's own gate cannot see its siblings.
-- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work)
-  "The lander gates the WHOLE test suite, unfiltered", on the merged tree.
+- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/references/landing.md#local-testing-of-the-targeted-change-first-ci-is-the-regression-net)
+  "CI's merge-group run is the whole-population run": the merge group IS the merged tree, and the whole population
+  runs on it before the default branch moves. (Until 2026-10-11 the lander ran it locally; the M1 measurement moved it
+  to CI, which had always run it too.)
 - **Evidence:** 1 red of 27,772 tests on the merged tree; the same shape recurred the next train; a set missed a
   member a sibling had added. The merged-tree gate kept catching composition defects through later trains.
   (Merging one cluster at a time with a build between each is not validated.)
@@ -207,7 +213,7 @@ the project's development log.
 - **Problem:** eleven clusters in a row went red on CI while the local guard was green; three pushes went red from a
   check compiled only into Debug builds.
 - **Root cause:** the local battery ran on one OS, in Debug, and was not a superset of CI.
-- **Fix in the skills:** [test-gate, After the push](skills/test-gate/references/ci-flakes-standards.md#after-the-push-ci-is-the-final-authority).
+- **Fix in the skills:** [test-gate, After the push](skills/test-gate/references/ci-flakes-standards.md#after-the-push-or-enqueue-ci-is-the-final-authority).
 - **Evidence:** 11 red pushes; 3 consecutive red pushes. After CI was read on every landing, it held main untouched
   on reds the local gates missed, several times.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 515, 691, 774, 1617.
@@ -281,9 +287,9 @@ the project's development log.
 - **Problem:** 16 consecutive CI runs failed over ~29 h while about ten landings each reported a green local gate.
 - **Root cause:** every written landing procedure stopped at the push; the reds were host-dependent behaviors of the
   CI runners (Windows and Linux) that no gate on the owner's desktop could see.
-- **Fix in the skills:** [test-gate, After the push](skills/test-gate/references/ci-flakes-standards.md#after-the-push-ci-is-the-final-authority);
-  [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work) "Watch CI for every
-  pushed head".
+- **Fix in the skills:** [test-gate, After the push](skills/test-gate/references/ci-flakes-standards.md#after-the-push-or-enqueue-ci-is-the-final-authority);
+  [agent-fleet §6](skills/agent-fleet/references/landing.md#kept-from-the-earlier-pipeline) "Watch CI for every
+  run that decides something". Under a merge queue CI is read mechanically: the required check gates the queue.
 - **Evidence:** 16 failed runs plus 6 cancelled, 28 h 50 min. After landings pushed a verified sha and waited for
   CI, CI caught reds with main untouched on at least six later trains.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 1567, 1568, 1571, 1594, 1617–1619,
@@ -308,7 +314,8 @@ the project's development log.
 - **Root cause:** the leftover set is by construction the population no term names, so one more term per failure
   never converges.
 - **Fix in the skills:** [test-gate, The three tiers](skills/test-gate/SKILL.md#the-three-tiers) "A landing gate
-  covers the whole affected assembly"; [agent-fleet §6](skills/agent-fleet/references/landing.md#6-land-finished-work-before-starting-new-work).
+  covers the whole affected assembly"; [agent-fleet §6](skills/agent-fleet/references/landing.md#local-testing-of-the-targeted-change-first-ci-is-the-regression-net)
+  (since 2026-10-11 that whole-population gate is CI's merge-group run, and the local gate is the targeted leg).
 - **Evidence:** a new missing term on each of five landings; a 25-term union green while five external programs were
   red. The whole-assembly gate measured 7,632 cases in 11 min 30 s (9,317 cases later) and ran on every train after,
   with "not one red on any leg" on the next.
@@ -323,6 +330,30 @@ the project's development log.
 - **Evidence:** one incident, caught by the lander's whole-suite gate (2026-09-24). By-name execution of new cases is
   recorded on every later train.
 - **Validation:** 2026-09-28, validator and independent refuter. Sources: entries 1697, 1699, 1700, 1702, 1715, 1758.
+
+### M1. The landing pipeline ran every population twice and serialized on the slow copy
+- **Status:** MEASURED, NOT YET VETTED (2026-10-11). The problem, root cause and evidence are a frozen, read-only
+  measurement with a source for every figure; the fix is designed and owner-approved but its effect is not yet
+  measured, so criterion 4 is open.
+- **Problem:** in one campaign day (2026-10-10) the first commit reached the default branch 6 h 49 min after the day
+  began, and 10 lander agents were spent on 6 trains.
+- **Root cause:** two gates for one population (the lander ran the whole population locally, and CI's other-OS legs
+  locally, then held a landing lease while CI ran the same population again); load-sensitive checks (fixed time limits,
+  a self-test pool) inside the per-landing gate; a serial lease held through the CI wait, which made big trains
+  rational, which made a red first run likely; and one agent doing every landing step, so the cost law multiplied it.
+- **Fix in the skills:** [agent-fleet §6](skills/agent-fleet/references/landing.md) — the local gate is the targeted leg on both hosts (native, then a clone on the other OS), CI's merge-group run is
+  the whole-population regression net, one pull request per finished branch through a merge queue (merge commits), a
+  deterministic enqueue script with finishers for conflicts and bounces, review on the branch when it is DONE,
+  conflict-free landing files and one line-ending format; [test-gate](skills/test-gate/SKILL.md);
+  [devlog](skills/devlog/SKILL.md) (one file per entry); [cross-platform](skills/cross-platform/SKILL.md) (LF).
+- **Evidence:** 567 lander-minutes: 41 % in local whole-population gate runs (7–13 min quiet, 25–53 min under load, 8
+  of 15 RED, mostly fixed time limits under load) and 16.5 % waiting for CI, which ran the same population on 20 free
+  runners in 13 min; review shards 23 % of the landing tokens, on the critical path between gates; a wave whose 18
+  implementer gates spent 246 of 294 minutes on gates that ran no test leg (a self-test pool timing out under its own
+  load).
+- **Validation:** the measurement only (2026-10-11, one read-only measuring agent, every cell sourced or marked
+  UNMEASURED). The redesign's effect is to be measured per landing (DONE → enqueued → merged, bounces, CI wall) against
+  this baseline.
 
 ## Guardrails
 

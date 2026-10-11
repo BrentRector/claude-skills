@@ -1,13 +1,13 @@
 ---
 name: cross-platform
-description: Use when code, tests, scripts or agents must work on both Windows and Linux (including WSL), when CI runs on an operating system the local gates do not, when a Windows-hosted agent edits files or runs shell commands, or when something passes on one OS and fails on the other. Covers running the other OS's CI legs locally before a push, path and build-path assumptions, line endings and byte-exact edits, shell and console encoding traps, and git across the Windows/WSL boundary (never export GIT_DIR to test processes). Not for platform-specific product features.
+description: Use when code, tests, scripts or agents must work on both Windows and Linux (including WSL), when CI runs on an operating system the local gates do not, when a Windows-hosted agent edits files or runs shell commands, or when something passes on one OS and fails on the other. Covers running the targeted leg on both OSes in every local gate (CI's merge group runs the whole population), host-only witnesses (a filesystem CI lacks), one line-ending format (LF) enforced, path and build-path assumptions, shell and console encoding traps, and git across the Windows/WSL boundary (never export GIT_DIR to test processes). Not for platform-specific product features.
 ---
 
 # Cross-platform: Windows and Linux without surprises
 
 **A test that passes on one operating system proves nothing about the other.** Paths, line endings, shells, console
 encodings, file locking and git configuration all differ, and each difference is invisible from the side you are
-on. Make the other side cheap to check before you push, and write code that never has to guess which side it's on.
+on. Make the other side cheap to check for every change, and write code that never has to guess which side it's on.
 
 *Why: in one 24-hour stretch of a Windows-hosted, Linux-CI project, eight separate incidents came from these
 differences: a Windows path literal that was relative on Linux, build paths baked into binaries, git unable to read
@@ -23,28 +23,44 @@ come from one incident.)*
 - An agent on Windows edits files or composes shell commands.
 - Something passes on one OS and fails on the other.
 
-## 1. Run the other OS's CI legs locally, before the push
+## 1. The targeted leg runs on both OSes; the whole population runs in CI
 
-- **Every gate runs the other OS's legs**, landers and implementers alike, when the cost allows. Measure it: in one
-  project the whole Linux test population ran under WSL in about 3–4 minutes, so no selection of "platform-sensitive
-  changes" was worth its misses.
+- **Every local gate runs the TARGETED leg on both hosts** the project supports: natively, then, under the same gate
+  slot, the same targeted leg in a clone on the other OS (for a Windows host, a WSL clone), fail-fast native first.
+  This holds for the implementer and for the landing (enqueue) step alike. *Why: in one measured campaign (2026-10-10)
+  3 of 38 landed changes had reds only on Linux, all in the changes' OWN tests (a locale golden whose text differs by
+  OS, a lock-race fix red 10 of 10 on Linux, a path-length test), and each was caught by the other-OS run before a CI
+  round trip. A targeted leg there costs the clone and build (about 1–2 min) plus the leg.* *(Owner decision
+  2026-10-11; practice, not yet validated as a gate shape.)*
+- **The WHOLE population runs in CI, on every OS, on the merge group** — never as a local gate on either OS. Running
+  CI's full legs locally (5–10 min for the other OS's legs in that campaign, much longer under load) is what goes;
+  keep it only as the tool that REPRODUCES a CI red. *Why: in the same campaign local whole-population runs were 41 %
+  of the landing time, mostly red from the host's load, while CI ran the same population on 20 free runners in 13 min.*
+  *(Validated 2026-10-11 (measurement); the redesign's effect is not yet measured.)*
+- **Host-only witnesses run locally at every gate.** Some tests reproduce only on the developer host, because its
+  FILESYSTEM differs from CI's runners: ReFS (a Windows Dev Drive) deletes differently from NTFS, and a race between
+  an open and a delete-pending file reproduced locally in 20 of 7,200 probes may never reproduce on a runner. Give
+  those test classes a trait naming the property (`Host=ReFS`), put every test with it in the local targeted leg
+  whatever the diff, derive the membership from the trait, never a list, and keep a drift test that the known
+  witnesses carry it. List the filesystem in the local-versus-CI survey (1b).
 - **Build and test a clone on the target OS.** Clone the committed HEAD (`git clone --shared` borrows the object
   store read-only) onto the target's own filesystem, then build and test it there, the way CI does. Don't run
   binaries built on the other OS: anything that embeds build paths breaks (see 2).
 - **Export nothing into the original tree.** The gate's own reads pass their git settings inline (`git -c …`).
-- **Keep a drift test** that holds the local legs equal to the test projects the CI jobs run, and see it fail once on
-  a planted gap.
+- **Keep a drift test** that holds the repro run's legs equal to the test projects the CI jobs run, and see it fail
+  once on a planted gap.
 
-*Why: a new test was green in every Windows gate and red in CI's Linux unit job, a ~30-minute round trip and a
-dropped change. The local Linux leg reproduced exactly that one red in about 2.5 minutes.* `agent-fleet/references/landing.md` carries
-the fleet rule. *(Practice — not yet validated.)*
+*Why the repro run is kept: a new test was green in every Windows gate and red in CI's Linux unit job, a ~30-minute
+round trip and a dropped change; the local Linux legs reproduced exactly that one red in about 2.5 minutes.*
+`agent-fleet/references/landing.md` carries the fleet rule. *(Practice — not yet validated.)*
 
 ## 1b. CI's environment is a build input: pin it, declare it, reproduce it locally
 
-**The invariant: CI should never fail when the same code was tested locally by the same processes.** CI is the
-verification of the local process, never its first run. So every CI red is a defect in the LOCAL process as well as in the
-code: find why the local gate did not see it and fix that in the same change (a missing leg, an unpinned tool, a setting
-CI has and the local run lacks), then sweep for the others like it. Keep a drift test that maps every CI job to a local leg
+**The invariant, under a merge queue: a pull request the queue bounces is a defect fixed on its branch before it is
+enqueued again.** CI's merge-group run is the whole-population regression net, so a red there in a test OUTSIDE the
+targeted scope is the net working. A red INSIDE the targeted scope is also a defect in the LOCAL process: find why the
+targeted gate did not see it and fix that in the same change (a missing leg, an unpinned tool, a setting CI has and the
+local run lacks, a filesystem difference), then sweep for the others like it. Keep a drift test that maps every CI job to a local leg
 or to a recorded reason it cannot run locally.
 
 - **Pin the runner image and keep the local environment the same release.** A floating label (`ubuntu-latest`) moves when
@@ -62,7 +78,7 @@ or to a recorded reason it cannot run locally.
   versus Release, locale and time zone, compile caches, shard composition, jobs and audits with no local counterpart) and
   settle each as identical, reproduced locally, or irreducible with the reason recorded.
 
-*Why: two clusters were dropped from landing trains in a day for failures that only CI could see (the charset, and the
+*Why: two finished changes were dropped from landings in a day for failures that only CI could see (the charset, and the
 guard job), each costing a ~30-minute CI round trip.* *(Practice — not yet validated: two measured incidents; the pin and
 the survey are recent.)*
 
@@ -80,17 +96,34 @@ the survey are recent.)*
 
 *(Practice — not yet validated.)*
 
-## 3. Line endings and byte-exact edits
+## 3. One line-ending format, LF, enforced
 
-- **Know which files are CRLF**, and edit them as BYTES: read bytes, replace, write bytes, then check that the diff
-  touches only the intended lines. Line-oriented text tools can normalize every ending. Measured: a one-line `sed`
-  edit to a CRLF log turned its whole top section into LF, a 493-line diff for a 2-line change.
-- **Some files must stay LF.** Shell scripts run by bash, and scripts a tool refuses to run with CR in them: a
-  workflow runner rejected a script whose CRLF read as "control characters". On Windows, Python's `write_text` emits
-  CRLF, so write bytes or pass `newline="\n"`. Pin the rule in `.gitattributes` (`*.sh text eol=lf`).
+**Standardize on LF in the working tree on every OS, and enforce it.** The measured shape of the problem in one
+repository: the object database was already LF for 15,234 of 15,500 text files; only the WORKING TREE differed by OS,
+under `core.autocrlf=true`, so a Windows gate and a Linux gate tested different bytes of the same commit, scripts died
+on `\r`, a workflow script was refused as containing "control characters", and a single CRLF log needed a
+byte-splicing insert tool. The owner's call (2026-10-11): "We should probably standardize on a single line-ending
+format. CRLF vs others keeps biting us." *(Practice — not yet validated: adopted 2026-10-11.)*
+
+- **`.gitattributes` first rule: `* text=auto eol=lf`.** Name any file that must be CRLF explicitly, with its reason
+  (`*.bat text eol=crlf  # cmd.exe needs CRLF`). The attribute wins over every developer's `core.autocrlf`, so the
+  setting no longer decides what a gate tests.
+- **One normalization landing**: add the rule, `git add --renormalize .`, commit, land it alone. Document
+  `git config merge.renormalize true` in the setup, so branches still open rebase across the normalization without
+  conflicts.
+- **Every tool and script that writes a tracked text file writes LF.** On Windows, Python's `write_text` emits CRLF:
+  write bytes or pass `newline="\n"`. PowerShell's `Set-Content`/`Out-File` add CRLF: use
+  `[IO.File]::WriteAllText` with `\n` joins. A test fixture written in text mode on Windows is CRLF too.
+- **A drift check, run by every gate and by CI, fails on a CR in any tracked text file** (outside the files named CRLF):
+  `git ls-files --eol` shows the index and working-tree form of each file, or scan `git grep -lI $'\r'`. See it fail
+  once on a planted CR.
+- **Until a repository is normalized, edit a CRLF file as BYTES**: read bytes, replace, write bytes, then check that
+  the diff touches only the intended lines. Line-oriented text tools can normalize every ending. Measured: a one-line
+  `sed` edit to a CRLF log turned its whole top section into LF, a 493-line diff for a 2-line change.
 - **`core.autocrlf` lives where the other git can't see it.** Git for Windows sets it in its SYSTEM config, so Linux
   git on the same tree (through WSL) reports every CRLF-checked-out file as modified. Measured: 9,543 "changes" on a
-  clean tree. Pass `-c core.autocrlf=true` inline when reading a Windows checkout from Linux.
+  clean tree. With `eol=lf` in `.gitattributes` the difference disappears; before that, pass `-c core.autocrlf=true`
+  inline when reading a Windows checkout from Linux.
 - **BOMs.** An encoding that adds a byte-order mark (Python's `utf-8-sig` when writing) changes the file's first
   bytes, and a parser or a diff sees them.
 
@@ -108,7 +141,8 @@ the survey are recent.)*
   the script.
 - **Environment variables.** Their names are case-insensitive on Windows and case-sensitive on Linux.
 - **Process semantics.** Exit codes, signals and file locking differ: Windows locks an open file against deletion,
-  and Linux does not. A test that depends on locking or ACLs is proven only on the OS it runs on.
+  and Linux does not. A test that depends on locking or ACLs is proven only on the OS it runs on — and, for deletes,
+  only on the FILESYSTEM it runs on (ReFS versus NTFS; see the host-only witnesses in 1).
 
 *(Practice — not yet validated.)*
 
@@ -131,11 +165,10 @@ the survey are recent.)*
 
 ## Checklist before pushing a change that touches paths, processes, files, shells or git
 
-- [ ] The other OS's legs ran locally, on a clone built there, and are green.
+- [ ] The targeted leg ran on both OSes (native, then a clone built on the other OS) and is green, host-only witnesses included; the whole population is left to CI's merge-group run.
 - [ ] CI's runner image is pinned and the local environment is the same release; tools that read text declare their encoding; every CI job that can run locally does.
 - [ ] No path literal from one OS reaches another OS's path API; tests plant host-native paths.
 - [ ] Nothing depends on build-machine paths, or the tests are built on the OS that runs them.
-- [ ] CRLF files were edited as bytes, and the diff touches only the intended lines.
-- [ ] Scripts that must be LF are LF, pinned in `.gitattributes`.
+- [ ] `.gitattributes` starts with `* text=auto eol=lf`; every tool wrote LF; the CR drift check is green (a not-yet-normalized CRLF file was edited as bytes, and the diff touches only the intended lines).
 - [ ] Per-OS commands are written explicitly, not translated.
 - [ ] No git variables are exported to child processes; scratch-repository tests scrub git's local variables.

@@ -5,7 +5,7 @@
      NOT LEARNINGS.md: every candidate goes through templates/validate-brief.md, and only the VETTED ones are
      published or encoded into a skill or rule. -->
 
-**Goal.** Turn `<DEVLOG.md or docs/devlog/>` (<N> entries, <first date> to <last date>) into `LEARNINGS-CANDIDATES.md`:
+**Goal.** Turn `<devlog/>` (<N> entry files, <first date> to <last date>; read them in number order, or one `devlog.py render` output) into `LEARNINGS-CANDIDATES.md`:
 every learning the project appears to have paid for, as a CANDIDATE that a separate validation run will vet, leave
 unproven or refute. The log records hypotheses as well as conclusions, so treat nothing you read as settled; your job
 is to find the candidates and cite them precisely enough to be checked. Do not edit the log.

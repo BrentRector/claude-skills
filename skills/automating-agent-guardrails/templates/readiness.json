@@ -9,9 +9,9 @@
 
   "roles": {
     "dir": ".claude/agents",
-    "required": ["implementer", "lander", "refuter", "analyst", "chore"],
+    "required": ["implementer", "finisher", "refuter", "analyst", "chore"],
     "readonly": ["refuter", "analyst"],
-    "long_wait": ["implementer", "lander", "refuter", "analyst"]
+    "long_wait": ["implementer", "finisher", "refuter", "analyst"]
   },
 
   "telemetry": {
@@ -40,7 +40,7 @@
   ],
 
   "ask_at_trigger": [
-    {"step": "/code-review ultra", "trigger": "before pushing a landing that carries several commits (billed and owner-only: ask, never skip)"},
+    {"step": "/code-review ultra", "trigger": "before enqueueing a branch that carries several commits (billed and owner-only: ask, never skip)"},
     {"step": "claude plugin eval . --no-publish", "trigger": "before pushing an edit to a skill or agent definition (billed: ask)"}
   ]
 }

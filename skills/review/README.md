@@ -18,7 +18,8 @@ You can also invoke it explicitly:
 ```
 /review                  # the local diff against the default branch
 /review 123              # a PR number or URL
-/review feature-branch   # a branch (diffed against its merge base) or a path
+/review feature-branch   # a branch (diffed against its merge base) or a path; in a fleet, the branch form reviews
+                         # each finished branch read-only before it is enqueued to land
 /review audit <subsystem>
 ```
 

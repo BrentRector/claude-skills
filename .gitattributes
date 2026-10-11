@@ -1,0 +1,3 @@
+# One line-ending format: LF in the index and in every working tree, on every OS (cross-platform skill, section 3).
+# No file in this repository needs CRLF.
+* text=auto eol=lf

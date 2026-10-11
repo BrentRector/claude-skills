@@ -10,21 +10,28 @@
   red that was already there before your batch **still blocks the merge**. *(Practice — not yet validated: the record shows such reds later stepped around, so it is not yet shown to hold.)* Attribute it honestly and file it.
   Don't step around it.
 
-## After the push: CI is the final authority
+## After the push or enqueue: CI is the final authority
 
 Local green is evidence about one host, one OS and one build configuration. CI runs a clean checkout, often
 other operating systems and a Release build. Tests that depend on file locks, ACLs, path separators, locale or
 timing can pass locally and fail there. *(Validated 2026-09-28.)*
 
-- Read the run for **the exact commit you pushed**:
+- **Under a merge queue**, the deciding run is the one on the merge group. Read the pull request's queue state and
+  checks: `gh pr view <n> --json mergeQueueEntry,statusCheckRollup,state`. A red bounces only that pull request (the
+  queue re-tests the rest); it is a defect fixed on its branch before re-enqueue. If the red was inside the targeted
+  scope, the targeted gate missed it: find why (a missing leg, an unpinned tool, a setting CI has and the local run
+  lacks) and fix that in the same change. Until the pull request has merged, report "targeted gate green; queued".
+- **Otherwise**, read the run for **the exact commit you pushed**:
   `gh run list --commit <sha> --json databaseId,status,conclusion` → `gh run watch <id> --exit-status`, and
-  `gh run view <id> --log-failed` on a red run.
-- Until that run has finished green, report "local gates green; CI pending", never "all green".
+  `gh run view <id> --log-failed` on a red run. Until that run has finished green, report "local gates green; CI
+  pending", never "all green".
+- **Reproduce a CI red locally before fixing it**, on the OS that failed (the `cross-platform` skill's other-OS repro
+  run), then fix it at the root.
 - A status lookup that FAILS (an API timeout, an empty or unknown conclusion) is **no verdict**: retry it, and report
   it as its own outcome - never as red, never as green. *Why: a push script read a transient TLS timeout as an empty
   conclusion and reported "CI is red" on a green run.* *(Practice — not yet validated: the retry path has not been exercised yet.)*
-- A red CI run blocks further work. Attribute it by job, step and test, and land the fix on its own before the
-  next change.
+- A red CI run on the default branch blocks further work. Attribute it by job, step and test, and land the fix on
+  its own before the next change.
 - If behaviour can differ between Debug and Release, run a local Release leg before pushing. Better still,
   don't write code whose behaviour depends on the build configuration.
 
@@ -52,4 +59,6 @@ file):
 - which legs are slow, which ones rebuild, and which have to run alone
 - a wrapper script, if one exists, that expands filter shorthand and fails on a missing verdict line; prefer it
   over raw commands
-- which CI check is required on the default branch, and how pushes get verified against it
+- which CI check is required on the default branch, whether a merge queue gates it, and how pushes or queued
+  pull requests are verified against it
+- which tests are host-only witnesses (the trait), and which audits are reused when their inputs are unchanged

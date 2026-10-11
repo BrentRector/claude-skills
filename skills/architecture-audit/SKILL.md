@@ -143,7 +143,7 @@ Price a wave per completed wave, not per token, and spend the expensive model on
 - **The frontier model** (the most capable, most expensive tier) writes the Phase 1 target architecture, the one
   artifact every later wave executes against, and runs a second adversarial round only when the mid-tier refuter
   cannot break the design. Each such dispatch gets the owner's explicit approval; it is never a role's default.
-- **The mid tier** reviews (Phase 2), refutes, lands trains, and runs the extract and unify waves, where a
+- **The mid tier** reviews (Phase 2), refutes, finishes bounced branches, and runs the extract and unify waves, where a
   responsibility boundary is a judgment.
 - **The small tier** runs the census, the move-and-rename and analyzer waves driven by a rewriter or a code fix,
   and the Delete waves whose items the census already measured dead. The oracle proves a mechanical wave; the

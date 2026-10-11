@@ -15,7 +15,7 @@ value derived from the authority), not its format. *(Validated 2026-09-28.)*
   evidence the refuter never judged must never be recorded because its claim was upheld on something else. Key the
   integration on (claim, evidence); withhold evidence from EVERY claim only when the refuter says the evidence itself is
   invalid (for example, the test input is non-conforming). *Why: pooling overturns by claim silently dropped valid
-  evidence and recorded unjudged evidence, and each lander had to hand-check every row.* *(Practice — not yet validated: not yet exercised on later batches.)*
+  evidence and recorded unjudged evidence, and every landing had to hand-check every row.* *(Practice — not yet validated: not yet exercised on later batches.)*
 
 ## 11. Measure cost per unit and route to the cheapest lane
 
@@ -25,7 +25,7 @@ value derived from the authority), not its format. *(Validated 2026-09-28.)*
   witness test for already-correct behavior beats re-running a full review fleet. *Why: a large review fleet
   can burn billions of tokens for single-digit movement.* *(Practice — not yet validated: routing by that figure was not shown to move the metric faster.)*
 - **The model follows the ROLE, set in the role definition, never per call.** Judgment roles (implementer,
-  lander, analyst, refuter, reviewer) run the top everyday tier. Mechanical roles run a cheaper tier: chores
+  finisher, analyst, refuter, reviewer) run the top everyday tier. Mechanical roles run a cheaper tier: chores
   that write (filing notes, doc sweeps) and READ-ONLY lookups (code sites, orientation and cluster summaries,
   measurements). A mechanical agent that hits a judgment call returns `NEEDS-ESCALATION` for that item.
   *Why: a per-call `model` overrides the role's own, so "pass the top model on every agent" silently ran the
@@ -45,5 +45,7 @@ value derived from the authority), not its format. *(Validated 2026-09-28.)*
 - **Precompute discovery.** If most of a fleet's turns are spent searching, build a dossier once and hand it to
   every agent. *(Practice — not yet validated: no like-for-like cost before and after.)*
 - **Self-review before a large review fleet.** *Why: a large share of what the fleet finds are defects that the
-  same wave introduced.* The form that lasted is each implementer's self-review of its own diff, plus the
-  lander's review of the merged batch. *(Validated 2026-09-28.)*
+  same wave introduced.* The form that lasted is each implementer's self-review of its own diff, plus a
+  read-only reviewer's pass over the whole branch when it is DONE (it was the lander's review of the merged batch
+  until 2026-10-11, when review moved onto the branch). *(Validated 2026-09-28; the branch position is practice,
+  not yet validated.)*

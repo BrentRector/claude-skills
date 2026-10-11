@@ -1,36 +1,34 @@
 #!/usr/bin/env python3
-"""devlog_guard.py — a PreToolUse hook: a commit that carries no devlog entry asks for confirmation.
+"""devlog_guard.py — a PreToolUse hook: opening or queueing a pull request whose branch adds no stamped log entry asks
+for confirmation.
 
-The rule it backs: every commit carries its devlog entry, in the same commit. Written as an instruction alone, the
-rule was broken in real sessions, and each miss lost the in-the-moment reasoning the log exists to keep. This hook
-makes the omission visible at the moment it happens.
+The rule it backs: ONE ENTRY PER LANDING, as its own file (`devlog.py`). A branch's checkpoint commits carry none; the
+pull request that lands the branch carries exactly one, stamped with its number when the branch is enqueued. The hard
+enforcement is `devlog.py check --base <ref> --one`, run by the enqueue step and by CI on the pull request and on the
+merge group. This hook is the early warning on the agent's side, at the moment the omission happens:
 
-  PreToolUse on the shell tools: the command runs `git commit` (anywhere in it, so `git add -A && git commit …`
-  counts) and the commit will not carry a devlog change → decision "ask", with the reason. It is "ask", not "deny":
-  an amend of a message, or a commit the owner deliberately exempts, is waved through by a person, not refused.
+  PreToolUse on the shell tools: the command runs `gh pr create` or `gh pr merge` (anywhere in it, so
+  `git push -u origin HEAD && gh pr create …` counts) and the branch, over `<base>...HEAD`, adds no stamped entry file
+  under the log directory, or adds one that is still pending → decision "ask", with the reason. It is "ask", not
+  "deny": a pull request that deliberately carries no entry (a revert the owner exempts, say) is waved through by a
+  person, and CI's check still has the last word.
 
-"Carries a devlog change" means one of:
-  * the log path (a file, or any file under a log directory) is staged;
-  * the command stages before it commits (`git add`, `git commit -a/--all`) and the log has an uncommitted change,
-    tracked or new, for the command to pick up;
-  * the command is `git commit --amend` and HEAD already touches the log.
+Where it acts: only in a git work tree whose top level holds `.devlog.json` ({"log": "devlog", "base": "origin/main"},
+the same file `devlog.py` reads). Anywhere else it is silent. It follows `cd <dir> &&`. Any internal error, including a
+base ref that does not resolve, lets the command through (fail open): a broken guard must never block work.
 
-Where it acts: only in a git work tree whose top level holds `.devlog.json` ({"log": "DEVLOG.md"} or a directory,
-the same file `devlog.py` reads). Anywhere else it is silent. It follows `cd <dir> &&` and `git -C <dir>`. Any
-internal error lets the command through (fail open): a broken guard must never block work.
-
-Register it for PreToolUse with matcher "Bash|PowerShell" and NO `if` filter. An `if: Bash(git commit*)` filter does
-not match `git add -A && git commit …`, which is how agents usually commit; measured on a sibling hook, the filter
-silenced it in most sessions. The script finds `git commit` anywhere in the command itself, and exits in
-milliseconds on every other command. `--self-test` exercises every branch in throwaway repositories.
+Register it for PreToolUse with matcher "Bash|PowerShell" and NO `if` filter. An `if` filter such as
+`Bash(gh pr create*)` does not match a chained command (`git push … && gh pr create …`), which is how agents usually
+run it; measured on a sibling hook, such a filter silenced it in most sessions. The script finds the command anywhere
+itself, and exits in milliseconds on every other command. `--self-test` exercises every branch in throwaway
+repositories.
 """
-import json, os, pathlib, re, shlex, subprocess, sys, tempfile
+import json, os, pathlib, re, subprocess, sys, tempfile
 
-COMMIT = re.compile(r"(^|[;&|(]\s*|\s)git(\s+-C\s+(\"[^\"]+\"|'[^']+'|\S+))?\s+commit(?![-\w])")
-ADD = re.compile(r"(^|[;&|(]\s*|\s)git(\s+-C\s+\S+)?\s+add(?![-\w])")
-ALL_FLAG = re.compile(r"\bcommit\b[^;&|]*\s(-[a-zA-Z]*a[a-zA-Z]*|--all)\b")
-AMEND = re.compile(r"\bcommit\b[^;&|]*\s--amend\b")
+PR = re.compile(r"(^|[;&|(]\s*|\s)gh\s+pr\s+(create|merge)(?![-\w])")
 CD = re.compile(r"(?:^|[;&|]\s*)(?:cd|Set-Location|pushd)\s+(\"[^\"]+\"|'[^']+'|[^\s;&|]+)")
+STAMPED = re.compile(r"^\d{3,}-[a-z0-9][a-z0-9-]*\.md$")
+PENDING = re.compile(r"^pending-[a-z0-9][a-z0-9-]*\.md$")
 
 
 def git(cwd, *args):
@@ -43,22 +41,24 @@ def unquote(s):
 
 
 def work_dir(cmd, cwd):
-    """The directory the commit runs in: payload cwd, then a leading cd, then git -C."""
+    """The directory the command runs in: payload cwd, then a leading cd."""
     d = pathlib.Path(cwd)
     m = CD.search(cmd)
-    if m and m.start() < COMMIT.search(cmd).start():
+    if m and m.start() < PR.search(cmd).start():
         d = d / unquote(m.group(1))
-    c = COMMIT.search(cmd)
-    if c.group(3):
-        d = d / unquote(c.group(3))
     return d
+
+
+def ask(reason):
+    return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
+                                   "permissionDecisionReason": reason}}
 
 
 def decide(payload):
     if payload.get("hook_event_name", "PreToolUse") != "PreToolUse":
         return None
     cmd = (payload.get("tool_input") or {}).get("command", "") or ""
-    if not COMMIT.search(cmd):
+    if not PR.search(cmd):
         return None
     d = work_dir(cmd, payload.get("cwd") or os.getcwd())
     if not d.is_dir():
@@ -70,30 +70,22 @@ def decide(payload):
     cfg_path = top / ".devlog.json"
     if not cfg_path.is_file():
         return None
-    log = json.loads(cfg_path.read_text(encoding="utf-8")).get("log", "DEVLOG.md").strip("/").replace("\\", "/")
-
-    def touches(paths):
-        return any(p == log or p.startswith(log + "/") for p in paths)
-
-    staged = (git(top, "diff", "--cached", "--name-only") or "").split("\n")
-    if touches(staged):
+    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+    log = cfg.get("log", "devlog").strip("/").replace("\\", "/")
+    base = cfg.get("base", "origin/main")
+    out = git(top, "diff", "--name-status", "--no-renames", f"{base}...HEAD", "--", log + "/")
+    if out is None:
+        return None  # the base does not resolve here: fail open, CI's check decides
+    added = [ln.split("\t", 1)[1].rsplit("/", 1)[-1] for ln in out.splitlines() if ln.startswith("A\t")]
+    if any(STAMPED.match(a) for a in added):
         return None
-    if ADD.search(cmd) or ALL_FLAG.search(cmd):
-        pending = [line[3:].strip().strip('"') for line in
-                   (git(top, "status", "--porcelain", "--untracked-files=all", "--", log) or "").splitlines()]
-        if touches(pending):
-            return None
-    if AMEND.search(cmd):
-        head = (git(top, "show", "--name-only", "--format=", "HEAD") or "").split("\n")
-        if touches(head):
-            return None
-    return {"hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "ask",
-        "permissionDecisionReason": (
-            f"This commit carries no change to {log}. Project rule: every commit carries its devlog entry, in the "
-            f"same commit. Add it (for example `python devlog.py new --title \"...\" --body-file entry.md`, which "
-            f"stamps the time from the clock), stage it, and commit again, or confirm this is a deliberate exception.")}}
+    if any(PENDING.match(a) for a in added):
+        return ask(f"This branch's log entry under {log}/ is still pending (no number). The enqueue step stamps it "
+                   f"after the final rebase: `python devlog.py stamp --base {base}`, commit, then open or queue the pull "
+                   f"request. Confirm only a deliberate exception.")
+    return ask(f"This branch adds no log entry under {log}/ over {base}. Project rule: one entry per landing, as its own "
+               f"file. Write it with `python devlog.py new --title \"...\" --body-file entry.md`, stamp it at enqueue "
+               f"(`devlog.py stamp --base {base}`), commit, and run this again, or confirm a deliberate exception.")
 
 
 def main():
@@ -120,60 +112,62 @@ def self_test():
         ok &= good
         print(("ok      " if good else "FAIL    ") + f"{name}: {kind} (want {want})")
 
-    def repo(d, log):
+    def write(p, s):
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(s.encode("utf-8"))
+
+    def repo(d, cfg):
         run = lambda *a: subprocess.run(["git", *a], cwd=d, capture_output=True, check=True)
-        run("init", "-q"); run("config", "user.email", "t@t"); run("config", "user.name", "t")
+        run("init", "-q", "-b", "main"); run("config", "user.email", "t@t"); run("config", "user.name", "t")
         run("config", "core.autocrlf", "false")
-        (d / ".devlog.json").write_text(json.dumps({"log": log}), encoding="utf-8")
-        (d / "a.txt").write_text("1")
+        write(d / ".devlog.json", json.dumps(cfg))
+        write(d / "devlog" / "0001-start.md", "## Entry 1 — 2026-03-01 09:00 PST — Start\n")
         run("add", "-A"); run("commit", "-qm", "init")
+        run("checkout", "-qb", "fix")
         return run
 
-    ask = lambda d, c, tool="Bash": decide({"hook_event_name": "PreToolUse", "cwd": str(d), "tool_name": tool,
-                                            "tool_input": {"command": c}})
+    q = lambda d, c, tool="Bash": decide({"hook_event_name": "PreToolUse", "cwd": str(d), "tool_name": tool,
+                                          "tool_input": {"command": c}})
     with tempfile.TemporaryDirectory() as t:
         t = pathlib.Path(t)
         plain = t / "plain"; plain.mkdir()
-        check("not a git repo: silent", ask(plain, "git commit -m x"), "none")
+        check("not a git repo: silent", q(plain, "gh pr create --fill"), "none")
         other = t / "other"; other.mkdir()
         subprocess.run(["git", "init", "-q"], cwd=other, check=True)
-        check("repo without .devlog.json: silent", ask(other, "git commit -m x"), "none")
+        check("repo without .devlog.json: silent", q(other, "gh pr create --fill"), "none")
 
         r = t / "r"; r.mkdir()
-        run = repo(r, "DEVLOG.md")
-        (r / "DEVLOG.md").write_text("# Log\n", encoding="utf-8"); run("add", "DEVLOG.md"); run("commit", "-qm", "log")
-        check("non-commit command: silent", ask(r, "git status"), "none")
-        check("git commit-tree is not a commit: silent", ask(r, "git commit-tree abc"), "none")
-        (r / "a.txt").write_text("2"); run("add", "a.txt")
-        check("code staged, no devlog: ask", ask(r, "git commit -m fix"), "ask")
-        check("PowerShell tool: ask", ask(r, "git commit -m fix", "PowerShell"), "ask")
-        check("git -C form: ask", ask(t, f"git -C {r.name} commit -m fix"), "ask")
-        check("cd && commit form: ask", ask(t, f"cd {r.name} && git commit -m fix"), "ask")
-        (r / "DEVLOG.md").write_text("# Log\n## Entry 1\n", encoding="utf-8")
-        check("devlog modified but not staged, plain commit: ask", ask(r, "git commit -m fix"), "ask")
-        check("chained add + commit picks the devlog up: silent", ask(r, "git add -A && git commit -m fix"), "none")
-        check("commit -am picks the devlog up: silent", ask(r, "git commit -am fix"), "none")
-        run("add", "DEVLOG.md")
-        check("devlog staged: silent", ask(r, "git commit -m fix"), "none")
-        run("commit", "-qm", "with log")
-        check("amend when HEAD has the devlog: silent", ask(r, "git commit --amend --no-edit"), "none")
-        (r / "a.txt").write_text("3"); run("commit", "-qam", "no log")
-        check("amend when HEAD lacks the devlog: ask", ask(r, "git commit --amend --no-edit"), "ask")
-        check("chained add + commit with no devlog change: ask", ask(r, "git add -A && git commit -m y"), "ask")
+        run = repo(r, {"log": "devlog", "base": "main"})
+        check("non-PR command: silent", q(r, "git status"), "none")
+        check("a plain commit is not a landing: silent", q(r, "git commit -m checkpoint"), "none")
+        check("gh pr view is not a landing: silent", q(r, "gh pr view 12"), "none")
+        write(r / "code.txt", "fix"); run("add", "-A"); run("commit", "-qm", "checkpoint")
+        check("no entry, gh pr create: ask", q(r, "gh pr create --fill"), "ask")
+        check("no entry, gh pr merge (queue): ask", q(r, "gh pr merge 12 --auto"), "ask")
+        check("PowerShell tool: ask", q(r, "gh pr create --fill", "PowerShell"), "ask")
+        check("chained push && gh pr create: ask", q(r, "git push -u origin HEAD && gh pr create --fill"), "ask")
+        check("cd && gh pr create: ask", q(t, f"cd {r.name} && gh pr create --fill"), "ask")
+        write(r / "devlog" / "pending-the-fix.md", "## Entry pending — The fix\n\nwhy\n")
+        check("entry written but not committed: ask", q(r, "gh pr create --fill"), "ask")
+        run("add", "-A"); run("commit", "-qm", "entry")
+        got = q(r, "gh pr create --fill")
+        check("entry committed but still pending: ask", got, "ask")
+        good = got is not None and "stamp" in got["hookSpecificOutput"]["permissionDecisionReason"]
+        ok &= good
+        print(("ok      " if good else "FAIL    ") + "pending: the reason names the stamp step")
+        (r / "devlog" / "pending-the-fix.md").unlink()
+        write(r / "devlog" / "0002-the-fix.md", "## Entry 2 — 2026-03-02 09:00 PST — The fix\n\nwhy\n")
+        run("add", "-A"); run("commit", "-qm", "stamp")
+        check("stamped entry on the branch: silent", q(r, "gh pr create --fill"), "none")
+        check("stamped entry, gh pr merge: silent", q(r, "gh pr merge --auto"), "none")
 
-        dd = t / "dd"; dd.mkdir()
-        run2 = repo(dd, "docs/devlog")
-        (dd / "docs" / "devlog").mkdir(parents=True)
-        (dd / "docs" / "devlog" / "0001-2026-03-01-a.md").write_text("# 0001\n", encoding="utf-8")
-        (dd / "b.txt").write_text("x"); run2("add", "b.txt")
-        check("dir layout: new untracked entry + git add -A: silent", ask(dd, "git add -A; git commit -m z"), "none")
-        check("dir layout: new entry not added by the command: ask", ask(dd, "git commit -m z"), "ask")
-        run2("add", "docs")
-        check("dir layout: entry staged: silent", ask(dd, "git commit -m z"), "none")
+        b = t / "b"; b.mkdir()
+        repo(b, {"log": "devlog", "base": "origin/does-not-exist"})
+        check("base does not resolve: silent (fail open; CI decides)", q(b, "gh pr create --fill"), "none")
 
-        (r / ".devlog.json").write_text("{not json", encoding="utf-8")
+        write(r / ".devlog.json", "{not json")
         payload = json.dumps({"hook_event_name": "PreToolUse", "cwd": str(r),
-                              "tool_input": {"command": "git commit -m x"}})
+                              "tool_input": {"command": "gh pr create --fill"}})
         proc = subprocess.run([sys.executable, __file__], input=payload, capture_output=True, text=True)
         good = proc.returncode == 0 and proc.stdout == "" and "allowing" in proc.stderr
         ok &= good

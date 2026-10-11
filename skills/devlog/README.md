@@ -10,7 +10,7 @@ The full rules are in [`SKILL.md`](SKILL.md). This page explains what the skill 
 
 The skill's description tells Claude to load it when a project keeps, or should keep, a development log, a work
 history or a fix log. That covers setting one up, writing or correcting an entry, recording an approach that failed
-or was overturned, checking whether something was tried before, enforcing an entry with every commit, and
+or was overturned, checking whether something was tried before, enforcing one entry per landing, and
 consolidating a long log into candidate learnings and validating them. Asking "add the devlog entry for this",
 "set up a devlog for this repo" or "have we tried this before?" is usually enough. You can also name the skill.
 
@@ -20,18 +20,22 @@ The skill grew out of three logs kept across several projects. Each one serves a
 
 | Form | Who reads it | What gets an entry | Template |
 |---|---|---|---|
-| **Working history** | the team and every future agent | every change, in the same commit | [`entry-working.md`](templates/entry-working.md) |
+| **Working history** | the team and every future agent | every landing (one pull request), as its own file in the branch | [`entry-working.md`](templates/entry-working.md) |
 | **Defect/fix log** | reviewers and source-license customers | each defect fixed in shipped code: what a user saw, the cause, the fix, why that shape and not an easier one, and how the guard was proven able to fail. Refactors, features and doc changes are left out. | [`entry-fix-log.md`](templates/entry-fix-log.md) |
 | **Published narrative** | outsiders, as posts on a site | each milestone or finding, including reversals (one series has a post whose title says the earlier mechanism was overturned) | [`entry-post.md`](templates/entry-post.md) |
 
-The working history is the record, and the other two are written from it. It can be one newest-first file, or a
-directory of numbered files named `NNNN-YYYY-MM-DD-slug.md`. The script handles both layouts.
+The working history is the record, and the other two are written from it. It is a directory with one file per entry
+(`devlog/NNNN-slug.md`). The implementer writes `pending-<slug>.md` in its branch; the enqueue step stamps the number
+and the time after the final rebase, so number order is landing order; the newest-first document is RENDERED on
+demand and never committed. Two pull requests in a merge queue therefore never touch the same log file. A project with
+a single newest-first file migrates it once (`devlog.py migrate`).
 
 ## The core rules, and why
 
 | Rule | Why |
 |---|---|
-| An entry with every change, in the same commit | Written later, an entry loses the reasoning of the moment, and a batch of changes ends up with one vague entry. |
+| An entry with every landing, as its own file in the branch | Written later, an entry loses the reasoning of the moment, and a batch of changes ends up with one vague entry. |
+| One file per entry, numbered at enqueue, the view rendered | Entries inserted at the top of one shared file collide when pull requests queue together, and the queue bounces the second. *(Practice — not yet validated: adopted 2026-10-11.)* |
 | The timestamp comes from the clock (`date`, or the script) | Estimated timestamps were caught wrong twice in one day. Readers use the stamps to work out order and duration. *(Practice — not yet validated: a prose rule alone did not hold.)* |
 | A correction is a new entry; old entries are never rewritten | The log records what was believed and when. A rewritten entry hides the mistake, and every commit or doc citing it now points at different text. |
 | Failures, dead ends and overturned verdicts stay in | "We tried X; it failed because Y" is the entry that saves the most time later, and the one most often left out. |
@@ -74,8 +78,8 @@ produces claims, not facts. The first validation of those 145 vetted 46, left 90
 
 | File | What it does |
 |---|---|
-| [`references/devlog.py`](references/devlog.py) | `new` adds the next entry. The number is the newest plus one, and a collision is refused. The time comes from the clock. The entry goes above the newest one, never inside a note that quotes the header format. The file's line endings are kept (CRLF stays CRLF). `check` validates numbering, headers and timestamps; `--from N` skips early entries that predate the rules. `search` prints matching entries with their headers. It works on either layout, uses only the standard library, and has a `--self-test`. |
-| [`references/devlog_guard.py`](references/devlog_guard.py) | A PreToolUse hook. When a shell command runs `git commit` and the commit won't include a devlog change, it asks you to confirm. It counts a devlog change that the same command stages (`git add -A && git commit`, `commit -a`), and one already in HEAD for `--amend`. It is silent in repositories without `.devlog.json`, fails open on any error, and has a `--self-test`. |
+| [`references/devlog.py`](references/devlog.py) | `new` writes the branch's `pending-<slug>.md`. `stamp` (the enqueue step) gives it the next free number, counting the default branch too, and the time from the clock, and renames it `NNNN-<slug>.md`. `check` validates every entry; with `--base` it checks the landing (one stamped entry added, none pending, no old entry changed, no number reused). `render` prints the newest-first view, `next` the next number, `search` the matching entries. `migrate` splits a single-file log once, LF, verified by reading every file back. Files are written LF. Standard library only (`git` for `--base`), with a `--self-test`. |
+| [`references/devlog_guard.py`](references/devlog_guard.py) | A PreToolUse hook. When a shell command runs `gh pr create` or `gh pr merge` and the branch adds no stamped entry over its base (or only a pending one), it asks you to confirm. It is silent in repositories without `.devlog.json`, fails open on any error (an unresolvable base included: CI's check decides), and has a `--self-test`. |
 | [`templates/CLAUDE-devlog.md`](templates/CLAUDE-devlog.md) | The standing rule block for your `CLAUDE.md`, with the reason for each rule. |
 | [`templates/settings.json`](templates/settings.json), [`templates/devlog.json`](templates/devlog.json) | The hook registration, and the config file that names the log for both scripts. |
 | `templates/entry-*.md` | The three entry forms. |
@@ -85,20 +89,24 @@ produces claims, not facts. The first validation of those 145 vetted 46, left 90
 ## Setting it up
 
 1. Copy `references/devlog.py` and `references/devlog_guard.py` into the project (for example `.claude/hooks/`),
-   and `templates/devlog.json` to `.devlog.json` at the repository root. Set `log` to your file or directory.
+   and `templates/devlog.json` to `.devlog.json` at the repository root. Set `log` to your entry directory and
+   `base` to your default branch's remote ref. With an existing single-file log, run `devlog.py migrate --from
+   <file>` once and delete the file in the same landing.
 2. Paste `templates/CLAUDE-devlog.md` into `CLAUDE.md`, with the script path filled in.
 3. Merge `templates/settings.json` into `.claude/settings.json`. **Register the hook without an `if` filter.** An
-   `if: Bash(git commit*)` filter does not match `git add -A && git commit …`, which is how agents usually commit.
-   On a sibling hook, the filter was measured silencing it in most sessions. The script finds `git commit` anywhere
-   in the command and returns at once for every other command. *(Practice — not yet validated: the filter's effect was measured in a sandbox, not yet in production.)*
+   `if` filter does not match a chained command (`git push … && gh pr create …`), which is how agents usually run it.
+   On a sibling hook, the filter was measured silencing it in most sessions. The script finds the command anywhere
+   and returns at once for every other command. *(Practice — not yet validated: the filter's effect was measured in a sandbox, not yet in production.)*
 4. Run `python devlog.py --self-test` and `python devlog_guard.py --self-test`, then `python devlog.py check`
    (with `--from N` if the early entries predate the header format).
+5. Add `devlog.py check --base <base> --one` to CI's pull-request job and `devlog.py check --base <merge group base
+   sha>` to its merge-group job, gitignore the rendered view, and have the enqueue step run `stamp` and `check`.
 
 ## Measured
 
 | Fact | Where it comes from |
 |---|---|
-| The working history reached **1,750+ entries in about six months**, one per change, written by agents under this rule and enforced by the hook | the largest project the skill came from |
+| The working history reached **1,750+ entries in about six months**, one per change, written by agents under this rule and enforced by the hook (as one newest-first CRLF file, until it moved to one file per entry with a merge queue in 2026-10) | the largest project the skill came from |
 | One consolidation run produced **145 CANDIDATE learnings (not yet validated) and 15 open problems in about 30 minutes** | the brief in `consolidate-brief.md` |
 | The contradiction that run surfaced **was real**: a skill documented a setting the tool silently ignores. It was fixed in this repository's 1.10.2 | the root README's "What's new in 1.10.2" |
 | The first validation run over those 145 candidates vetted **46**, left **90** unproven and refuted **9**; independent refuters overturned **21 of the 67** that a first validator had vetted | [`LEARNINGS.md`](../../LEARNINGS.md) |

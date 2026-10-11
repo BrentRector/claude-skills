@@ -10,12 +10,13 @@ scratch-only ground rules. The prompt constrains intent, not effects.* *(Practic
 
 **On restart after a cutoff:**
 1. Read the reset time from the limit message. It is not a fixed hour.
-2. Check the dead lander's worktree and its `STATUS.md` (and `git status` on main, if your landers apply there).
-   Confirm each step it finished (an idempotent step re-run changes nothing), discard and redo a step the kill
-   left half-done, and never promote a WIP commit to main. *(Practice — not yet validated: three killed landings were recovered this way; not yet re-validated.)*
+2. Check each dead agent's worktree and its `STATUS.md`, and list the open pull requests and the merge queue
+   (`gh pr list`). Confirm each step it finished (an idempotent step re-run changes nothing), discard and redo a
+   step the kill left half-done, and never enqueue a WIP commit. Re-run the enqueue step for every DONE branch that
+   has no pull request yet; it is idempotent. *(Practice — not yet validated: three killed landings were recovered this way; not yet re-validated.)*
 3. Run `git worktree list`, then run `references/status_delta.py <worktree>` on each to see which agents are near
    done and exactly which commits their `STATUS.md` does not cover.
-4. Dispatch **fresh** agents from the checkpoints, in landing order. Resume an agent in place (with its context
+4. Dispatch **fresh** agents from the checkpoints, in priority order. Resume an agent in place (with its context
    intact) only if it is within a step of finishing. Completed workflow stages replay from their on-disk outputs;
    if a resume by run id fails (it did after the owning process died), re-dispatch as a new run. *(Practice — not yet validated: the run-id failure was never reproduced.)*
 

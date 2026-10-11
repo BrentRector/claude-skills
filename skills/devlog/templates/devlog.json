@@ -1,4 +1,6 @@
 {
-  "log": "DEVLOG.md",
-  "check_from": 1
+  "log": "devlog",
+  "check_from": 1,
+  "base": "origin/main",
+  "width": 4
 }

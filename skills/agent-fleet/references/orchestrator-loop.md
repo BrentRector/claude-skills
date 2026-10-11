@@ -10,16 +10,21 @@ Measure it before optimizing the orchestrator. In one campaign day, from the loc
 main thread was about 8 % of the estimated spend (about 480 calls, averaging about 350k tokens of context per call because
 the session had grown long) and the agents about 92 % (about 6,300 calls; Opus agents about a third of that). Cutting the
 orchestrator's context to about 100k would save roughly 5 % overall. The larger levers are in the agents: the model chosen
-per group, turns per agent (the cost law), failed trains that waste a whole group, and re-gating.
+per group, turns per agent (the cost law), failed landings that waste a whole group, and re-gating.
 
 ## Short units instead of one long session
 
-A supervisor script runs one bounded unit per fresh session (`claude -p`, one wave or one landing or one resume), each
+A supervisor script runs one bounded unit per fresh session (`claude -p`, one wave or one enqueue or one resume), each
 ending by writing a handoff file, then starts the next. A session never gets long, and a crash loses at most one unit.
 
 - Move everything that needs no judgment out of the model: choosing the next wave, allocating ids and codes, rendering
-  specs, estimating the quota from local telemetry, generating the status page, pruning worktrees, watching the landing
-  script. Local CPU time is free; tokens are not.
+  specs, estimating the quota from local telemetry, generating the status page, pruning worktrees, running the enqueue
+  step and reading the merge queue. Local CPU time is free; tokens are not.
+- **The landing unit is an ENQUEUE unit** (since 2026-10-11): for every DONE branch waiting to land, in priority order,
+  run the project's enqueue script (fetch, rebase, the targeted gate, stamp the log entry, the landing checks, open the
+  pull request, add it to the merge queue); dispatch a finisher for each rebase conflict or queue bounce; render the
+  status view; hand off. Its model turns are the finisher dispatches and the handoff. There is no lander and no landing
+  lease: the merge queue serializes, and CI's merge-group run is the whole-population gate (`landing.md`).
 - Choose the next unit with a deterministic script from the last handoff and the state on disk (dirty tree, unpushed commits,
   an unlanded branch with a newer commit, a stale quota reading), never from the model's mood.
 - Guards the loop needs: a stop file, a single-instance lock, a circuit breaker (a few units that fail stop the loop), a
@@ -87,13 +92,13 @@ supervisor against a fake `claude` that emits canned stream-json, but expect the
    disarms the watchdog it is meant to test.
 10. **Recovery was measured, not assumed.** After the killed wave, a resume unit (141 s, about one dollar) read the six
    worktrees, committed the uncommitted work in four of them, wrote a status file in each, and named the next unit; nothing was
-   lost. The next wave then ran 2.5 hours, well past the old 600-second ceiling, and landed all eight groups in two trains with
-   none dropped.
+   lost. The next wave then ran 2.5 hours, well past the old 600-second ceiling, and landed all eight groups (then in two
+   lander trains, the pipeline `landing.md` retired on 2026-10-11) with none dropped.
 
 ## Measured in that campaign (one campaign, so a starting point rather than a law)
 
 The supervisor-launched unit that drove a rolling wave made 79 model calls in 2.5 hours; the agents it started did the rest.
-Rows closed per percent of weekly quota stayed about the same across supervised trains and the unattended wave (about 14 to 15
+Rows closed per percent of weekly quota stayed about the same across supervised landings and the unattended wave (about 14 to 15
 rows per percent). Compare tokens per closed item across your own runs before concluding the loop is cheaper; the main
 benefits seen were that a long run no longer needs an attended session and that a death costs minutes, not the unit.
 

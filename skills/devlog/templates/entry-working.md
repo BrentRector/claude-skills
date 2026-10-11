@@ -1,8 +1,9 @@
-<!-- A working-history entry: one per change, written by the agent in the same commit.
+<!-- A working-history entry: one per landing, written by the agent that did the work, in its branch.
      Save the body (without the header) as entry.md and run:
        python devlog.py new --title "Short, specific title: what changed and the finding" --body-file entry.md
-     devlog.py writes the header: `## Entry NNN — YYYY-MM-DD HH:MM TZ — Title` in a single file, or
-     `# NNNN — YYYY-MM-DD HH:MM TZ — Title` in NNNN-YYYY-MM-DD-slug.md for the one-file-per-entry layout.
+     That writes devlog/pending-<slug>.md headed `## Entry pending — Title`: NO number and NO time. The enqueue step
+     runs `devlog.py stamp`, which renames it NNNN-<slug>.md and completes the header as
+     `## Entry N — YYYY-MM-DD HH:MM TZ — Title` from the clock. Never type the number or the time yourself.
      Write for a reader six months from now who has only this entry. Delete these comments. -->
 
 **Context.** Why this change, and what state things were in. Quote the request or the failure that started it.

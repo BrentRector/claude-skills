@@ -5,11 +5,15 @@
 2. Write one rule per forbidden command in `guard-rules.json`: `pattern`, `reason`, `instead` (the right
    alternative, as a command), `block` examples, and `allow` examples. The allow list holds the rule's legitimate
    neighbours, for example `git stash list` for a stash rule, or a feature-branch push for a push-to-main rule.
-3. Set `"scope": "repo"` on every rule that encodes this repository's policy: its landing route, protected
+3. With a merge queue the protected branch is held by a RULESET (pull requests required, the merge queue, enforced
+   for administrators), so a direct push is refused by the server; keep the push rule anyway, because the hook's
+   `Instead:` line names the enqueue command at the moment the agent tries, where the server's refusal only says no.
+   A landing LEASE (a lock file one lander held through the CI wait) is retired: the queue serializes.
+4. Set `"scope": "repo"` on every rule that encodes this repository's policy: its landing route, protected
    branches, stash hygiene. Only rules about the harness itself, such as escapes in heredocs, stay `"any"`.
-4. Register the guard for every shell tool (`"matcher": "Bash|PowerShell"`, see `templates/settings.json`), with a
+5. Register the guard for every shell tool (`"matcher": "Bash|PowerShell"`, see `templates/settings.json`), with a
    plain `python ...` command and no `|| exit 2`.
-5. Run `python .claude/hooks/guard_commands.py --selftest --settings .claude/settings.json` until it is GREEN, and
+6. Run `python .claude/hooks/guard_commands.py --selftest --settings .claude/settings.json` until it is GREEN, and
    add the same command to CI. A workflow file that has never run is not a gate: until you have seen a green CI
    run, report CI as unproven.
 

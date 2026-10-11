@@ -76,7 +76,7 @@ Read `references/readiness-check.md` before installing or changing the readiness
 
 - Telemetry is enabled only in the USER settings, only after asking (`readiness_check.py --enable-telemetry`).
 - Use the LSP tool before grep for definitions and references when the LSP line is OK; fix diagnostics on files you touched.
-- Skill and agent edits ship with an eval case and a plugin eval run (ask first, it is billed); landings get a review step on the merged diff, and a finding blocks the push.
+- Skill and agent edits ship with an eval case and a plugin eval run (ask first, it is billed); each finished branch gets a read-only review when it is DONE, and a confirmed finding blocks its enqueue.
 
 Read `references/telemetry-lsp-gates.md` before enabling telemetry, adding an `lsp` entry or running a regression gate.
 
@@ -106,6 +106,6 @@ scope or fail-mode shortcut is reported as debt, not shipped.
 
 ## Project hooks
 
-Your `CLAUDE.md` supplies the project half: the landing command named in the push rule's `instead`, the roles and
+Your `CLAUDE.md` supplies the project half: the enqueue command named in the push rule's `instead`, the roles and
 their gate commands, the review step, and the list of trigger-bound owner steps. Project rules win on conflict.
 

@@ -1,6 +1,6 @@
 ---
 name: test-gate
-description: Use before every commit, merge or push to choose and run the right test gate — a fast targeted gate per change versus the comprehensive suite per batch — and to read the result without producing a false green.
+description: Use before every commit, merge, enqueue or push to choose and run the right test gate — a fast targeted local gate for every change, with CI's merge-group run as the whole-population regression net — and to read the result without producing a false green.
 ---
 
 # Test Gate
@@ -9,23 +9,26 @@ A gate exists to catch regressions. It fails at that in two ways: running too mu
 minutes for a suite it can't affect and people start skipping it, and running too little, so that it reports
 green without having looked at what changed. This skill covers both.
 
-**Self-check before any test command: is this one change, or a batch that is about to merge?** One change gets
-the targeted gate. A batch gets the full suite. The CI run for the pushed commit has the final say either way.
+**Self-check before any test command: what does THIS run have to prove?** Locally, that the targeted change is
+correct: the targeted gate, for every change, including the landing (enqueue) step. The whole population is CI's
+merge-group run, which has the final say.
 
 ## The three tiers
 
 | Tier | When | What runs | Cost |
 |---|---|---|---|
-| **Targeted** | every commit | fresh build · the change's own tests and its neighbours · fast whole-suite smoke tests · one real end-to-end probe of the changed behaviour | ~minutes |
-| **Comprehensive** | once per batch, before merge or landing | every affected test assembly or package, **unfiltered** · slow differential/integration legs | ~10–30 min |
-| **CI** | after every push | whatever the pipeline runs: other OSes, Release config, clean checkout | final authority |
-Size the gate to the blast radius, not to anxiety. Run the targeted gate after each step of serial work and one comprehensive gate at the end.
-A landing gate covers the whole affected assembly, unfiltered, never a union of per-change filters.
-A change that REJECTS input the tool used to accept runs the whole accepted-input corpus in its own gate.
+| **Targeted** (local, both hosts) | every change: the implementer's commits AND the enqueue step on the rebased head; natively, then the same leg in a clone on the other OS, under one gate slot, fail-fast native first | fresh build · the change's own tests, its neighbours, the likely reds and the cases its diff reaches · every **host-only witness** (by trait) · the audits whose inputs changed · one real end-to-end probe of the changed behaviour | ~minutes |
+| **Whole population** (CI) | every merge group, before the default branch moves | every test assembly or package, **unfiltered**, on every OS, sharded | CI's wall; the final authority |
+| **Battery** (local, own worktree) | once per accumulated batch | slow legs CI does not run (a differential against another implementation, a large corpus) | ~10–30 min |
+Size the gate to the blast radius, not to anxiety. No local whole-population gate on either OS: CI's FULL legs run locally only to reproduce a CI red. The TARGETED leg runs on both hosts.
+The landing gate covers the whole population, never a union of per-change filters; under a merge queue that gate is CI's merge-group run.
+Host-only witnesses (a filesystem or device property CI's runners lack) carry a trait and run in every targeted leg; membership is derived from the trait, never listed.
+Reuse an audit whose inputs are unchanged since a recorded PASS; no test carries a fixed wall-clock time limit.
+A change that REJECTS input the tool used to accept runs the whole accepted-input corpus in its own targeted gate.
 Fix a test that encodes deliberately changed behaviour so it asserts the new behaviour; never exclude it.
-Run the comprehensive gate in its own detached worktree cut at the batch head when other work goes on while it runs.
+Every gate and CI run the line-ending drift check (no CR in any tracked text file; the `cross-platform` skill).
 
-Read references/tiers-and-landing.md before sizing a landing gate, gating a change that rejects input, or starting a comprehensive run.
+Read references/tiers-and-landing.md before sizing a gate, adding a host-only witness or a time-limited test, gating a change that rejects input, or starting a battery.
 
 ## Always first: build fresh
 
@@ -72,8 +75,8 @@ Read references/conflict-markers.md before adding that test or when the commands
 
 - Never call a red a flake without naming the test and the cause, and a clean isolated re-run of that test.
 - Attribute every red against the batch's base commit; a red that was there before the batch still blocks the merge. Attribute it honestly and file it; don't step around it.
-- CI for the exact pushed commit is the final authority. Until it finishes green, report "local gates green; CI pending", never "all green". A failed status lookup is no verdict: retry, report it as its own outcome.
+- CI is the final authority: the merge-group run for a queued change, the run for the exact commit otherwise. Until it finishes green, report "targeted gate green; queued" or "local gates green; CI pending", never "all green". A queue bounce is a defect fixed on its branch before re-enqueue. A failed status lookup is no verdict: retry, report it as its own outcome.
 - Fix a red at its root cause: never weaken an assertion, widen a tolerance, add a skip or re-baseline. Never scope a test to the bug. Expected values come from the authority, not current output. Bar: the engineering-standards skill.
 - Project commands, baseline counts and the required CI check belong in the repo's `CLAUDE.md` "Testing" section.
 
-Read references/ci-flakes-standards.md before pushing, attributing a red or flake, or when the project's gate commands are not recorded.
+Read references/ci-flakes-standards.md before pushing or enqueuing, attributing a red, a bounce or a flake, or when the project's gate commands are not recorded.

@@ -4,7 +4,8 @@ The full text of agent-fleet section 5. Read it before sizing a fleet, starting 
 
 ## 5. The concurrency budget and stopping before the limit
 
-- **Default budget: 1 lander + a handful of implementers (~3–6) + one read-only chunk ~4 wide.** Run big
+- **Default budget: a handful of implementers (~3–6) + a read-only reviewer per DONE branch + one read-only chunk
+  ~4 wide; finishers as conflicts and bounces arrive.** Landing is a script, so it takes no agent slot. Run big
   fan-outs as `parallel()` chunks inside a loop, not as one very wide pipeline.
   *Why: in one measurement, ~28 concurrent agents burned ~20 % of a session window in 11 minutes, and ~50
   exhausted a window in ~2.5 h.* *(Practice — not yet validated: no before/after measure of conflicts or quota under the budget.)*
@@ -12,8 +13,8 @@ The full text of agent-fleet section 5. Read it before sizing a fleet, starting 
   errors. *Why: a few long agents cost more than many short ones.*
 - **A fleet of more than ~40 agents means you should split the work.** Don't wait it out.
 - **Keep a running tally** of subagent tokens since the window began. At ~75 % of the working budget, dispatch
-  only finishers and landers of nearly finished work. At ~85–90 %, stop everything gracefully.
-  *Why: the limit kills every live agent at once, including landers partway through a landing.* *(Practice — not yet validated: no evidence the tally, rather than the real usage meter and the STOP file, prevented a kill; drive it from the meter.)*
+  only finishers of nearly finished work. At ~85–90 %, stop everything gracefully.
+  *Why: the limit kills every live agent at once, including any partway through a merge or a fix.* *(Practice — not yet validated: no evidence the tally, rather than the real usage meter and the STOP file, prevented a kill; drive it from the meter.)*
 - **Use a graceful STOP file.** Every dispatch prompt includes: *"Before each new step, check for
   `{SCRATCH}/STOP`. If it exists, checkpoint-commit, write STATUS.md NEXT, and return status SPLIT. Never
   start a build or gate once STOP exists."* To stop, create the file, wait for the agents to return, and only
@@ -46,14 +47,13 @@ The full text of agent-fleet section 5. Read it before sizing a fleet, starting 
   It reads each record's own timestamp, not file times. *Why, measured over 150 transcripts (~27,800
   silences): model waits were under 94 s at the 99.9th percentile; tool calls peaked at 585 s. A model call CAN
   hang: two implementers in one wave stopped producing tokens after a successful tool result, one of them after it
-  had finished and gated all its work. Nothing noticed for 90 minutes, and the wave's final train waited on it.* *(Practice — not yet validated: the thresholds are measured, but the watcher has not yet caught a stall in production.)*
+  had finished and gated all its work. Nothing noticed for 90 minutes, and the wave's final landing waited on it.* *(Practice — not yet validated: the thresholds are measured, but the watcher has not yet caught a stall in production.)*
 - **A stalled agent: let the others finish, then stop the workflow and dispatch the remainder by hand.** A workflow
   cannot stop one of its own agents, and nothing outside it can either. A hung agent's commits are on its branch,
-  so a fresh finisher resumes from its stamped `STATUS.md`, or a lander takes the branch as it is if its gate was
-  green. `rolling-wave.js` also carries a per-implementer ceiling (`implementerCeilingMin`, default 240): an agent
-  still running at the ceiling is recorded `STALLED` and the wave moves on, so a hang cannot block a wave forever.
-  Landers get no ceiling, because a timed-out lander might still be pushing when the next train starts; for a
-  stalled lander, the watchdog alerts a person. *(Practice — not yet validated: the ceiling has not yet fired in production.)*
+  so a fresh finisher resumes from its stamped `STATUS.md`, or the enqueue step takes the branch as it is if its
+  targeted gate was green. `rolling-wave.js` also carries a per-implementer ceiling (`implementerCeilingMin`, default
+  240): an agent still running at the ceiling is recorded `STALLED` and the wave moves on, so a hang cannot block a
+  wave forever. The enqueue step is a script with its own timeouts, so no landing agent can hang a wave. *(Practice — not yet validated: the ceiling has not yet fired in production.)*
 - **Late in a window, dispatch short jobs that are close to done. Early in a window, dispatch long ones.**
   *Why: that way a burst can't exhaust the window before anything is finished.*
 - **An agent never ends its turn while its own background job is running.** It starts the job with output to a

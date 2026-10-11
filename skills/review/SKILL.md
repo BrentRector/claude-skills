@@ -1,6 +1,6 @@
 ---
 name: review
-description: Use when asked for a code review, architecture review, performance review, or duplication/efficiency analysis of a diff, branch or PR (or a whole subsystem audit) - runs the four review dimensions (architecture, full code review, performance, duplication and efficiency) as parallel agents, requires a concrete failure scenario for every finding, adversarially verifies each finding before reporting it, and sweeps every confirmed defect for its siblings.
+description: Use when asked for a code review, architecture review, performance review, or duplication/efficiency analysis of a diff, branch or PR (or a whole subsystem audit), including the read-only review of a finished branch before it is enqueued to land - runs the four review dimensions (architecture, full code review, performance, duplication and efficiency) as parallel agents, requires a concrete failure scenario for every finding, adversarially verifies each finding before reporting it, and sweeps every confirmed defect for its siblings.
 argument-hint: "[PR number/URL | branch | path | 'audit <subsystem>'] (optional, defaults to the local diff)"
 ---
 
@@ -25,10 +25,16 @@ Detail lives in `references/`; each step says when to read which file.
   "Audit" / "be comprehensive" / a subsystem name: whole-source mode (see *Scale*).
 - A PR that already carries a review: diff only the commits since, open with `Incremental review - changes since
   <timestamp>`, never re-raise an answered finding; no new commits, say so and stop.
+- **Branch form** (a fleet's finished branch, before it is enqueued to land): ONE branch, ONE read-only reviewer, run
+  when the implementer reports DONE, over `<default>...HEAD`. Write every confirmed finding to a findings file (its
+  scenario, repro and code site); never edit the branch. The implementer or a finisher answers EACH finding — fixed at
+  the root with a regression test, or refuted with evidence written beside it — before the branch is enqueued. The
+  landing step never reviews and never fixes.
 
 Empty diff → say so and stop.
 
-Read `references/target-triage-calibration.md` before reviewing a PR that already carries a review.
+Read `references/target-triage-calibration.md` before reviewing a PR that already carries a review, or a branch in
+its branch form.
 
 ## Step 2 - Run the free checks first
 

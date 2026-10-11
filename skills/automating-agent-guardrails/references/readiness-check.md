@@ -22,6 +22,6 @@
 7. **Recurring owner-only commands**, such as a weekly `/skill-doctor`, are `recurring` entries with a timestamp
    stamp. When one is due it becomes ASK-OWNER. After the owner runs it: `--stamp <id>`.
 8. **Owner-only or billed steps that belong to a trigger** (only those the owner named; the template's entries are
-   examples), such as `/code-review ultra` before a landing push or
+   examples), such as `/code-review ultra` before enqueueing a large branch or
    paid plugin evals before pushing a skill edit, go in `ask_at_trigger`. They are listed every session and asked
    when the trigger arrives, never skipped.

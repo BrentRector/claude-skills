@@ -9,17 +9,19 @@ The detail behind agent-fleet section 4 (the checkpoint table stays in `SKILL.md
   `git rebase --autostash` / `git pull --autostash`. *Why: the stash stack is shared by every linked worktree, so one
   agent's `stash pop` can take another agent's work. *(Practice — not yet validated: one near-miss recorded; no loss yet traced to the shared stack.)**
 - **Keep checkpoint files out of landings**: add them to `.gitignore` and unstage them explicitly before
-  committing. *Why: a checkpoint that reaches main conflicts with the next agent's checkpoint.*
-- **Assert on conflict markers between staging and committing**, at every checkpoint and every landing commit:
+  committing. *Why: a checkpoint that reaches the default branch conflicts with the next agent's checkpoint.*
+- **Assert on conflict markers between staging and committing**, at every checkpoint, every rebase the enqueue step or a
+  finisher resolves, and every finisher commit:
   ```
   git grep --cached -nI -e "^<<<<<<< " -e "^||||||| " -e "^>>>>>>> "
   git diff --cached --check | grep -i "conflict marker"
   ```
   Both must print nothing. Read their OUTPUT, not their exit codes: `--check` also reports whitespace, and on a
-  CRLF file it flags every line, so a gate on its exit code is always red and gets dropped. Back it with a
+  CRLF file it flags every line (one more reason for the `cross-platform` skill's LF rule), so a gate on its exit
+  code is always red and gets dropped. Back it with a
   repo-wide conflict-marker test, seen to fail once on a planted hunk (`test-gate`). *Why: an implementer's
-  blanket `git add -A` checkpoint committed four unresolved hunks into a script that no test imports, the lander
-  resolved conflicts by judgement and never re-checked, and the markers passed three green gates. Since the test
+  blanket `git add -A` checkpoint committed four unresolved hunks into a script that no test imports, the agent that
+  merged the branches resolved conflicts by judgement and never re-checked, and the markers passed three green gates. Since the test
   was adopted, no marker has reached main.* *(Validated 2026-09-28.)*
 - **Stamp the handoff.** `STATUS.md`'s first line is `STATUS-AT: <sha>`, the commit it describes, written AFTER
   the checkpoint commit (the file is untracked and ignored, so writing it never moves HEAD). An agent that resumes

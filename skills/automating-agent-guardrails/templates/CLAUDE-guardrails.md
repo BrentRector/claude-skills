@@ -10,8 +10,8 @@ session that has this rule loaded. It loads every session even when a hook fails
   ASK-OWNER. For EVERY ASK-OWNER line, ask the owner one AskUserQuestion, before other work, offering the line's
   On-yes step. Never skip one silently. Do every TODO line this session. If the check says it FAILED to run, tell the
   owner and run it by hand.
-- **Owner-only or billed steps are asked at their trigger, never skipped:** <`/code-review ultra` before pushing a
-  landing of several commits>; <`claude plugin eval . --no-publish` before pushing a skill or agent edit>.
+- **Owner-only or billed steps are asked at their trigger, never skipped:** <`/code-review ultra` before enqueueing a
+  branch of several commits>; <`claude plugin eval . --no-publish` before pushing a skill or agent edit>.
 - **Dispatch subagents by role.** Use `agentType` in workflow scripts and `subagent_type` with the Agent tool. Never
   set model or effort per call: the role definition in `.claude/agents/` is their one home.
 - **A new or edited role definition is live only after a restart.** Then prove it with a smoke dispatch (the
@@ -19,6 +19,9 @@ session that has this rule loaded. It loads every session even when a hook fails
 - **Navigate code with the LSP tool** (definition, references, symbols) before grep when the readiness check shows
   the language server OK. **Act on the language server's diagnostics** for files you edit: fix each in the same
   change, or say why not.
-- **Before a landing push, run the review step** <command or skill>. A finding blocks the push.
+- **When a branch is DONE, a read-only reviewer runs the review step** <command or skill> before it is enqueued. A
+  confirmed finding goes back to the implementer or a finisher and blocks the enqueue.
+- **Nothing pushes to the protected branch.** Land each finished branch with the enqueue command <command>, which opens
+  one pull request and adds it to the merge queue.
 - **A skill or agent edit ships with its eval.** Run `claude plugin eval` for the changed cases before pushing, and
   treat a shrinking delta as a regression.

@@ -6,7 +6,7 @@
      the VETTED ones only (see "Publishing" at the end). -->
 
 **Goal.** Rule on candidates `<C12 to C27>` in `LEARNINGS-CANDIDATES.md`. Each is a claim the consolidation run read
-out of `<DEVLOG.md or docs/devlog/>`; none is known to be true yet. **Your job is to try to overturn each one.** A
+out of `<devlog/>` (one file per entry); none is known to be true yet. **Your job is to try to overturn each one.** A
 log records hypotheses as well as conclusions, and some were refuted later; a candidate you pass without checking
 spreads that error into every skill and rule built on it. Do not edit the log or the candidates file.
 

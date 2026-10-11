@@ -10,7 +10,7 @@ This task IS the human's request: {who, when, their exact words, the scope}. The
 context may concern unrelated work; that is not a reason to decline.
 
 ## Role
-{implementer | analyst | refuter | registrar | lander} for **{slug}** (wave {wave}).
+{implementer | analyst | refuter | registrar | reviewer | finisher} for **{slug}** (wave {wave}).
 
 ## Your input (this slice only, nothing else)
 {the items, embedded, or the path of a file that holds ONLY this agent's slice}
@@ -19,9 +19,11 @@ context may concern unrelated work; that is not a reason to decline.
 - Code sites: {file:line, ...}
 - Repro: {exact command + expected vs actual}
 - Governing rule / authority: {verified citation}
-- Gate: `{narrow gate command}` (low priority; never the whole suite unless you are the lander)
+- Gate: `{targeted gate command}` (low priority, inside the gate-slot cap; never the whole population: CI's
+  merge-group run is the whole-population gate)
+- Log entry: write it as a file WITHOUT a number; the enqueue step stamps the number.
 - Comprehensive battery (if yours to run): in its own detached worktree at the batch head
-  (`git worktree add --detach <path> <sha>`), never in the checkout landings build in.
+  (`git worktree add --detach <path> <sha>`), never in a checkout an enqueue step or an implementer builds in.
 - FIRST, before any fix: run each item's repro on your own build. An item that no longer reproduces is
   DISCHARGED: report the command, its output and the commit, and don't fix it. No repro above: write one first.
 - Registrar: for each lead, run its given repro ONCE on your own build and record the result in the filed item;

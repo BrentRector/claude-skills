@@ -1,6 +1,6 @@
 # automating-agent-guardrails
 
-Rules for Claude agents usually start as prose: "never `git stash`", "only the landing script pushes to main",
+Rules for Claude agents usually start as prose: "never `git stash`", "nothing pushes to main; land through the merge queue",
 "refuters are read-only", "ask me before installing anything". Prose gets forgotten under pressure, and a subagent
 dispatched from a workflow may never see it. This skill has Claude set a project up so those rules are
 **structural**, enforced by Claude Code hooks and role definitions, and **automatic**, checked at the start of
@@ -24,7 +24,7 @@ script needs only Python 3 and the standard library, runs as `python <script>`, 
 | Piece | What it does |
 |---|---|
 | **Guard hook** (`guard_commands.py` + `guard-rules.json`) | A PreToolUse hook on every shell tool (Bash and PowerShell). It blocks the commands your rules forbid and tells the agent what to do instead. Rules are JSON: a regex, the reason, the alternative, plus example commands that must be blocked and legitimate neighbours that must pass. |
-| **Role agents** (`.claude/agents/*.md` + `readonly_guard.py`) | Implementer, lander, refuter, analyst and chore roles, each with its own model, effort, turn cap and (for roles that wait on gates) a 1-hour prompt cache. Read-only roles carry a hook in their own definition that refuses writes inside any git tree (file tools, repo-changing git, and shell redirections such as `>` or `Out-File`) but allows scratch files. |
+| **Role agents** (`.claude/agents/*.md` + `readonly_guard.py`) | Implementer, finisher, refuter, analyst and chore roles, each with its own model, effort, turn cap and (for roles that wait on gates) a 1-hour prompt cache. Read-only roles carry a hook in their own definition that refuses writes inside any git tree (file tools, repo-changing git, and shell redirections such as `>` or `Out-File`) but allows scratch files. |
 | **Readiness check** (`readiness_check.py` + `readiness.json` + `session_start.py`) | Runs at every session start. It checks each adopted capability and prints OK, REPAIRED, N/A, TODO or ASK-OWNER. A `CLAUDE.md` section tells Claude to ask you about every ASK-OWNER line at the start of the session. |
 | **Cost telemetry** (`otlp_sink.py` + `usage_report.py`) | A local OpenTelemetry receiver on `127.0.0.1:4318` and a report of tokens and cost per agent, skill and model. It is enabled per machine only. |
 | **LSP check** | Confirms that the language-server plugin and its server binary are both installed before Claude is told to navigate code with the LSP tool. It asks before installing anything. |
@@ -55,8 +55,9 @@ Ask Claude to "set up the agent guardrails for this repo" with the skill install
 
 1. Copy the scripts to `.claude/hooks/`, the role templates to `.claude/agents/`, and merge
    [`templates/settings.json`](templates/settings.json) into `.claude/settings.json`.
-2. Edit `guard-rules.json` for your rules. Replace the example landing command `bash scripts/land.sh` and the
-   protected branch names.
+2. Edit `guard-rules.json` for your rules. Replace the example enqueue command `bash scripts/enqueue.sh` and the
+   protected branch names. With a merge queue, the branch ruleset refuses a direct push too; the hook is the
+   agent-side message that names the right command.
 3. Edit `readiness.json`: delete the sections you have not adopted, and list your roles, languages and recurring
    owner steps.
 4. Paste [`templates/CLAUDE-guardrails.md`](templates/CLAUDE-guardrails.md) into your `CLAUDE.md` and fill in your
@@ -85,7 +86,7 @@ The readiness check asks these as questions at session start. None of them happe
 | First session on a machine | Whether to enable local cost telemetry. On yes, Claude runs `readiness_check.py --enable-telemetry`, and it takes effect next session. |
 | A language server is missing | Whether to enable the LSP plugin (`/plugin install ...`) and install its server binary. |
 | A recurring owner-only command is due (for example a weekly `/skill-doctor`) | Run it yourself. Claude then records the date with `--stamp`. |
-| At a trigger you configured (for example `/code-review ultra` before a landing push, paid evals before a skill push) | Whether to run the billed or owner-only step. |
+| At a trigger you configured (for example `/code-review ultra` before enqueueing a large branch, paid evals before a skill push) | Whether to run the billed or owner-only step. |
 | After role definitions change | Restart Claude Code, so the smoke dispatch runs against the new definitions. |
 | A committed hook or role file is broken | Approve the fix. The check reports it but does not edit committed files on its own. |
 
@@ -103,10 +104,10 @@ The readiness check asks these as questions at session start. None of them happe
 | [`templates/settings.json`](templates/settings.json) | The SessionStart and PreToolUse hook registrations |
 | [`templates/readiness.json`](templates/readiness.json) | Readiness check config with every section |
 | [`templates/session_start.py`](templates/session_start.py) | SessionStart hook: your project probe plus the readiness check |
-| [`templates/agents/`](templates/agents/) | Implementer, lander, refuter and analyst (judgment, top model) and chore and locator (mechanical, cheaper model: `chore` writes, `locator` is read-only) role definitions. Each role carries its own model; never pass one per call, which overrides it |
+| [`templates/agents/`](templates/agents/) | Implementer, finisher (a rebase conflict, a queue bounce or review findings on one branch), refuter and analyst (judgment, top model) and chore and locator (mechanical, cheaper model: `chore` writes, `locator` is read-only) role definitions. Each role carries its own model; never pass one per call, which overrides it |
 | [`templates/CLAUDE-guardrails.md`](templates/CLAUDE-guardrails.md) | The `CLAUDE.md` section that makes Claude act on blocks and ASK-OWNER lines |
 | `README.md` | This page |
 
 Related skills: [`agent-fleet`](../agent-fleet/README.md) (the orchestration rules these roles serve),
 [`claude-cloud-sessions`](../claude-cloud-sessions/README.md) (why cloud sessions get N/A), and
-[`review`](../review/README.md) (the pre-landing review step).
+[`review`](../review/README.md) (the review of each branch when it is DONE, before it is enqueued).

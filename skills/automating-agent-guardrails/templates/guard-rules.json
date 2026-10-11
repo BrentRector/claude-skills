@@ -1,5 +1,5 @@
 {
-  "_comment": "Rules for guard_commands.py. Copy beside it as .claude/hooks/guard-rules.json and edit. Every rule needs block AND allow examples; `python .claude/hooks/guard_commands.py --selftest` proves them. Replace `bash scripts/land.sh` with your landing command and `main|master` with your protected branches.",
+  "_comment": "Rules for guard_commands.py. Copy beside it as .claude/hooks/guard-rules.json and edit. Every rule needs block AND allow examples; `python .claude/hooks/guard_commands.py --selftest` proves them. Replace `bash scripts/enqueue.sh` with your enqueue command and `main|master` with your protected branches.",
   "rules": [
     {
       "id": "no-stash",
@@ -43,8 +43,8 @@
       "id": "land-via-script",
       "scope": "repo",
       "pattern": "\\bgit\\s+(?:-C\\s+\\S+\\s+)?push\\b[^;&|\\n]*?(?:\\s|:|\\+)(?:refs/heads/)?(?:main|master)(?=$|[\\s;&|])|\\bgit\\s+(?:-C\\s+\\S+\\s+)?push\\b[^;&|\\n]*\\s--(?:all|mirror)\\b",
-      "reason": "this repository's protected branch is updated only by the landing script, which runs the full gate and waits for CI.",
-      "instead": "push your own branch (`git push origin HEAD:<your-branch>`) and land with `bash scripts/land.sh`.",
+      "reason": "this repository's protected branch is updated only by the merge queue (its ruleset refuses a direct push); each finished branch lands as one pull request.",
+      "instead": "push your own branch (`git push origin HEAD:<your-branch>`) and land it with `bash scripts/enqueue.sh <your-branch>` (rebase, targeted gate, pull request, merge queue).",
       "block": [
         "git push origin main",
         "git push origin HEAD:main",
@@ -56,7 +56,7 @@
         "git push origin HEAD:feature/x",
         "git push origin my-main-fix",
         "git push origin maintenance",
-        "bash scripts/land.sh",
+        "bash scripts/enqueue.sh fix-x",
         "git log origin/main..HEAD"
       ]
     },

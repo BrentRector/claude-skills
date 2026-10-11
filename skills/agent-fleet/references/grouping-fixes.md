@@ -8,7 +8,7 @@ The full text of agent-fleet section 7. Read it before filling implementer slots
   files or rule family (3–4 items, one branch, one gate, one report with a section per item). Inside the group,
   each item is still fixed at its root and checkpointed separately.
   *Why: separate implementers on the same files produced merge conflicts and composition defects that neither
-  could see.* *(Practice — not yet validated: no before/after measure of conflicts or composition defects per train.)*
+  could see.* *(Practice — not yet validated: no before/after measure of conflicts or composition defects per landing.)*
 - **Compute the groups from code sites; don't pick them by hand.** Resolve every open defect's named code sites
   (paths, `Type.Member`, type names) to real source files, give each note a PRIMARY file (its heaviest site, ties
   to the more specific file), and cluster notes by it: cap ~5 per cluster, split larger ones by harm, absorb a
@@ -24,16 +24,16 @@ The full text of agent-fleet section 7. Read it before filling implementer slots
 - **A file with more open items than the cluster cap gets SAME-FILE SUCCESSORS**, not a second independent group.
   The second cluster declares its predecessor (`after`). It waits for the predecessor to return, merges its
   branch, and orients from the predecessor's handoff notes (its report's "for the next implementer" section and
-  checkpoint file) instead of re-surveying the file. The predecessor's branch is held from the trains and lands
-  THROUGH the successor, which contains it; if the successor produces nothing landable, the predecessor lands
-  alone. The same chaining works across one technological area (a runtime file, then its emitter). A dispatch
+  checkpoint file) instead of re-surveying the file. The predecessor's branch is held from the enqueue step and lands
+  THROUGH the successor, which contains it; if the successor produces nothing landable, the predecessor is
+  reviewed and enqueued alone. The same chaining works across one technological area (a runtime file, then its emitter). A dispatch
   check can refuse two groups on one primary file that are not linked this way.
   *Why: orientation (reading and searching before the first edit) was about half of every implementer's tokens,
   so two groups that each orient on the same file pay that twice. The cap exists because cost grows with the
   square of a transcript's turns. That is also why the successor is a FRESH agent that inherits the context,
   not a longer transcript that inherits the cost.* *(Practice — not yet validated: no A/B against independent groups.)*
 - **Fill parallel slots with one group per subsystem**, not the next N items down the rank list.
-  *Why: consecutive items in one area serialize on conflicts.* *(Practice — not yet validated: conflicts per train were not measured before and after.)*
+  *Why: consecutive items in one area serialize on conflicts.* *(Practice — not yet validated: conflicts per landing were not measured before and after.)*
 - **Cluster leads by root cause before dispatching.** *Why: one mechanism, one fix; the group above is how
   related mechanisms share one agent.*
 - **Don't put two unrelated mechanisms in one transcript.** Related ones that share files are grouped (above),

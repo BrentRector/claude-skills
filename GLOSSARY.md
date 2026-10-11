@@ -8,7 +8,7 @@ one exists, and points to where it lives in these skills.
 ## The fleet
 
 **Fleet.** Many AI agents working the same codebase at once, each on its own piece. A typical fleet here is up to
-six implementers, one lander and a few read-only reviewers. → `agent-fleet/references/concurrency-and-watchdog.md` (the concurrency budget).
+six implementers, a read-only reviewer per finished branch, and a finisher when a branch bounces. → `agent-fleet/references/concurrency-and-watchdog.md` (the concurrency budget).
 
 **Orchestrator.** The one session a person talks to. It plans the work, dispatches agents, reads their reports and
 decides what lands. It writes almost no code itself, and it keeps its own transcript short: briefs and reports are
@@ -16,26 +16,42 @@ files, and the conversation holds only their paths. *Industry term: the orchestr
 pattern.* → `agent-fleet`, "Roles".
 
 **Subagent.** Any agent the orchestrator starts. Each gets a narrow job, a fresh context and a turn cap, and returns
-a structured report. The model follows the ROLE: judgment roles (implementer, lander, refuter, reviewer) run the top
+a structured report. The model follows the ROLE: judgment roles (implementer, finisher, refuter, reviewer) run the top
 everyday model, and mechanical roles (filing notes, lookups) run a cheaper one. → `agent-fleet/references/refuters-and-routing.md`.
 
 **Implementer.** A subagent that fixes a group of related defects. It works in its own **git worktree** (a separate
 working copy of the repository on its own branch), so several can run side by side without touching each other's
 files. → `agent-fleet/references/inputs-and-briefs.md`, `references/brief-template.md`.
 
-**Lander.** A subagent that merges finished branches and puts them on the main branch. It re-runs the whole test
-suite on the merged result, checks each claimed fix against its commit and its tests, and drops anything that doesn't
-verify. *Closest industry term: a merge queue (GitHub's merge queue, Bors, Zuul).* "Landing" a change is Mozilla and
-Chromium usage. → `agent-fleet/references/landing.md`.
+**Enqueue step.** The deterministic SCRIPT that lands one finished branch: fetch, rebase onto the default branch,
+run the targeted gate on both hosts under the gate-slot cap, stamp the log entry's number, run the landing checks,
+open one pull request and add it to the merge queue. No agent runs it unless it stops. "Landing" a change is Mozilla
+and Chromium usage. → `agent-fleet/references/landing.md`.
 
-**Train.** One landing's worth of finished branches, usually three to five, merged and tested together, with one
-commit per branch so a red result bisects cleanly. Most of a landing's cost is fixed (merge, build, test, push), so
-batching lowers the cost per fix; that saving is modelled, not measured. *Industry term: GitLab's merge trains.*
-→ `agent-fleet/references/landing.md`.
+**Finisher.** A subagent dispatched for ONE branch the enqueue step could not take: a rebase conflict, a merge-queue
+bounce, or a reviewer's confirmed findings. It fixes, re-runs the targeted gate and re-enqueues; it never assembles
+branches or runs the whole population. → `automating-agent-guardrails/templates/agents/finisher.md`.
+
+**Merge queue, merge group.** The protected branch accepts only queued pull requests. The queue builds a MERGE GROUP
+(one or several queued pull requests on top of the default branch), CI runs the whole population on it, and the
+branch advances only on green; a red bounces only the pull request that caused it. Merge commits, not squash, so a
+branch's commits stay ancestors of the default branch. *Industry terms: GitHub's merge queue, Bors, Zuul, GitLab's
+merge trains.* → `agent-fleet/references/landing.md`.
+
+**Lander** *(retired 2026-10-11)*. A subagent that merged several finished branches into a **train**, ran the whole
+test suite locally, reviewed, and pushed under a **landing lease**. In one measured campaign ten of them were spent
+on six trains, and 41 % of their minutes were local gate runs CI repeated. Replaced by the enqueue step, the merge
+queue and the finisher. → `agent-fleet/references/landing.md` ("Retired").
+
+**Train** *(retired 2026-10-11)*. One landing's worth of finished branches (four to six), merged and tested
+together. Rational only while each landing carried a large fixed cost; replaced by one pull request per branch.
+
+**Landing lease** *(retired 2026-10-11)*. A lock one lander held from its push through the CI wait, so landings
+serialized at about one an hour. The merge queue serializes instead.
 
 **Wave, rolling wave.** One batch of implementer work. It is rolling: when an implementer returns, the next group
-starts in its slot at once, and a train starts whenever enough branches are ready, so no slot waits for the slowest
-agent. *Industry terms: batch, worker pool. Not PMBOK's "rolling-wave planning", which is unrelated.*
+starts in its slot at once, a read-only reviewer checks each branch that returns DONE, and each approved branch is
+enqueued, so no slot waits for the slowest agent. *Industry terms: batch, worker pool. Not PMBOK's "rolling-wave planning", which is unrelated.*
 → `references/rolling-wave.js`.
 
 **Refuter.** An adversarial reviewer whose only job is to overturn a verdict. It sees the claim and the evidence, not
@@ -79,16 +95,25 @@ formal verification's "discharging a proof obligation".* → `agent-fleet/refere
 
 ## The gates
 
-**Gate.** A check that must pass before work moves forward: an implementer's test run before it reports done, the
-lander's whole-suite run before it lands, CI before anything reaches main. *Industry term: quality gate.*
-→ `test-gate`.
+**Gate.** A check that must pass before work moves forward: the targeted local gate before an implementer reports
+done and again in the enqueue step, and CI's whole-population run on the merge group before anything reaches the
+default branch. *Industry term: quality gate.* → `test-gate`.
 
-**Protected main.** The main branch accepts only commits that passed CI. The lander pushes to a staging branch, and
-a landing script fast-forwards main only when CI is green on that exact commit. The server enforces it for everyone,
-the repository's owner included. → `agent-fleet/references/landing.md`.
+**Targeted leg.** A change's own tests, the likely reds for its diff, the cases it reaches and the host-only
+witnesses, run natively and then in a clone on the other OS, fail-fast. The local gate for every change; the whole
+population is CI's. → `test-gate`, `cross-platform` §1.
 
-**Other-OS gate.** A local run of CI's legs for an operating system the gates don't run on (for example, CI's Linux
-jobs run under WSL on a Windows host), done before every push. → `agent-fleet/references/landing.md`, `cross-platform` §1.
+**Host-only witness.** A test that reproduces only on the developer host, typically because its filesystem differs
+from CI's runners (ReFS versus NTFS deletes). It carries a trait naming that property and runs in every targeted leg;
+membership is derived from the trait, never listed. → `test-gate/references/tiers-and-landing.md`, `cross-platform` §1.
+
+**Protected main.** The main branch accepts only queued pull requests: a ruleset requires a pull request and the merge
+queue, with the required check evaluated on the merge group, enforced for everyone, the repository's owner included.
+A guard hook tells an agent that tries a direct push which command to run instead. → `agent-fleet/references/landing.md`.
+
+**Other-OS repro run.** A local run of CI's FULL legs for the other operating system (for example, CI's Linux jobs
+under WSL on a Windows host). Since 2026-10-11 it reproduces a CI red and is no longer a gate; the targeted leg still
+runs on both OSes. → `cross-platform` §1.
 
 **Drift test.** A test that holds two things in agreement, so a rule stays true as the code changes: every rule the
 specification catalogues has a test, every CI job's projects are covered locally, every brief carries its mandatory
@@ -137,8 +162,9 @@ of an agent's waits on the model finish in under 94 seconds. → `references/sta
 
 ## How the process learns
 
-**Devlog.** A running log of every change, decision and mistake, written by the agents as a standing rule, newest
-entry first. It is the project's memory and the raw material for the learnings. → `devlog`.
+**Devlog.** A running log of every change, decision and mistake, written by the agents as a standing rule: one file
+per entry, one entry per landing, numbered when the branch is enqueued, with the newest-first view rendered rather than
+committed. It is the project's memory and the raw material for the learnings. → `devlog`.
 
 **Learnings, vetted.** Lessons mined from the devlog. A lesson becomes a rule in a skill only after an independent
 check against primary sources and an adversarial refuter. Of 145 candidate lessons, 46 survived. Rules not yet

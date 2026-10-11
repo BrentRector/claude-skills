@@ -31,5 +31,6 @@ worktrees; no count yet of hints fixed or of review findings avoided.)*
 - **Skill and agent edits:** plugin evals are the regression gate. Each changed rule ships with an eval case that
   beats the no-plugin baseline (this repo's `evals/README.md` explains the rule and how to read Δ). Run it before
   the push, and because it is billed, ask at that trigger.
-- **Landings:** run a review step on the merged diff before the landing push (the lander template's step; the
-  `review` skill or `/code-review`). A finding blocks the push. *(Practice — not yet validated: six or more reviewed batches have produced no confirmed finding yet.)*
+- **Landings:** run a read-only review of each branch when it is DONE, before the enqueue step (the `review` skill's
+  branch form or `/code-review`); a confirmed finding goes to the implementer or a finisher and blocks the enqueue.
+  (Until 2026-10-11 this was the lander's review of the merged batch.) *(Practice — not yet validated: six or more reviewed batches have produced no confirmed finding yet.)*

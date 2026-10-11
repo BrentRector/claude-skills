@@ -8,8 +8,8 @@ projects. Each skill encodes rules that were learned the expensive way; the *why
 project's development log that survived validation against primary sources and an independent refuter. Rules in
 the skills that are not yet proven say so where they stand.
 
-**[GLOSSARY.md](GLOSSARY.md)** defines the fleet vocabulary these skills use (orchestrator, implementer, lander,
-train, refuter, register, stamp, watchdog, and more), with the closest industry term for each and where it lives here.
+**[GLOSSARY.md](GLOSSARY.md)** defines the fleet vocabulary these skills use (orchestrator, implementer, enqueue
+step, finisher, merge group, refuter, register, stamp, watchdog, and more, with the retired lander and train), with the closest industry term for each and where it lives here.
 
 ## Install
 
@@ -34,6 +34,35 @@ repository as a git submodule (say at `tools/claude-skills`) and declare it in t
 Project skills that extend one of these can then open by invoking the base (`brent-tools:<skill>`) and keep only
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
+
+## What's new in 1.20.0
+
+- **Landing is a merge queue, and the local gate is targeted** (`agent-fleet` §6 and `references/landing.md`,
+  `test-gate`, `cross-platform`). Every change's local gate is its TARGETED leg — its own tests, the likely reds, the
+  cases its diff reaches and the host-only witnesses — run natively and then in a clone on the other OS, fail-fast;
+  CI's merge-group run is the whole-population regression net and the only whole-population run. Each finished branch
+  becomes ONE pull request through a merge queue on a ruleset-protected branch (merge commits, so branch commits stay
+  ancestors); landing is a deterministic **enqueue** script (rebase, targeted gate under the gate-slot cap, stamp the
+  log entry, landing checks, open the PR, queue it), and a **finisher** is dispatched only for a conflict or a bounce.
+  The lander, the train, the landing lease and the whole-suite local gate retire. Measure per landing (DONE → enqueued
+  → merged, bounces, CI wall). *Validated 2026-10-11 (measurement): in one campaign 41 % of 567 lander-minutes were
+  local whole-population gates (8 of 15 RED, mostly fixed time limits under load) and 16.5 % waited for the CI that had
+  already run the same population on 20 free runners in 13 min; the redesign's effect is not yet measured.*
+- **Review the branch when it is DONE** (`review`'s new branch form; `rolling-wave.js` now runs a read-only reviewer
+  per DONE branch and the project's enqueue command per approved branch, and starts no lander).
+- **One file per log entry, numbered at enqueue, the view rendered** (`devlog`): `devlog.py` is rewritten around
+  `new` (a pending entry in the branch), `stamp`, `next`, `check --base` (the landing check CI runs on the pull request
+  and the merge group), `render`, `search` and a one-time verified `migrate`; `devlog_guard.py` now asks at
+  `gh pr create` / `gh pr merge` instead of at every commit. Both self-tests are green.
+- **One line-ending format, LF, enforced** (`cross-platform` §3): `* text=auto eol=lf` first in `.gitattributes`,
+  `merge.renormalize`, one normalization landing, tools that write LF, and a drift check for a CR in any tracked text
+  file. *The measured shape: the object database was LF for 15,234 of 15,500 text files, and only the working tree
+  differed by OS.*
+- **Host-only witnesses, audit reuse, no fixed time limits** (`test-gate`): tests that reproduce only on the
+  developer's filesystem carry a trait and run in every targeted leg; audits with unchanged inputs are reused; no test
+  keeps a wall-clock limit. `automating-agent-guardrails` replaces the lander role with `finisher.md` and points the
+  push rule at the enqueue command. *Practice, not yet validated.* New learning **M1** in `LEARNINGS.md`, marked
+  measured, not yet vetted.
 
 ## What's new in 1.19.1
 
@@ -436,7 +465,7 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`review`](skills/review/) | reviewing a diff, branch or PR | Four dimensions (architecture · full code · performance · duplication/efficiency) as parallel reviewers, plus specialist agents; every finding carries a concrete failure scenario; an adversarial skeptic tries to refute each one; confirmed bugs trigger a sibling sweep. |
+| [`review`](skills/review/) | reviewing a diff, branch or PR, or a fleet's finished branch before it is enqueued | Four dimensions (architecture · full code · performance · duplication/efficiency) as parallel reviewers, plus specialist agents; every finding carries a concrete failure scenario; an adversarial skeptic tries to refute each one; confirmed bugs trigger a sibling sweep. |
 | [`variant-analysis`](skills/variant-analysis/) | right after any defect is confirmed | Name the mechanism, not the symptom; textual, structural (Roslyn, ANTLR, tree-sitter, Semgrep) and semantic queries; "which arm of the dispatch did you fix?"; a probe per candidate; a sweep report in which zero hits is evidence. |
 | [`architecture-audit`](skills/architecture-audit/) | the whole codebase needs a comprehensive review and restructure, not one diff | A measured baseline and a behavior-neutrality oracle before any change; an adversarially reviewed target architecture with dependency rules enforced by tests; a review fleet by subsystem × dimension whose findings become tracked work; behavior-neutral waves (extract · unify · move and rename with every caller · data-ize · delete, census-measured); analyzer-driven modernization; model tiers (frontier for the target architecture, mid for judgment waves, small for mechanical ones); architecture tests left behind. |
 
@@ -451,7 +480,7 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`test-gate`](skills/test-gate/) | before every commit, merge or push | Tiered gates, the comprehensive one in its own worktree; read the verdict line, not the exit code; filters that silently match nothing; confirm new tests actually ran; no conflict markers in what is staged; CI for the exact pushed commit is the final word. |
+| [`test-gate`](skills/test-gate/) | before every commit, merge, enqueue or push | The targeted local gate for every change (on both OSes, host-only witnesses included, audits reused when unchanged, no fixed time limits); CI's merge-group run is the whole population and the final word; the battery in its own worktree; read the verdict line, not the exit code; filters that silently match nothing; confirm new tests actually ran; no conflict markers in what is staged. |
 | [`dotnet-engineering`](skills/dotnet-engineering/) | .NET / C# work | Latest .NET and C#, strong types, warnings as errors; `dotnet test` filter traps; test gaps and smells; BenchmarkDotNet with a witness; binlog failure analysis; trimming/Native AOT; NuGet trusted publishing. |
 | [`roslyn-analysis`](skills/roslyn-analysis/) | C# duplication review, sibling sweeps, mechanical refactors, verifying built assemblies | Structural clone detection, symbol sweeps (every implementation/override/reference), a safe rewriter harness (dry-run, preserves encoding and line endings, refuses unparseable output), metadata-only assembly and IL inspection. |
 
@@ -460,21 +489,21 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 | Skill | Use it when | What it enforces |
 |---|---|---|
 | [`performance-diagnosis`](skills/performance-diagnosis/) | something is slower than it should be, adding threads stops helping, or before any optimization | Measure first, with a benchmark that proves it did the work; a scaling curve and a processes-versus-threads split to locate the limit; stack sampling; the mechanism explained from the library's source before fixing; a behavior-neutral differential over the whole input population; a structural guard, never a wall-clock limit. |
-| [`cross-platform`](skills/cross-platform/) | code, tests, scripts or agents must work on Windows and Linux (including WSL), or CI runs on an OS your gates don't | The other OS's CI legs run locally, on a clone built there; no path literal crosses OSes; build paths are never assumed portable; CRLF files edited as bytes; per-OS commands written explicitly; never export `GIT_DIR` into test processes. |
+| [`cross-platform`](skills/cross-platform/) | code, tests, scripts or agents must work on Windows and Linux (including WSL), or CI runs on an OS your gates don't | The targeted leg runs on both OSes, on a clone built there, and CI runs the whole population; host-only witnesses (a filesystem CI lacks) run locally; one line-ending format, LF, enforced; no path literal crosses OSes; build paths are never assumed portable; per-OS commands written explicitly; never export `GIT_DIR` into test processes. |
 
 **Running agents at scale**
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`agent-fleet`](skills/agent-fleet/) | dispatching many parallel subagents on a long campaign | One self-contained input per agent; checkpoint to disk; fresh agents from checkpoints; concurrency and token budgets; land finished work first; adversarial refuters; cost per unit decides the lane. |
+| [`agent-fleet`](skills/agent-fleet/) | dispatching many parallel subagents on a long campaign | One self-contained input per agent; checkpoint to disk; fresh agents from checkpoints; concurrency and token budgets; land finished work first, one pull request per branch through a merge queue, by a deterministic enqueue step, with review on the branch and finishers for bounces; adversarial refuters; cost per unit decides the lane. |
 | [`claude-cloud-sessions`](skills/claude-cloud-sessions/) | running work in Claude Code cloud sessions | Environment setup scripts and snapshots; multi-repo sessions and hooks; private-repo access; launch surfaces and **billing** (measured, including where it differs from the docs); stopping cleanly before a credit runs out. Includes a setup-script template. |
-| [`automating-agent-guardrails`](skills/automating-agent-guardrails/) | agents keep breaking a project's rules, or when setting up guard hooks, role agents, a session-start readiness check, cost telemetry or LSP navigation | Guard hooks on every shell tool that fail open, are scoped to the repo and prove each rule with a self-test in CI; role definitions with model, effort, turn cap, 1-hour cache and read-only hooks in the role itself, proven by a smoke dispatch after restart; a readiness check every session (OK / REPAIRED / N/A / TODO / ASK-OWNER) where anything needing your permission becomes a question; local per-agent cost telemetry. Includes the scripts and templates. |
+| [`automating-agent-guardrails`](skills/automating-agent-guardrails/) | agents keep breaking a project's rules, or when setting up guard hooks, role agents, a session-start readiness check, cost telemetry or LSP navigation | Guard hooks on every shell tool that fail open, are scoped to the repo and prove each rule with a self-test in CI; role definitions (implementer, finisher, refuter, analyst, chore, locator) with model, effort, turn cap, 1-hour cache and read-only hooks in the role itself, proven by a smoke dispatch after restart; a readiness check every session (OK / REPAIRED / N/A / TODO / ASK-OWNER) where anything needing your permission becomes a question; local per-agent cost telemetry. Includes the scripts and templates. |
 
 **Project memory**
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`devlog`](skills/devlog/) | keeping a development log, work history or fix log that agents write and read; recording a failed or overturned approach; checking whether something was tried before | Three forms by purpose (working history, defect/fix log, published narrative); an entry with every change; timestamps from the clock; corrections as new entries, never rewrites; failures kept; only the log is historical. Agents search it before retrying instead of reading it at session start; consolidation yields candidate learnings, and only those an adversarial validation vets enter the learnings file or a skill. Includes an entry script (both layouts, line endings kept), a commit hook and the templates. |
+| [`devlog`](skills/devlog/) | keeping a development log, work history or fix log that agents write and read; recording a failed or overturned approach; checking whether something was tried before | Three forms by purpose (working history, defect/fix log, published narrative); one entry per landing, one file per entry, numbered at enqueue, the newest-first view rendered; timestamps from the clock; corrections as new entries, never rewrites; failures kept; only the log is historical. Agents search it before retrying instead of reading it at session start; consolidation yields candidate learnings, and only those an adversarial validation vets enter the learnings file or a skill. Includes the entry script (`new`, `stamp`, `check --base` for CI, `render`, `migrate`), a pull-request hook and the templates. |
 
 `engineering-standards` is the bar every other skill applies in its own context — each has a short *Standards*
 section saying how.

@@ -71,6 +71,8 @@ hooks*), and its criteria below. Each agent reads surrounding code as needed - a
 - Specialist agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) launch
   in the same message when the change matches and go through the same Step 6 skeptic.
 - A fixed time limit in a test is a finding; a performance finding names an input size.
+- A change to I/O, storage, sorting or concurrency code whose tests miss a failure path it can reach (a status it can
+  return, a refused write or sync, a crash point, contention) is a finding (`engineering-standards` section 5).
 
 Read `references/dimensions.md` before launching the Step 5 agents: it holds the criteria to hand each agent and when each specialist applies.
 

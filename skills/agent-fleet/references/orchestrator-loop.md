@@ -94,6 +94,25 @@ supervisor against a fake `claude` that emits canned stream-json, but expect the
    worktrees, committed the uncommitted work in four of them, wrote a status file in each, and named the next unit; nothing was
    lost. The next wave then ran 2.5 hours, well past the old 600-second ceiling, and landed all eight groups (then in two
    lander trains, the pipeline `landing.md` retired on 2026-10-11) with none dropped.
+11. **A standing constraint carried as prose is eventually dropped.** The owner limited the loop to finishing started work
+   (a drain).
+   - A steer told one unit, and units passed the rule on in their handoff summaries.
+   - A few units later a handoff summarized other things, and the next wave unit planned four new groups. They launched
+     before the operator could stop them.
+   - A steer lasts one unit, and a handoff sentence is a summary, so neither carries a rule.
+
+   **Make every standing constraint a supervisor argument**, substituted into each unit's planning command as in item 6,
+   switched on and off with the supervisor's own command. Pin it with a test that the unit's rendered prompt carries it.
+   *(Observed 2026-10-18; the fix is practice, not yet validated.)*
+12. **One orchestrator per branch.** An attended session ran its own wave beside the loop. The loop's review unit
+   reviewed every branch the branch survey listed as waiting for review, including the attended session's in-flight
+   branch, and stamped its report. Its next handoff then asked for a finisher on that branch, which would have run on a
+   cheaper model than the branch's owner had chosen. The fix:
+   - record the dispatching orchestrator with each group in the dispatch ledger, and show it in the branch survey;
+   - a unit reviews, finishes or plans only its own orchestrator's branches and the ones explicitly handed to it;
+   - the landing step still lands any branch its owner's review approved.
+
+   *(Observed 2026-10-18; the fix is practice, not yet validated.)*
 
 ## Measured in that campaign (one campaign, so a starting point rather than a law)
 

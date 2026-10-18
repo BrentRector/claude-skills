@@ -35,6 +35,28 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.21.0
+
+- **Failure-path tests validate the design** (`engineering-standards` §5, `review` Step 5). Wherever a component does
+  I/O, storage, sorting or concurrency, its tests cover every status it can return, a refused write or sync, a process
+  death at each point, and contention, as fully as the success path. A reviewer treats a missing one as a finding.
+  *The owner's standard; its premise was observed when every defect five review rounds found in one crash-recovery
+  design was on a failure path. Practice, not yet validated.*
+- **Run a concurrent or crash-recovery design before you review its prose** (`engineering-standards` §5). Build the
+  fault-injecting model from the first round, and change the method when two rounds find the same class of defect.
+  *Observed: five prose rounds of one design did not converge. Practice, not yet validated.*
+- **A successor chain carries each link's reviewed head forward** (`agent-fleet` §7, `references/grouping-fixes.md`).
+  With review in each group's slot, a "land the predecessor alone" fallback fires at every middle link and strands its
+  review fixes. Review a held chain at its tail, or run a chain deeper than a pair one link per wave. *Observed in a
+  three-link chain; the fix is practice, not yet validated.* `rolling-wave.js` already reviews at the tail.
+- **Two new lessons from the live loop** (`agent-fleet/references/orchestrator-loop.md`, items 11 and 12):
+  - a standing constraint (a drain, a scope) carried as prose in steers and handoffs is eventually dropped, so make it a
+    supervisor argument;
+  - one orchestrator per branch: record the dispatching orchestrator in the dispatch ledger, and let a unit act only on
+    its own.
+
+  *Both observed; the fixes are practice, not yet validated.*
+
 ## What's new in 1.20.0
 
 - **Landing is a merge queue, and the local gate is targeted** (`agent-fleet` §6 and `references/landing.md`,

@@ -32,6 +32,19 @@ The full text of agent-fleet section 7. Read it before filling implementer slots
   so two groups that each orient on the same file pay that twice. The cap exists because cost grows with the
   square of a transcript's turns. That is also why the successor is a FRESH agent that inherits the context,
   not a longer transcript that inherits the cost.* *(Practice — not yet validated: no A/B against independent groups.)*
+- **A chain must carry each link's REVIEWED head forward.** `rolling-wave.js` holds a predecessor unreviewed and reviews
+  the chain once, at its tail, which contains every link. A project that moves the review into each group's slot breaks
+  that if "landable" comes to mean "reviewed". A held middle link is unreviewed when its successor returns, so a rule
+  that falls back to "land the predecessor alone when the successor is not landable" fires at every middle link. The
+  predecessor is then reviewed and fixed on its own branch, and the rest of the chain never receives those fixes. Two
+  ways keep it whole:
+  - review a held chain only at its tail;
+  - start each successor from its predecessor's reviewed head.
+
+  Until one is proven, plan a chain deeper than a pair as successive waves, one link each, with the landing between.
+  *Why: in a three-link chain the second and third links carried none of the first link's seven review fixes, so each
+  later reviewer restated them and two finishers could fix one defect on two branches.* *(Observed 2026-10-18; the fix
+  is practice, not yet validated.)*
 - **Fill parallel slots with one group per subsystem**, not the next N items down the rank list.
   *Why: consecutive items in one area serialize on conflicts.* *(Practice — not yet validated: conflicts per landing were not measured before and after.)*
 - **Cluster leads by root cause before dispatching.** *Why: one mechanism, one fix; the group above is how

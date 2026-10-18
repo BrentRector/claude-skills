@@ -121,6 +121,7 @@ Read `references/landing.md` before scripting a wave, writing or running the enq
 
 - The unit for a slot is a group: the top-ranked item plus every open item sharing its source files or rule family; compute groups with `references/fix_clusters.py`, never by hand.
 - A file with more open items than the cluster cap gets same-file successors (`after`), not an independent second group.
+- A successor chain carries each link's REVIEWED head forward. If review runs in each group's slot, review a held chain once at its tail, or start each successor from its predecessor's reviewed head; until that is proven, run a chain deeper than a pair one link per wave.
 - Fill parallel slots with one group per subsystem; cluster leads by root cause; never put two unrelated mechanisms in one transcript.
 
 Read `references/grouping-fixes.md` before filling implementer slots or assigning defects.

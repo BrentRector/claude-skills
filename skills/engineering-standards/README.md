@@ -45,7 +45,9 @@ The rules are grouped into six sections (see [`SKILL.md`](SKILL.md) for the full
    only the owner may choose; never ship a half-feature.
 5. **Verification and invariants** — propose invariants and drift tests unprompted; prefer structural guarantees
    to conventions; make every new check fail once; verify values, not exit codes; every measurement carries a
-   witness; reachability is measured, not deduced.
+   witness; reachability is measured, not deduced; test I/O, storage, sorting and concurrency code on its failure
+   paths as fully as on success; verify a concurrent or crash-recovery design by running a fault-injecting model from
+   the first review round.
 6. **Docs and honesty** — docs describe the code as it is now; history goes in commits and the changelog;
    comments carry the *why*; cite the authority in code; forensic commit messages; report calibrated to the
    evidence; say it immediately when you were wrong.

@@ -55,6 +55,7 @@ Read `references/correctness-and-completeness.md` before fixing a bug, scoping a
 - Surface the governing drift rules before the edit from one home (`references/rule_index.py`); never copy the rules into docs or skills.
 - Make every new check fail once, for the right reason; ask what a check's scope excludes.
 - Verify values, not "it ran"; compute expected results from the authority; give every measurement a witness; measure reachability; vary the axis your subject holds fixed; compare against an independent implementation.
+- Test I/O, storage, sorting and concurrency code on its failure paths as fully as on success; verify a concurrent or crash-recovery design by running a fault-injecting model from the first review round, and change the method when two rounds find the same class of defect.
 
 Read `references/verification-and-invariants.md` before writing or trusting a test, a guard, a probe or a measurement.
 

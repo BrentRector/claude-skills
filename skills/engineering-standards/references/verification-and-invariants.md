@@ -33,3 +33,19 @@
 - **Compare against an independent implementation, not a round trip of your own.** A model that loses the same
   information on read and write passes its own round trip perfectly.
 
+- **Test the failure paths as fully as the success path.** Wherever a component does I/O, storage, sorting or
+  concurrency, the tests answer every status it can return, and cover:
+  - a refused write or sync, and a full medium;
+  - a process death at each point of each operation;
+  - contention between two writers;
+  - every exception the contract names, with and without a handler installed.
+
+  These cases validate the design itself, so a reviewer treats a missing one as a finding. *(The owner's standard,
+  2026-10-17. Its premise was observed the same day: every defect five review rounds found in one crash-recovery
+  design was on a failure path. Practice, not yet validated: no count yet of the defects such tests catch.)*
+- **Verify a concurrent or crash-recovery design by running it, from the first review round.** Build the
+  fault-injecting model first: lose unsynced writes, tear a page, serve a stale version, interleave two writers, kill a
+  lock holder. Run the design's invariants against it before the prose is called done. A prose review of such a
+  protocol does not converge. When two rounds find the same class of defect, change the method instead of running a
+  third. *(Observed 2026-10-17: five prose rounds of one design, each round's fix adding protocol and the next round
+  finding new interleavings. Practice, not yet validated: the model-first route has not yet been measured.)*

@@ -8,9 +8,9 @@ tests Claude rather than the skill, and so it can't detect an edit that breaks t
 
 ## What it covers
 
-Twenty-seven cases: one to six for each of the twelve skills and one for each of the four agents. Each case is a small
+Twenty-eight cases: one to six for each of the twelve skills and one for each of the four agents. Each case is a small
 scenario, written inline in its `prompt.md`, that can only be handled correctly by following that skill's rule.
-The scores below come from the last full run (3 runs per arm, 2026-09-25), except eleven cases added later and
+The scores below come from the last full run (3 runs per arm, 2026-09-25), except twelve cases added later and
 measured on their own: `agent-fleet-reprobe-backlog`, `agent-fleet-registrar-rerun` and
 `test-gate-conflict-markers-staged` (3 runs per arm, 2026-09-28), `automating-agent-guardrails-guard-design`
 (2 runs per arm), `agent-fleet-file-clusters` and `agent-fleet-orientation` (3 runs per arm, 2026-09-27), `agent-fleet-stamped-handoff` (3 runs per arm,
@@ -35,6 +35,7 @@ measured on their own: `agent-fleet-reprobe-backlog`, `agent-fleet-registrar-rer
 | `agent-fleet-stamped-handoff` | agent-fleet | Stamps the handoff summary with the commit it describes (`STATUS-AT: <sha>`) and has a resuming or successor agent run the bundled `status_delta.py` to read only the commits the summary does not cover | 1.00 | 0.00 |
 | `agent-fleet-reprobe-backlog` | agent-fleet | The implementer re-runs each stale item's repro first; one that no longer reproduces is discharged with evidence (the commit it ran on) and goes to a refuter | 1.00 | 0.50 |
 | `agent-fleet-registrar-rerun` | agent-fleet | The agent that files leads runs each lead's given repro once on its own build before filing (no fresh probe when a repro exists) and verifies quoted citations at their source | 1.00 | 0.00 |
+| `agent-fleet-finished-work-lands` | agent-fleet | A same-file predecessor reviewed CLEAN is enqueued at once (`A: ENQUEUE-NOW`, never held to land through its successor), the successor merges the REVIEWED head (the finisher's), a medium finding at the capped round is a lead (`X-ROUND-3: CLEAN`), and a torn findings file holds the branch that contains its head (`R: HELD`). Measured on its own, 3 runs per arm, 2026-10-18: the baseline fails only the round-cap threshold; the other three lines are regression guards | 1.00 | 0.75 |
 | `claude-cloud-sessions-multi-repo-hooks` | claude-cloud-sessions | Explains that multi-repo sessions start in `/home/user` and load no repo hooks, and fixes it with a user-level hook shim | 1.00 | 0.00 |
 | `agent-pr-test-analyzer` | pr-test-analyzer | Checks determinism: names a work-count or growth-ratio replacement for a Stopwatch ceiling (`Check:` findings) | 1.00 | 0.00 |
 | `agent-silent-failure-hunter` | silent-failure-hunter | Ranks the silent default price above the crash; findings carry `Harm: silent wrong answer` | 1.00 | 0.50 |

@@ -35,6 +35,20 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## What's new in 1.22.0
+
+- **Finished work lands at once** (`agent-fleet` §6 and §7, `references/landing.md`, `references/grouping-fixes.md`,
+  `rolling-wave.js`). There is no predecessor hold: a branch reviewed CLEAN is enqueued at once, and a same-file
+  successor merges the predecessor's reviewed head. Re-reviews read only the finisher's diff. A severity threshold
+  decides each round: critical and high block, medium blocks until the round cap, and low becomes a lead.
+  *Observed: one six-link chain had six groups DONE over seven hours and none landed. Validated on one campaign; the
+  new rule's landing times are not yet measured.* Eval: `agent-fleet-finished-work-lands`.
+- **One source of truth for unanswered findings, and a findings-file integrity rule** (`references/landing.md`, the
+  `review` skill's branch form). The findings file's last verdict is read by one function from the wave and the
+  survey. A torn file holds every branch it names until an operator repairs it, and a byte-offset property test proves
+  the rule. *The branch that introduced it took seven review rounds. Validated on one campaign.*
+- **Breaking:** in `rolling-wave.js` the review result field `confirmed` is renamed `blocking`.
+
 ## What's new in 1.21.0
 
 - **Failure-path tests validate the design** (`engineering-standards` §5, `review` Step 5). Wherever a component does

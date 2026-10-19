@@ -69,8 +69,8 @@ none of them tracked. *Industry term: backlog, or issue tracker.*
 
 **Cluster, group.** Defects grouped by the source file they live in, so one agent fixes everything in that file in
 one pass. The groups are computed from each note's code location, never picked by hand. A file with more defects
-than one agent should take gets a **same-file successor**: a fresh agent that inherits the first one's branch and
-handoff. → `agent-fleet/references/grouping-fixes.md`, `references/fix_clusters.py`.
+than one agent should take gets a **same-file successor**: a fresh agent that inherits the first one's reviewed
+branch and handoff, while the first branch lands on its own. → `agent-fleet/references/grouping-fixes.md`, `references/fix_clusters.py`.
 
 **Brief, dispatch spec.** The file an agent is pointed at instead of a pasted prompt: its slice of the work, the
 code sites, the repro, the rule, the gate command and the report format. A file survives a restart; a prompt does

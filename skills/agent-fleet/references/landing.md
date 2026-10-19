@@ -29,13 +29,21 @@ agent doing everything** (bring in, gate twice, review, fix, log, push, measure)
 
 1. **Implement** in an isolated worktree. The implementer's gate is the **targeted** local leg (below); its report says
    `DONE`, and it writes its own **log entry file** without a number (the `devlog` skill).
-2. **Review the branch when it is DONE**, inside the wave, by a read-only reviewer. A confirmed finding goes back to the
-   implementer or to a finisher. The landing step never reviews and never fixes.
+2. **Review the branch the moment it is DONE**, inside the wave, by a read-only reviewer. A blocking finding goes back
+   to a finisher; a branch reviewed CLEAN is enqueued at once, whether or not a successor follows it. The landing step
+   never reviews and never fixes.
 3. **Enqueue** — a deterministic SCRIPT, no agent: fetch; rebase the branch onto the default branch (a conflict stops it:
    the branch returns to waiting with the conflict named, and a finisher resolves it); run the targeted gate on the rebased
    head, on both hosts, under the shared gate-slot cap; stamp the log entry's number; run the landing checks (exactly one stamped entry,
    any file-set partition rule the project has); open the pull request (title = the branch's one-line subject, body = the
    forensic message); add it to the merge queue. Done: no lease, no local whole population, no waiting for CI.
+   A file-set partition orders only INDEPENDENT work that touches the same file. In-flight work that DESCENDS from the
+   landing branch (their merge-base lies beyond the default branch: a successor, a finisher or a carrier that merged
+   some head of it) never blocks the landing, because it lands on top of it; and a worktree with no commit beyond the
+   default branch blocks nothing. *Why: a successor that had merged an OLDER head of its predecessor "shared" six files
+   with the predecessor's reviewed branch and stopped its landing three times, with both gates green; an empty finisher
+   worktree in mid-merge did the same.* *(Validated 2026-10-18 on one campaign: those three stops; a self-test
+   reproduces them with the rule switched off.)*
 4. **The merge queue** builds a merge group (one or several queued pull requests on top of the default branch) and CI
    runs the **full matrix on the `merge_group` event**: every OS, every shard, the population check, the audits. One
    required check gates the queue. A red bounces only the pull request that caused it (the queue re-tests the rest); the
@@ -100,10 +108,102 @@ agent doing everything** (bring in, gate twice, review, fix, log, push, measure)
 
 A read-only reviewer runs the `review` skill's branch form over `<default>...HEAD` (correctness first, then the project's
 drift rules, time limits in tests and a citation spot-check) as soon as the implementer returns DONE, inside the wave and
-beside other implementers. A CONFIRMED finding goes back to the implementer (still oriented) or to a finisher, which fixes
-it at the root with a regression test and a sibling sweep and re-runs the targeted gate. Then the branch is enqueued.
+beside other implementers. A CONFIRMED blocking finding goes to a finisher, which fixes it at the root with a regression
+test and a sibling sweep, or refutes it with evidence, and re-runs the targeted gate; the branch is then reviewed again,
+for a fixed number of finisher rounds (two is a good default). A branch reviewed CLEAN is enqueued at once.
 *Why: in the measured campaign the review sat on the critical path between two gate runs and cost 23 % of the landing
 tokens; on the branch it runs in parallel, and the landing step stays a script.* *(Practice — not yet validated.)*
+
+- **Finished work is never held.** A branch reviewed CLEAN lands at once, successor or not. There is no predecessor
+  hold: a same-file successor merges its predecessor's REVIEWED head before its own review, and its pull request merges
+  on top of the predecessor's. The landing order is communicated to the successor, never enforced by holding the
+  predecessor back (`grouping-fixes.md`). *Why: the hold ("the predecessor lands through its successor") dates from
+  trains; with one pull request per branch it only postponed. One six-link chain had six groups DONE over seven hours
+  and none landed; one branch finished at 06:22 was held from 08:43 behind its successor, and another, finished at
+  08:50, was reviewed only at 10:10, after its successor returned.* *(Validated 2026-10-18 on one campaign; the new
+  rule's landing times are not yet measured.)*
+- **Round 2 and later review only the diff.** Round 1 reviews the whole branch. A re-review reads ONLY the finisher's
+  diff since the head the last round reviewed (`git diff <reviewed head>..HEAD`; when the finisher merged a newer
+  default branch, only its own commits) and its answers to the last round's findings. The earlier content is reviewed
+  and is not re-opened unless the diff touches it. *Why: three whole-branch rounds of one branch found 5, 2 and 1 NEW
+  findings over 2.3 hours, each round re-reading content already reviewed, and the rounds never converged.*
+  *(Validated 2026-10-18 on one campaign: that branch.)*
+- **A severity threshold decides the verdict.** Every finding carries a severity (critical, high, medium, low, info),
+  calibrated to what it does and never raised to make it block. Critical and high always block. Medium blocks while a
+  finisher can still answer it, and becomes a lead at the round after the last finisher. Low and info never block. A
+  finding with no severity, or an unknown one, blocks. Every finding stays recorded; each non-blocking one is a LEAD the
+  reviewer writes into the branch's report and the wave returns, so the loop files it as a work item. Critical and high
+  findings left at the cap keep the branch off the queue for its own next finisher. *Why: the round cap turned one LOW
+  finding (a test theory's length class) into a decision for a human, and a finished branch did not land.*
+  *(Validated 2026-10-18 on one campaign: that branch.)*
+- **"Does this branch carry unanswered blocking findings?" has ONE source of truth: the findings file's last
+  verdict.** One function reads it, and both the wave (deciding what a successor is told and whether to enqueue it) and
+  the landing survey (deciding whether a branch waits) call that one function. Never read it from a report stamp: a
+  finisher rewrites the branch's report for its own branch whatever it returns (BLOCKED, SPLIT, killed), so a hold read
+  from the stamp released a successor at exactly the moment nobody had answered its predecessor's findings. A successor
+  whose branch contains a head whose last verdict is FINDINGS is enqueued only after they are answered. *Why: deciding
+  from the stamp, then from the result's head, each let a CLEAN successor carry its predecessor's unanswered findings to
+  main in a reviewer's probe.* *(Validated 2026-10-18 on one campaign: two review rounds found it twice.)*
+
+## The findings file's integrity rule
+
+The findings file is the source of truth for a hold, so a damaged file must never read more permissively than the
+whole file would have.
+
+- **Find findings files by NAME only.** Discovery lists every file matching the naming pattern where the files live,
+  plus every file a report stamp names, and never opens one to decide whether it is one. A filter that opens files drops
+  exactly the damaged ones (a read denied, a byte-order mark from an editor) before the reader can hold them.
+- **Any tear HOLDS every branch the file names**, until an operator repairs the file by hand. A tear is any content
+  problem: no final newline, a line that is not JSON or not a record under the schema, bytes that are not UTF-8, a
+  byte-order mark, a file with no record, a file that cannot be opened or read (gone, a directory in its place, a read
+  denied), and a stamp naming a file that is missing. No verdict is read from a torn file, whatever its records say: the
+  records before a tear can read CLEAN when the whole file reads FINDINGS (a FINDINGS record that lost only its
+  newline, with the next record glued onto its line). The hold covers every branch the file names and every branch that
+  contains a head it names; a file that names none holds the branches of the item its name binds it to.
+- **Every writer refuses a torn file** before writing, naming the repair command, so nothing is ever glued onto a torn
+  line. Only an operator runs the repair (it keeps a last record that only lost its newline, removes a byte-order mark
+  and any other torn tail, and deletes a file left with no record); no wave, survey or reviewer does.
+- **Nothing raises out of the survey or the lane.** The reader returns a torn reading (with the reason, file, line and
+  byte offset) instead of an exception: an exception from one undecodable byte stops every landing.
+- **One record schema**, shared by the writers and the reader: each record kind's required fields and their types.
+  A writer refuses a record that fails it; the reader reads such a line as a tear; extra fields are allowed.
+- **The command-line reader and the survey give one answer**: the CLI prints the same reading, torn included, and
+  exits 0, so a caller reads the verdict from the reading, never from an exit code.
+- **Prove it with a property test, not cases.** Take a sample findings file with several rounds and a non-ASCII
+  character, cut it at every byte offset, alone and with a whole record glued after the cut, and assert that no cut
+  reads more permissively than the whole: a cut inside a record reads TORN and holds; a cut at a record boundary reads
+  exactly its records' verdict; the repaired bytes are accepted by every writer. Assert the strong form: "TORN or the
+  whole records' verdict" passes a reader that drops a glued FINDINGS record. Add one case per discovery path (read
+  denied, byte-order mark, empty file, directory, missing file) and one per schema mutation (each required field
+  dropped, each given a wrong type).
+
+*Why: the branch that introduced this rule took seven review rounds, the seventh CLEAN, and rounds 4 to 6 each found a
+reading the previous fix had missed: one torn line dropped every hold in its file; then a torn line swallowed a whole
+record and the prefix reader returned the CLEAN round before it; then discovery dropped a file it could not open, and
+a record missing a field released the hold. After the second round on the same class the method changed from
+case-by-case reasoning to the exhaustive property: against the round-4 reader it fails 2,519 of 3,453 cuts.*
+*(Validated 2026-10-18 on one campaign: the property is red against each earlier reader and green against the final
+one.)*
+
+## The branch survey
+
+A survey that gives every branch a lifecycle state (in flight, waiting for review, waiting to land, decision) reads
+the review verdicts too.
+
+- **A branch reviewed CLEAN at its tip keeps its own state, contained or not**: it is waiting to land, even when a
+  successor's branch contains it.
+- **A branch with no clean review at its tip that is contained in a reviewed or in-flight carrier** (one a finisher
+  merged, an unfinished or unreviewed predecessor) is IN FLIGHT via that carrier: it lands through the carrier, and is
+  neither a decision row nor a second review. Once the carrier lands, it reads landed and is deleted.
+- **A branch waiting to land that carries another item's unanswered blocking findings** (its unlanded commits contain
+  the head of a FINDINGS last verdict, or any head or name of a torn file) is IN FLIGHT, waiting on that item, until the
+  findings are answered or that head is on the default branch. A finisher of the same item carries them on purpose and
+  lands.
+
+*Why: the survey's containment rule read a CLEAN predecessor inside its successor as in flight, so the landing step
+would have held it even with the wave's hold gone; and reading an unreviewed predecessor as waiting for review sent a
+second reviewer over content its successor's review already covered.* *(Validated 2026-10-18 on one campaign: self-test
+cases for each arm.)*
 
 ## Conflict-free landing files: the tree holds sources, views are rendered
 

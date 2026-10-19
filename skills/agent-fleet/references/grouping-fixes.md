@@ -22,29 +22,31 @@ The full text of agent-fleet section 7. Read it before filling implementer slots
   across two implementers who then edited it separately; computed clusters turned 411 open defects into 125
   groups (42 of five), so a six-slot wave carried ~25–30 fixes instead of ~10, each file read and gated once.* *(Practice — not yet validated: no before/after measure of fixes landed per wave.)*
 - **A file with more open items than the cluster cap gets SAME-FILE SUCCESSORS**, not a second independent group.
-  The second cluster declares its predecessor (`after`). It waits for the predecessor to return, merges its
-  branch, and orients from the predecessor's handoff notes (its report's "for the next implementer" section and
-  checkpoint file) instead of re-surveying the file. The predecessor's branch is held from the enqueue step and lands
-  THROUGH the successor, which contains it; if the successor produces nothing landable, the predecessor is
-  reviewed and enqueued alone. The same chaining works across one technological area (a runtime file, then its emitter). A dispatch
-  check can refuse two groups on one primary file that are not linked this way.
+  The second cluster declares its predecessor (`after`). It merges the predecessor's branch and orients from the
+  predecessor's handoff notes (its report's "for the next implementer" section and checkpoint file) instead of
+  re-surveying the file. The same chaining works across one technological area (a runtime file, then its emitter). A
+  dispatch check can refuse two groups on one primary file that are not linked this way.
   *Why: orientation (reading and searching before the first edit) was about half of every implementer's tokens,
   so two groups that each orient on the same file pay that twice. The cap exists because cost grows with the
   square of a transcript's turns. That is also why the successor is a FRESH agent that inherits the context,
   not a longer transcript that inherits the cost.* *(Practice — not yet validated: no A/B against independent groups.)*
-- **A chain must carry each link's REVIEWED head forward.** `rolling-wave.js` holds a predecessor unreviewed and reviews
-  the chain once, at its tail, which contains every link. A project that moves the review into each group's slot breaks
-  that if "landable" comes to mean "reviewed". A held middle link is unreviewed when its successor returns, so a rule
-  that falls back to "land the predecessor alone when the successor is not landable" fires at every middle link. The
-  predecessor is then reviewed and fixed on its own branch, and the rest of the chain never receives those fixes. Two
-  ways keep it whole:
-  - review a held chain only at its tail;
-  - start each successor from its predecessor's reviewed head.
-
-  Until one is proven, plan a chain deeper than a pair as successive waves, one link each, with the landing between.
-  *Why: in a three-link chain the second and third links carried none of the first link's seven review fixes, so each
-  later reviewer restated them and two finishers could fix one defect on two branches.* *(Observed 2026-10-18; the fix
-  is practice, not yet validated.)*
+- **Nothing is held for a successor: each link lands on its own, and a successor merges its predecessor's REVIEWED
+  head.** The predecessor is reviewed the moment it returns, in its own slot, and enqueued the moment its review ends
+  CLEAN. The successor starts once that review loop has ended (CLEAN, FINDINGS at the round cap, or a review or
+  finisher that did not finish), merges the predecessor's FINAL head (the finisher's, when one ran), and is told how it
+  ended: reviewed CLEAN, so it lands now and the successor's pull request merges on top; or FINDINGS, so the successor's
+  branch carries them and is enqueued only after they are answered. The landing order is communicated, never enforced
+  by holding. The successor's round-1 review leaves the predecessor's content reviewed CLEAN alone, does not record
+  again findings capped in the predecessor's own findings file, and covers as its own any predecessor content whose
+  review or finisher did not finish. A predecessor branch with no clean review at its tip is contained in the successor
+  and lands through it: the landing survey reads it in flight via its carrier, never as a branch to decide or review
+  again.
+  *Why: holding a predecessor to land "through" its successor dates from trains, when two same-file branches had to
+  ride one; with one pull request per branch through a merge queue it saves nothing and only postpones. In one wave a
+  six-link chain had six groups DONE over seven hours and none landed: a predecessor reviewed by 08:43 waited for its
+  successor, another was reviewed only after its successor returned, and a successor built on its predecessor's UNFIXED
+  head made its reviewer restate the predecessor's findings.* *(Validated 2026-10-18 on one campaign: the chain that had
+  landed nothing in seven hours; the new rule's landing times are not yet measured.)*
 - **Fill parallel slots with one group per subsystem**, not the next N items down the rank list.
   *Why: consecutive items in one area serialize on conflicts.* *(Practice — not yet validated: conflicts per landing were not measured before and after.)*
 - **Cluster leads by root cause before dispatching.** *Why: one mechanism, one fix; the group above is how

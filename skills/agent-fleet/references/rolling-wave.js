@@ -1,10 +1,10 @@
 export const meta = {
   name: 'rolling-wave',
-  description: 'Rolling fix lane: implementer groups run N at a time from one queue (a freed slot refills at once), same-file successors inherit their predecessor\'s branch, each DONE branch is reviewed read-only, and each approved branch is enqueued through the project\'s own enqueue command',
+  description: 'Rolling fix lane: implementer groups run N at a time from one queue (a freed slot refills at once), each DONE branch is reviewed read-only the moment it returns and enqueued at once when CLEAN, same-file successors merge their predecessor\'s REVIEWED head, and each approved branch is enqueued through the project\'s own enqueue command',
   whenToUse: 'The standard fix-lane dispatch for an agent fleet (agent-fleet references/landing.md and references/grouping-fixes.md).',
   phases: [
     { title: 'Implement', detail: 'one implementer per group, isolated worktrees, rolling pool' },
-    { title: 'Review', detail: 'a read-only reviewer per DONE branch; a finisher answers confirmed findings' },
+    { title: 'Review', detail: 'a read-only reviewer per DONE branch; a finisher per blocking round; a re-review reads only the diff' },
     { title: 'Enqueue', detail: 'the project\'s deterministic enqueue command per approved branch (one pull request each)' },
   ],
 }
@@ -27,11 +27,21 @@ export const meta = {
 //   implementerAgent, reviewerAgent, finisherAgent: the agent types (judgment roles; the reviewer is read-only),
 //   enqueueAgent:    optional agent type that runs the enqueue command and reports its verdict (a cheap tier is enough;
 //                    a Workflow script cannot run a shell command itself),
+//   readerAgent:     optional agent type that runs lastVerdictCommand (a cheap read-only tier; default enqueueAgent),
 //   model:           optional model alias for the judgment roles (omit to inherit); a group's own `model` overrides it,
-//   reviewBrief:     path of the reviewer's brief (the review skill's branch form: <default>...HEAD, correctness first),
+//   reviewBrief:     path of the reviewer's brief (the review skill's branch form, correctness first). It names the
+//                    project's ONE writer of the findings file, which records each finding with its severity and
+//                    computes the round's verdict from the file,
 //   findingsPattern: where each branch's findings file is written, with {letter} substituted,
-//   finisherBrief:   path of the finisher's brief (fix each confirmed finding at the root, regression test, sibling
+//   lastVerdictCommand: optional: the project's ONE reader of a findings file, with {file} substituted. It prints the
+//                    file's newest verdict as one JSON line ({round, head, verdict: CLEAN | FINDINGS | TORN,
+//                    blocking}) and never fails: a torn or unreadable file reads TORN. The landing survey must call
+//                    the same reader (references/landing.md). Without it, every FINDINGS end reads `unanswered`,
+//   finisherBrief:   path of the finisher's brief (fix each blocking finding at the root, regression test, sibling
 //                    sweep, the targeted gate again),
+//   reviewFixRounds (2): finisher rounds per branch; the review round after the last finisher is the CAPPED round,
+//   blocking ('critical,high,medium'): the severities that block a round a finisher can still answer,
+//   blockingAtCap ('critical,high'): the severities that block the capped round,
 //   enqueueCommand:  optional: the project's DETERMINISTIC enqueue step for one branch, with {branch} and {worktree}
 //                    substituted (fetch, rebase, the targeted gate under the gate-slot cap, stamp the log entry, the
 //                    landing checks, open the pull request, add it to the merge queue). Omit it to return the approved
@@ -45,11 +55,17 @@ export const meta = {
 //                    substituted, e.g. "python <skills>/agent-fleet/references/status_delta.py {worktree}",
 //   groups:          [{ letter, lead, notes, after? }]   // after = the letter of a same-file predecessor
 // }
+// returns { results, reviewed, ready, leads }: `ready` holds every branch the wave did not enqueue, with its reason;
+// `leads` holds every review's non-blocking findings, for the loop to file as work items.
 const W = args.wave
 const CONC = args.concurrency || 6
 // A group may carry its own `model` ('sonnet' | 'opus'), which overrides args.model: size the model to the group's work.
 const opt = (extra, model) => ((model || args.model) ? { ...extra, model: model || args.model } : extra)
 const CEILING_MIN = args.implementerCeilingMin === undefined ? 240 : args.implementerCeilingMin
+const REVIEW_FIX_ROUNDS = args.reviewFixRounds === undefined ? 2 : args.reviewFixRounds
+const BLOCKING = args.blocking || 'critical,high,medium'
+const BLOCKING_AT_CAP = args.blockingAtCap || 'critical,high'
+const READER = args.readerAgent || args.enqueueAgent
 
 // A model call can HANG: measured, an implementer that had finished and gated its work never produced another
 // token, and the wave's final step waited on it (a workflow cannot stop one of its own agents). The ceiling is the
@@ -86,11 +102,14 @@ const IMPL_SCHEMA = {
 const REVIEW_SCHEMA = {
   type: 'object',
   properties: {
+    // CLEAN: this round recorded no finding of a blocking severity. FINDINGS: `blocking` of them. BLOCKED: the review
+    // did not finish (the writer refused a torn findings file, the STOP file appeared, the branch would not read).
     verdict: { type: 'string', enum: ['CLEAN', 'FINDINGS', 'BLOCKED'] },
-    confirmed: { type: 'integer' }, findings_file: { type: 'string' },
+    blocking: { type: 'integer' }, head: { type: 'string' }, findings_file: { type: 'string' },
+    leads: { type: 'array', maxItems: 6, items: { type: 'string', maxLength: 500 } },
     summary: { type: 'string', maxLength: 600 },
   },
-  required: ['verdict', 'confirmed', 'findings_file', 'summary'],
+  required: ['verdict', 'blocking', 'head', 'findings_file', 'summary'],
 }
 const FINISH_SCHEMA = {
   type: 'object',
@@ -100,6 +119,16 @@ const FINISH_SCHEMA = {
     summary: { type: 'string', maxLength: 600 },
   },
   required: ['status', 'head', 'gate_verdict', 'summary'],
+}
+const LAST_VERDICT_SCHEMA = {
+  type: 'object',
+  properties: {
+    // NONE: the command printed no verdict line (read as unanswered, never as clean).
+    verdict: { type: 'string', enum: ['CLEAN', 'FINDINGS', 'TORN', 'NONE'] },
+    round: { type: 'integer' }, head: { type: 'string' }, blocking: { type: 'integer' },
+    output_tail: { type: 'string', maxLength: 800 },
+  },
+  required: ['verdict', 'output_tail'],
 }
 const ENQUEUE_SCHEMA = {
   type: 'object',
@@ -112,22 +141,67 @@ const ENQUEUE_SCHEMA = {
   required: ['verdict', 'output_tail'],
 }
 
-// SAME-FILE SUCCESSORS: a group with `after` runs only once its predecessor has returned. It merges the
-// predecessor's branch and orients from its handoff notes instead of re-surveying the file. The predecessor's
-// branch is HELD and lands through the successor (which contains it); if the successor yields nothing landable,
-// the predecessor is reviewed and enqueued alone.
+// FINISHED WORK IS NEVER HELD. Every finished branch is reviewed the moment its implementer returns, beside the other
+// implementers, and is enqueued the moment its review ends CLEAN, whether or not a same-file successor follows it.
+// There is no predecessor hold: with one pull request per branch through a merge queue, holding a predecessor to land
+// "through" its successor saves nothing and postpones the whole chain until its last link is clean.
+//
+// SAME-FILE SUCCESSORS: a group with `after` starts once its predecessor is SETTLED: its review loop has ended (CLEAN,
+// FINDINGS n, STALE, BLOCKED or NO-RESULT), or it returned with nothing to review. It merges the predecessor's FINAL,
+// REVIEWED head (the finisher's, when one ran) and orients from its handoff notes instead of re-surveying the file. The
+// landing order is COMMUNICATED (the successor is told the predecessor lands on its own and its own pull request merges
+// on top), never enforced by holding. The one thing that keeps a CLEAN successor off the queue is a predecessor's
+// UNANSWERED BLOCKING FINDINGS, which the successor's branch carries; whether they stand is read from ONE source, the
+// predecessor's findings file, through the project's ONE reader (lastVerdictCommand), never from a report stamp.
 const queue = [...args.groups]
 const results = []
-const byLetter = {}
-const held = {}
-const reviewed = []   // { letter, branch, review, finish?, enqueue? } per branch that went past the implementer
-const ready = []      // approved branches not enqueued here (no enqueueCommand, or the enqueue step stopped)
-const post = []       // the review → finish → enqueue chains; they run beside the implementers, never in a slot
+const byLetter = {}   // letter -> the group's SETTLED result (the reviewed one): a successor starts only once it is set
+const reviewed = []   // { letter, branch, rounds, leads, enqueue? } per branch that went past the implementer
+const ready = []      // branches not enqueued here, each with its reason (no enqueueCommand, findings open, enqueue stopped)
+const post = []       // the review -> finish -> enqueue chains; they run beside the implementers, never in a slot
 let running = 0
+let settling = 0      // review chains still running: a successor parked on one must not be started fresh
 let wake = () => {}
 
 const hasSuccessorQueued = letter => queue.some(g => g.after === letter)
 const landable = r => r.status === 'DONE' || ((r.status === 'DISCHARGED' || r.status === 'SPLIT') && r.head && r.head !== r.base)
+const sameHead = (a, b) => !!a && !!b && (a.startsWith(b) || b.startsWith(a))
+const findingsFile = letter => args.findingsPattern.replace('{letter}', letter.toLowerCase())
+function wakeAll() { const w = wake; wake = () => {}; w() }
+
+// HOW A PREDECESSOR'S REVIEW ENDED, as its successor and the successor's reviewer read it. ONE reading, so the
+// implementer's note and the reviewer's scope never disagree.
+//   'clean'       reviewed CLEAN at its head: it is enqueued on its own.
+//   'capped'      FINDINGS, and the findings file's last verdict is the capped round at the predecessor's head: no
+//                 finisher followed it, so the findings belong to the predecessor's own next finisher. The successor
+//                 neither answers them nor records them again, and it is not enqueued while they stand.
+//   'unanswered'  any other FINDINGS end: a finisher was sent and came back without answering (SPLIT, BLOCKED, killed;
+//                 a commit of its own or none), or the last verdict could not be read, or the file is TORN. Whatever
+//                 the finisher left half done is on the successor's branch, so the successor's review covers the
+//                 predecessor's commits as its own and records again each finding that still holds; and it is not
+//                 enqueued while they stand. A torn file is never read as capped.
+//   'unreviewed'  the review did not finish (STALE, BLOCKED, NO-RESULT): its commits are reviewed with the successor's.
+function predecessorEnd(p) {
+  if (p.review === 'CLEAN') return 'clean'
+  if (!/^FINDINGS/.test(p.review || '')) return 'unreviewed'
+  const v = p.last_verdict
+  return v && v.verdict === 'FINDINGS' && v.blocking > 0 && v.round > REVIEW_FIX_ROUNDS && sameHead(v.head, p.head)
+    ? 'capped' : 'unanswered'
+}
+
+// THE ONE READER of a findings file, run by one cheap read-only agent (a workflow script cannot run a command itself).
+// null (read as unanswered) when the project names no reader or the reader gave no verdict line.
+async function lastVerdict(letter) {
+  if (!args.lastVerdictCommand) return null
+  const cmd = args.lastVerdictCommand.replace('{file}', findingsFile(letter))
+  const v = await agent(
+    AUTH + `Run EXACTLY this command once, alone (never chained), and read the one verdict line it prints: ${cmd} ` +
+    `Read no other file and judge nothing: report the verdict, round, head and blocking count exactly as printed, and the tail of its output.`,
+    { label: `last-verdict-${letter}`, phase: 'Review', agentType: READER, schema: LAST_VERDICT_SCHEMA }
+  ).catch(() => null)
+  if (!v || v.verdict === 'NONE') { log(`${letter}: the findings reader gave no verdict; its successor reads it unanswered`); return null }
+  return v
+}
 
 function successorNote(g) {
   if (!g.after) return ''
@@ -135,14 +209,42 @@ function successorNote(g) {
   if (!p || !(p.head && p.head !== p.base)) {
     return `Your predecessor group ${g.after} produced no branch (status ${p ? p.status : 'never ran'}); start from the default branch as usual. `
   }
-  return `SAME-FILE SUCCESSOR: your predecessor group ${g.after} (${p.notes}) returned ${p.status} on branch ${p.branch} ` +
-    `(worktree ${p.worktree}, head ${p.head}, report ${p.report}). FIRST merge that branch into yours, then read that report's ` +
-    `handoff section ("for the next implementer") and its STATUS.md as your orientation for the shared file; do not ` +
-    `re-survey it. STATUS.md is navigation, never evidence: its first line STATUS-AT names the commit it describes` +
+  const file = findingsFile(g.after)
+  return `SAME-FILE SUCCESSOR: your predecessor group ${g.after} (${p.notes}) ended ${p.status}, review ${p.review || 'none'}, ` +
+    `on its FINAL branch ${p.branch} (worktree ${p.worktree}, head ${p.head}, report ${p.report}). FIRST merge that branch ` +
+    `at head ${p.head} into yours (it is the reviewed head), then read that report's handoff section ("for the next ` +
+    `implementer") and its STATUS.md as your orientation for the shared file; do not re-survey it. STATUS.md is ` +
+    `navigation, never evidence: its first line STATUS-AT names the commit it describes` +
     (args.statusDelta
       ? `, and ${args.statusDelta.replace('{worktree}', p.worktree)} lists exactly the commits it does not cover; read ONLY those beyond the summary`
       : `; read ONLY the commits after that sha (every commit since the base if the stamp is missing or not in the branch)`) +
-    `. Its items land through YOUR branch (list them as landed-via-predecessor). `
+    `. Its items are its own: never claim them as yours. ` +
+    {
+      clean: `It was reviewed CLEAN and is enqueued ON ITS OWN, now; your pull request merges on top of it. `,
+      capped: `Its review ended ${p.review} at the round cap: those findings (${file}) belong to its own next finisher, ` +
+        `not to you; do not fix or answer them. Your branch carries them, so it is enqueued only after they are answered. `,
+      unanswered: `Its review ended ${p.review} and its finisher came back ${p.finisher || 'without a verdict'} without ` +
+        `answering them: those findings (${file}) are UNANSWERED and your branch carries them, with whatever that finisher ` +
+        `left half done. Read them and fix the ones your change reaches; your reviewer covers the predecessor's commits as ` +
+        `yours, and your branch is enqueued only after they are answered. `,
+      unreviewed: `Its review did not finish (${p.review || 'none'}), so its commits on your branch are reviewed with yours and land with yours. `,
+    }[predecessorEnd(p)]
+}
+
+// What round 1 of a SUCCESSOR's review leaves alone, by predecessorEnd: content reviewed CLEAN is not re-opened (a
+// successor's reviewer that re-reviews it restates the predecessor's findings); a capped predecessor's findings stay in
+// its own file. An unanswered predecessor is reviewed with this branch and its findings recorded again; an unreviewed
+// one is reviewed as this branch.
+function predecessorScope(g) {
+  const p = g.after ? byLetter[g.after] : null
+  if (!p || !p.review || !(p.head && p.head !== p.base)) return ''
+  const file = findingsFile(g.after)
+  return {
+    clean: `This branch merged its same-file predecessor ${p.branch} at ${p.head}, reviewed CLEAN (${file}): that content is reviewed and is not re-opened unless this branch's own commits touch it. `,
+    capped: `This branch merged its same-file predecessor ${p.branch} at ${p.head}, whose review ended ${p.review} at the round cap: those findings are recorded in ${file} and belong to its own finisher; do not record them again here. `,
+    unanswered: `This branch merged its same-file predecessor ${p.branch} at ${p.head}, whose findings (${file}) are UNANSWERED: review the predecessor's commits as part of this branch and record again here each of those findings that still holds on this head. `,
+    unreviewed: '',
+  }[predecessorEnd(p)]
 }
 
 function runGroup(g) {
@@ -162,61 +264,110 @@ function runGroup(g) {
   })
 }
 
-// REVIEW ON THE BRANCH, then ENQUEUE. The review runs when the branch is DONE, beside the other implementers, so it is
-// never on a landing's critical path; the enqueue step never reviews and never fixes.
-async function reviewAndEnqueue(r) {
-  const rec = { letter: r.letter, branch: r.branch, worktree: r.worktree }
-  reviewed.push(rec)
-  const findings = args.findingsPattern.replace('{letter}', r.letter.toLowerCase())
-  rec.review = await agent(
-    AUTH + `You are the READ-ONLY reviewer of branch ${r.branch} (worktree ${r.worktree}, group ${r.letter}: ${r.notes}; ` +
-    `implementer report ${r.report}). Read ${args.reviewBrief} whole and follow it. Review the branch's diff against the ` +
-    `default branch; write every CONFIRMED finding, each with its concrete failure scenario, repro and code site, to ` +
-    `${findings}. You never edit the branch. ` + STOP + `Return the verdict, the confirmed count and the findings path.`,
-    opt({ label: `review-${r.letter}`, phase: 'Review', agentType: args.reviewerAgent, schema: REVIEW_SCHEMA })
-  ).catch(e => ({ verdict: 'BLOCKED', confirmed: 0, findings_file: findings, summary: String(e && e.message || e) }))
-  if (!rec.review || rec.review.verdict === 'BLOCKED') {
-    log(`${r.letter}: review did not complete; the branch waits for the orchestrator`)
-    ready.push({ ...rec, reason: 'review incomplete' })
-    return
-  }
-  if (rec.review.verdict === 'FINDINGS' && rec.review.confirmed > 0) {
-    rec.finish = await agent(
-      AUTH + `You are the FINISHER of branch ${r.branch} (worktree ${r.worktree}). Read ${args.finisherBrief} whole and ` +
-      `follow it. Answer every confirmed finding in ${findings}: fix it at the root with a regression test and a sibling ` +
-      `sweep, or refute it with evidence written beside it. Then run the TARGETED gate again. ` + STOP +
-      `Return status, the new head sha, the gate verdict line and the number answered.`,
-      opt({ label: `finish-${r.letter}`, phase: 'Review', agentType: args.finisherAgent, schema: FINISH_SCHEMA })
-    ).catch(e => ({ status: 'BLOCKED', head: '', gate_verdict: '', summary: String(e && e.message || e) }))
-    if (!rec.finish || rec.finish.status !== 'DONE') {
-      log(`${r.letter}: findings not all answered (${rec.finish ? rec.finish.status : 'NO-RESULT'}); not enqueued`)
-      ready.push({ ...rec, reason: 'findings open' })
-      return
-    }
-  }
-  if (!args.enqueueCommand) { ready.push(rec); return }
-  const cmd = args.enqueueCommand.replace('{branch}', r.branch).replace('{worktree}', r.worktree)
-  rec.enqueue = await agent(
-    AUTH + `Run EXACTLY this command once, alone (never chained), to a log, and read its verdict line: ${cmd} ` +
-    `Change nothing yourself: if it stops on a conflict or a red, report that verdict and the tail of its output.`,
-    opt({ label: `enqueue-${r.letter}`, phase: 'Enqueue', agentType: args.enqueueAgent, schema: ENQUEUE_SCHEMA })
-  ).catch(e => ({ verdict: 'ERROR', output_tail: String(e && e.message || e) }))
-  log(`${r.letter}: enqueue ${rec.enqueue ? rec.enqueue.verdict : 'NO-RESULT'}${rec.enqueue && rec.enqueue.pr ? ' ' + rec.enqueue.pr : ''}`)
-  if (!rec.enqueue || rec.enqueue.verdict !== 'ENQUEUED') ready.push({ ...rec, reason: 'enqueue stopped' })
+// THE REVIEW LOOP. Round 1 reviews the whole branch. On FINDINGS a finisher answers the blocking ones and the branch is
+// reviewed again, at most REVIEW_FIX_ROUNDS times; a re-review reads ONLY the finisher's diff from the head the last
+// round reviewed, plus its answers, because the earlier content is reviewed (whole-branch re-reviews each find something
+// new and never converge). The verdict is a SEVERITY THRESHOLD: BLOCKING while a finisher can still answer, then
+// BLOCKING_AT_CAP, so a medium finding blocks until the cap and is a lead there, a low or info one never blocks, and
+// critical and high always block. Every non-blocking finding is a LEAD, recorded and returned, never dropped.
+function reviewPrompt(g, r, round, head, reviewedHead, blocking, file) {
+  return AUTH + `You are the READ-ONLY reviewer of branch ${r.branch} (worktree ${r.worktree}, group ${r.letter}: ${r.notes}; ` +
+    `implementer report ${r.report}), review round ${round}, at head ${head}. Read ${args.reviewBrief} whole and follow it. ` +
+    (round === 1
+      ? `Review the whole branch: its diff against the default branch. ` + predecessorScope(g)
+      : `This is a RE-REVIEW after the finisher's round: review ONLY \`git diff ${reviewedHead}..${head}\` (when the finisher ` +
+        `merged a newer default branch, only its own commits: \`git log --no-merges ${reviewedHead}..${head} --not <default>\`) ` +
+        `and its answers to round ${round - 1}'s findings in ${file}. The earlier content is reviewed and is not re-opened ` +
+        `unless the diff touches it. Raise again only a blocking finding neither fixed nor answered with a reason you accept, ` +
+        `and any new defect the diff introduced. `) +
+    `Record every CONFIRMED finding in ${file} through the project's writer, each with its concrete failure scenario, repro, ` +
+    `code site and SEVERITY (critical, high, medium, low or info: what it does, calibrated, never raised to make it block). ` +
+    `This round's blocking severities are ${blocking}: the verdict is computed from the file, CLEAN when this round recorded ` +
+    `no finding of a blocking severity, else FINDINGS with that count; a finding with no severity, or an unknown one, blocks. ` +
+    `Every other finding is a LEAD: recorded, not blocking; return each as a one-line lead. If the writer refuses the ` +
+    `findings file as torn, stop: never edit or repair it; return BLOCKED. You never edit the branch. ` + STOP +
+    `Return the verdict, the blocking count, the head you reviewed, the findings path and the leads.`
 }
 
-const release = r => { post.push(reviewAndEnqueue(r)) }
+async function reviewLoop(g, r) {
+  const rec = { letter: r.letter, branch: r.branch, worktree: r.worktree, rounds: [], leads: [] }
+  reviewed.push(rec)
+  const file = findingsFile(r.letter)
+  let head = r.head
+  let reviewedHead = null
+  for (let round = 1; ; round++) {
+    const capped = round > REVIEW_FIX_ROUNDS
+    const v = await agent(reviewPrompt(g, r, round, head, reviewedHead, capped ? BLOCKING_AT_CAP : BLOCKING, file),
+      opt({ label: `review-${r.letter}-r${round}`, phase: 'Review', agentType: args.reviewerAgent, schema: REVIEW_SCHEMA })
+    ).catch(() => null)
+    const verdict = !v ? 'NO-RESULT' : (v.verdict === 'CLEAN' && !sameHead(v.head, head)) ? 'STALE' : v.verdict
+    if (v && Array.isArray(v.leads)) rec.leads.push(...v.leads)
+    rec.rounds.push({ round, head, verdict, blocking: v ? v.blocking : null })
+    log(`${r.letter}: review round ${round} at ${head}: ${verdict}${verdict === 'FINDINGS' ? ' ' + v.blocking : ''}`)
+    const end = { ...r, head, review_rounds: round, review_leads: rec.leads, rec }
+    if (verdict === 'CLEAN') return { ...end, review: 'CLEAN' }
+    if (verdict !== 'FINDINGS') return { ...end, review: verdict }
+    if (capped) {
+      log(`${r.letter}: still FINDINGS after ${REVIEW_FIX_ROUNDS} finisher round(s); its own next finisher answers them`)
+      return { ...end, review: `FINDINGS ${v.blocking}` }
+    }
+    const f = await agent(
+      AUTH + `You are the FINISHER of branch ${r.branch} (worktree ${r.worktree}) after review round ${round}. Read ` +
+      `${args.finisherBrief} whole and follow it. Answer EVERY BLOCKING finding of round ${round} in ${file} by its id: fix ` +
+      `it at the root with a regression test and a sibling sweep, or refute it with evidence written beside it. A LEAD is ` +
+      `not yours unless it sits in a file you change anyway. Then run the TARGETED gate again and commit. ` + STOP +
+      `Return status, the new head sha, the gate verdict line and the number answered.`,
+      opt({ label: `finish-${r.letter}-r${round}`, phase: 'Review', agentType: args.finisherAgent, schema: FINISH_SCHEMA })
+    ).catch(() => null)
+    if (!f || f.status !== 'DONE' || !f.head || sameHead(f.head, head)) {
+      log(`${r.letter}: finisher round ${round} returned ${f ? f.status : 'NO-RESULT'}; its findings stay unanswered`)
+      return { ...end, head: f && f.head ? f.head : head, review: `FINDINGS ${v.blocking}`, finisher: f ? f.status : 'NO-RESULT' }
+    }
+    reviewedHead = head
+    head = f.head
+  }
+}
+
+async function enqueue(s) {
+  if (!args.enqueueCommand) { ready.push({ letter: s.letter, branch: s.branch, worktree: s.worktree, reason: 'reviewed CLEAN' }); return }
+  const cmd = args.enqueueCommand.replace('{branch}', s.branch).replace('{worktree}', s.worktree)
+  s.rec.enqueue = await agent(
+    AUTH + `Run EXACTLY this command once, alone (never chained), to a log, and read its verdict line: ${cmd} ` +
+    `Change nothing yourself: if it stops on a conflict or a red, report that verdict and the tail of its output.`,
+    opt({ label: `enqueue-${s.letter}`, phase: 'Enqueue', agentType: args.enqueueAgent, schema: ENQUEUE_SCHEMA })
+  ).catch(e => ({ verdict: 'ERROR', output_tail: String(e && e.message || e) }))
+  log(`${s.letter}: enqueue ${s.rec.enqueue.verdict}${s.rec.enqueue.pr ? ' ' + s.rec.enqueue.pr : ''}`)
+  if (s.rec.enqueue.verdict !== 'ENQUEUED') ready.push({ letter: s.letter, branch: s.branch, worktree: s.worktree, reason: 'enqueue stopped' })
+}
+
+// Review a finished branch, settle it for its successor, and enqueue it at once when CLEAN, predecessor or not. A
+// successor reviewed CLEAN is held back only by its predecessor's unanswered blocking findings, which it carries.
+async function settle(g, r) {
+  try {
+    let s = await reviewLoop(g, r)
+    if (/^FINDINGS/.test(s.review) && hasSuccessorQueued(r.letter)) s = { ...s, last_verdict: await lastVerdict(r.letter) }
+    const { rec, ...out } = s          // the record is returned once, under `reviewed`
+    results.push(out)
+    byLetter[r.letter] = s
+    wakeAll()                          // its successor may start now, while this one is enqueued
+    const p = g.after ? byLetter[g.after] : null
+    const carries = s.review === 'CLEAN' && p && ['capped', 'unanswered'].includes(predecessorEnd(p))
+    if (s.review === 'CLEAN' && !carries) await enqueue(s)
+    else ready.push({ letter: s.letter, branch: s.branch, worktree: s.worktree,
+      reason: carries ? `carries group ${g.after}'s unanswered findings (${findingsFile(g.after)})` : `review ${s.review}` })
+  } finally {
+    settling--
+    wakeAll()
+  }
+}
 
 function onResult(g, r) {
-  results.push(r)
-  byLetter[r.letter] = r
   if (landable(r)) {
-    if (hasSuccessorQueued(r.letter)) { held[r.letter] = r; log(`${r.letter}: ${r.status}; held — lands through its successor`) }
-    else release(r)
-  }
-  if (g.after && held[g.after]) {
-    if (!landable(r)) release(held[g.after])
-    delete held[g.after]
+    settling++
+    post.push(settle(g, r))
+  } else {
+    results.push(r)
+    byLetter[r.letter] = r             // nothing to review: settled now
   }
   log(`${r.letter}: ${r.status}; ${queue.length} group(s) queued`)
 }
@@ -230,7 +381,7 @@ async function worker() {
   while (queue.length > 0) {
     let g = nextEligible()
     if (!g) {
-      if (running === 0) g = queue.shift()          // its predecessor never ran: start it fresh
+      if (running === 0 && settling === 0) g = queue.shift()   // its predecessor never ran: start it fresh
       else { await new Promise(res => { const prev = wake; wake = () => { prev(); res() } }); continue }
     }
     // An agent that dies on an API error REJECTS rather than returning null. Without this try/finally the rejection
@@ -249,13 +400,13 @@ async function worker() {
     try {
       onResult(g, r)
     } finally {
-      const w = wake; wake = () => {}; w()
+      wakeAll()
     }
   }
 }
 
 phase('Implement')
 await parallel(Array.from({ length: Math.min(CONC, queue.length) }, () => () => worker()))
-for (const k of Object.keys(held)) { release(held[k]); delete held[k] }
 await Promise.all(post)
-return { results, reviewed, ready }
+const leads = results.flatMap(r => (r.review_leads || []).map(l => `${r.letter} (${r.branch}): ${l}`))
+return { results, reviewed: reviewed.map(({ letter, branch, rounds, enqueue }) => ({ letter, branch, rounds, enqueue })), ready, leads }

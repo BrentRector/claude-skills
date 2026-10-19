@@ -27,9 +27,15 @@ Detail lives in `references/`; each step says when to read which file.
   <timestamp>`, never re-raise an answered finding; no new commits, say so and stop.
 - **Branch form** (a fleet's finished branch, before it is enqueued to land): ONE branch, ONE read-only reviewer, run
   when the implementer reports DONE, over `<default>...HEAD`. Write every confirmed finding to a findings file (its
-  scenario, repro and code site); never edit the branch. The implementer or a finisher answers EACH finding — fixed at
-  the root with a regression test, or refuted with evidence written beside it — before the branch is enqueued. The
-  landing step never reviews and never fixes.
+  scenario, repro, code site and severity: critical, high, medium, low or info, calibrated, never raised to make it
+  block) through the project's one writer, and compute the verdict from the file under the blocking severities the
+  dispatch names (by default critical, high and medium; critical and high at the round after the last finisher; a
+  finding with no or an unknown severity blocks). Each non-blocking finding is a LEAD: recorded, written into the
+  branch's report, never dropped. Never edit the branch, and never edit or repair a findings file the writer refuses as
+  torn: stop and say so. A finisher answers EACH blocking finding — fixed at the root with a regression test, or
+  refuted with evidence written beside it — before the branch is enqueued. A RE-REVIEW reads ONLY the finisher's diff
+  since the head the last round reviewed, plus its answers; the earlier content is reviewed and is not re-opened
+  unless the diff touches it. The landing step never reviews and never fixes (`agent-fleet` `references/landing.md`).
 
 Empty diff → say so and stop.
 

@@ -13,12 +13,15 @@ Moved out of `SKILL.md` verbatim. Read it before Step 1 when a PR already carrie
   branch's worktree (read only; the reviewer's role carries a hook that refuses writes inside a git tree). Run the
   dimensions the triage selects, correctness first, plus the project's drift rules for the changed files, fixed time
   limits in tests and a citation spot-check. Output: a findings file at the path the dispatch names, one entry per
-  CONFIRMED finding (it survived Step 6) with its scenario, repro and code site, and a structured verdict (`CLEAN` or
-  `FINDINGS` with the count). The implementer, if still running, or a finisher answers each finding — fixed at its
-  root with a regression test and a sibling sweep, or refuted with evidence written beside the finding — and re-runs
-  the targeted gate; only then is the branch enqueued. *Why: in one measured campaign (2026-10-10) review inside the
-  landing step cost 23 % of the landing tokens and sat on the critical path between two gate runs; on the branch it
-  runs in parallel, and the landing step stays a script.* *(Practice — not yet validated.)*
+  CONFIRMED finding (it survived Step 6) with its scenario, repro, code site and severity, and a structured verdict
+  computed from the file under the dispatch's blocking severities (`CLEAN`, or `FINDINGS` with the count of blocking
+  findings) plus the non-blocking ones as leads. A finisher answers each blocking finding — fixed at its root with a
+  regression test and a sibling sweep, or refuted with evidence written beside the finding — and re-runs the targeted
+  gate; the branch is then reviewed again over the finisher's diff only, and enqueued the moment a round is CLEAN.
+  *Why: in one measured campaign (2026-10-10) review inside the landing step cost 23 % of the landing tokens and sat on
+  the critical path between two gate runs; on the branch it runs in parallel, and the landing step stays a script.*
+  *(Practice — not yet validated.)* The thresholds, the diff-only re-review and the findings file's integrity rule are
+  `agent-fleet` `references/landing.md`'s.
 - **"Audit" / "be comprehensive" / a subsystem name:** whole-source mode (see *Scale* below).
 - **Incremental PR mode:** if the PR already carries a review from a previous run, read the full conversation first
   (`gh pr view --json reviews,comments`), diff only the commits pushed since that review, and open the report with

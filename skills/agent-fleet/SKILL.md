@@ -109,7 +109,9 @@ Read `references/concurrency-and-watchdog.md` before sizing a fleet, before star
 - Land finished work first, as **one pull request per finished branch through a merge queue** on the protected branch (a ruleset: PRs required, merge commits so branch commits stay ancestors, the required check on the merge group, enforced for administrators). No lander, no train, no lease.
 - Every change's local gate is the TARGETED leg (its own tests, the likely reds, the cases its diff reaches, and the host-only witnesses), run natively and then, under the same gate slot, in a clone on the other OS the project supports, fail-fast native first; CI's merge-group run is the whole-population regression net and the only whole-population run (CI's full legs run locally only to reproduce a CI red).
 - The landing step is a deterministic **enqueue** script (fetch, rebase, the targeted gate under the gate-slot cap, stamp the log entry, the landing checks, open the PR, queue it); dispatch a **finisher** only for a rebase conflict or a queue bounce.
-- Review each branch when it is DONE, inside the wave, with a read-only reviewer; a finding goes back to the implementer or a finisher, never to the landing step.
+- **Finished work is never held.** A branch reviewed CLEAN is enqueued at once, successor or not; a same-file successor merges its predecessor's REVIEWED head and its pull request merges on top. The landing order is communicated, never enforced by holding.
+- Review each branch the moment it is DONE, inside the wave, with a read-only reviewer; a finding goes back to a finisher, never to the landing step. Round 1 reviews the whole branch; a re-review reads ONLY the finisher's diff since the last reviewed head. Critical and high findings block; medium blocks until the round cap, then becomes a lead; low never blocks and is written as a lead.
+- "Does this branch carry unanswered blocking findings?" has ONE source of truth, the findings file's last verdict, read by ONE function from the wave and the landing survey alike, never from a report stamp. A torn findings file holds every branch it names until a person repairs it.
 - Fill a freed implementer slot in the same turn, with the rolling wave (`references/rolling-wave.js`), never a barrier.
 - Keep landing files conflict-free: one log file per entry, generated views out of the tree, one line-ending format (LF).
 - Watch CI for every run that decides something; a red on the default branch is a blocking fix, landed alone. Run the comprehensive battery in its own detached worktree. Assert on conflict markers before every commit.
@@ -121,7 +123,7 @@ Read `references/landing.md` before scripting a wave, writing or running the enq
 
 - The unit for a slot is a group: the top-ranked item plus every open item sharing its source files or rule family; compute groups with `references/fix_clusters.py`, never by hand.
 - A file with more open items than the cluster cap gets same-file successors (`after`), not an independent second group.
-- A successor chain carries each link's REVIEWED head forward. If review runs in each group's slot, review a held chain once at its tail, or start each successor from its predecessor's reviewed head; until that is proven, run a chain deeper than a pair one link per wave.
+- A successor starts once its predecessor's review loop has ended and merges the predecessor's REVIEWED head (the finisher's, when one ran), so every link carries the review fixes before it; nothing waits for a successor to land.
 - Fill parallel slots with one group per subsystem; cluster leads by root cause; never put two unrelated mechanisms in one transcript.
 
 Read `references/grouping-fixes.md` before filling implementer slots or assigning defects.

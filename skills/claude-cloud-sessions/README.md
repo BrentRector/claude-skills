@@ -94,7 +94,6 @@ unverified findings stay labeled as leads.
 - **Composes with:**
   - [`agent-fleet`](../agent-fleet/SKILL.md) — the general restart-safe, budget-aware orchestration rules; this
     skill applies them to cloud VMs.
-  - [`engineering-standards`](../engineering-standards/SKILL.md) — the quality bar cloud agents are held to.
   - [`test-gate`](../test-gate/SKILL.md) — the local gate that cloud results land through.
 
 ## Files

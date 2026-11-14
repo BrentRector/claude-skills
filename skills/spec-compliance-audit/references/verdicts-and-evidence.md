@@ -13,10 +13,7 @@ deviation, not a defect. Reporting it as a defect costs credibility on the MUSTs
 
 **Every citation is checked mechanically.** Use the citation checker from `spec-oracle`
 (`references/citation-checker.md` there). The quote must occur inside that clause's own text, not merely
-somewhere in the standard. Run the check on every citation an agent returns before you record the verdict. A
-citation inherited from a ticket, a design doc or an earlier audit is re-checked like any other. The common
-failure is not an invented quote. It is a real quote attached to the wrong clause number, which then spreads
-through comments and tests.
+somewhere in the standard. Run the check on every citation an agent returns before you record the verdict.
 
 **A verdict needs a spec-derived witness to close.** A witness is an executable check, such as a test, a golden
 output or a conformance case, whose expected value was **computed from the cited rule**, not copied from another
@@ -29,6 +26,14 @@ that ignores it. A negative case is illegal ONLY under the rule it witnesses; a 
 witnesses nothing specific; a documented-choice case uses inputs on which another plausible choice differs; and no
 expected value leans on an undecided default. A rule with no observable consequence ("may", "undefined") closes by a
 recorded determination, not by a test that cannot fail. (`pr-test-analyzer` check 4 carries the same list.)
+
+**A witness is seen to fail before it closes anything.** Discrimination is shown, not argued: run the witness
+against a mutation of the rule's enforcement (the enforcing line reverted, the condition inverted, or the expected
+value moved by one unit of the rule's quantity: one column, one digit, one element) and see it go red, then restore
+the code and see it go green. Record the mutation in the verdict, so the refuter or a later gate can re-run it. *Why:
+in one audit lane the largest class of refuter overturns, 27 of 67, was a witness that did not exercise the rule
+it claimed, and each had passed its author's reading; a witness that was never red cannot be told from one that
+cannot fail.* Run the mutation in a scratch copy or a detached worktree, never in a tree other agents are reading.
 
 **Never document wrong behaviour as the implementation's choice.** For an implementor-defined element whose current
 behaviour violates the standard, the documentation states the INTENDED, conforming choice (resolved by the standard

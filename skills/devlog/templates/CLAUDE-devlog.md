@@ -32,9 +32,9 @@ document is a VIEW (`devlog.py render`), never committed.
 - Before retrying an approach, search for it: `python <skills>/devlog/references/devlog.py search -i "<words>"`. If
   it was tried, say what is different this time.
 - When the log is long, turn it into learnings in three stages. The log records everything. Consolidation
-  (`templates/consolidate-brief.md`) produces CANDIDATE learnings in `LEARNINGS-CANDIDATES.md`. Validation
-  (`templates/validate-brief.md`, a fresh adversarial agent per batch) rules each candidate VETTED, UNPROVEN or
-  REFUTED. **Only VETTED learnings enter `LEARNINGS.md`, and only vetted learnings are encoded into skills or
+  (`<skills>/devlog/templates/consolidate-brief.md`) produces CANDIDATE learnings in `LEARNINGS-CANDIDATES.md`.
+  Validation (`<skills>/devlog/templates/validate-brief.md`, a fresh adversarial agent per batch) rules each
+  candidate VETTED, UNPROVEN or REFUTED. **Only VETTED learnings enter `LEARNINGS.md`, and only vetted learnings are encoded into skills or
   rules.** VETTED requires all four: the root cause confirmed, the evidence re-checked against primary sources, no
   later entry contradicting it, and the fix used and shown useful. Refuted candidates stay in the record, marked
   refuted, never silently dropped. *Why: a log records hypotheses as well as conclusions, and some are later

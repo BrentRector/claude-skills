@@ -11,27 +11,28 @@ Claude loads a skill automatically when the request matches its `description`. T
 commit, merge or push. You can also ask directly ("run the gate before committing this", "gate this batch before
 merge") or name the skill (`test-gate`) in your request.
 
-Its first move is a self-check: **what does this run have to prove?** Locally, that the targeted change is correct:
-every change, including the landing (enqueue) step, gets the targeted gate. The whole population is CI's merge-group
-run, which has the final say.
+Its first move is a self-check: **what does this run have to prove?** At the head that lands, that every case the
+merge run will execute is green there, or covered by a recorded pass at the same inputs. The gate rule is stated as
+that outcome; the skill gives one design that meets it: the whole population on the developer's OS locally, the
+other OS and the merged tree in the merge group.
 
 ## What it does
 
 ### The three tiers
 
-| Tier | When | What runs | Cost |
+| Tier | Where and when | What runs | Cost |
 |---|---|---|---|
-| **Targeted** (local, both hosts) | every change, implementer and enqueue step alike; natively, then in a clone on the other OS, fail-fast native first | fresh build, the change's own tests, neighbours, likely reds and reached cases, every host-only witness (by trait), the audits whose inputs changed, one real end-to-end probe of the changed behaviour | ~minutes |
-| **Whole population** (CI) | every merge group, before the default branch moves | every test assembly or package, **unfiltered**, on every OS, sharded | CI's wall; final authority |
-| **Battery** (local, own worktree) | once per accumulated batch | slow legs CI does not run | ~10–30 min |
+| **Local gate** | the developer's OS, at the branch head, before it lands | fresh build, the whole population minus the targets a recorded pass at their current inputs covers, every host-only witness (by trait), the audits whose inputs changed | the host's time per landing |
+| **Merge group** | CI, on the merged tree | every target on the other OS and configurations; on the developer's OS, what no recorded pass at the merged tree covers | runners; final authority |
+| **Battery** | local, once per accumulated batch | slow legs no gate runs | ~10–30 min |
 
 ### The procedure
 
 1. **Build fresh.** A no-build run tests whatever binary was copied at the last full build. In .NET, build the
    solution (not one project) before `dotnet test --no-build`; in Python, reinstall editable or compiled
    extensions; in JS/TS, rebuild workspace packages that tests import from `dist/`.
-2. **Run the tier.** Size it to the blast radius. A change that rejects input the tool used to accept also runs
-   the whole accepted-input corpus. The battery runs in its own detached worktree at the batch head.
+2. **Run the tier.** At the head that lands, the whole population minus what a recorded pass covers. A change that rejects input the tool used to accept also runs
+   the whole accepted-input corpus.
 3. **Check the filter selected something.** Read the test count, not the pass/fail word.
 4. **Confirm new tests ran, by name** (`dotnet test --list-tests`, `pytest --collect-only -q`,
    `jest --listTests`), and that the count rose by the number added.
@@ -45,10 +46,10 @@ run, which has the final say.
    `git diff --cached --check | grep -i "conflict marker"` must both print nothing (read the output, not the
    exit code).
 9. **After the enqueue or push, read CI:** under a merge queue, the pull request's merge-group checks
-   (`gh pr view <n> --json mergeQueueEntry,statusCheckRollup`), and a bounce is fixed on its branch before
-   re-enqueue; otherwise `gh run list --commit <sha> --json databaseId,status,conclusion` then
-   `gh run watch <id> --exit-status`, and `gh run view <id> --log-failed` on a red run. Until it is green, the status
-   is "targeted gate green; queued" or "local gates green; CI pending".
+   (`gh pr view <n> --json mergeQueueEntry,statusCheckRollup`), and a bounce is classified against the branch's gate
+   record first: a red the branch caused is fixed on its branch before re-enqueue, and a red it did not cause is
+   root-fixed first; otherwise `gh run list --commit <sha> --json databaseId,status,conclusion` then
+   `gh run watch <id> --exit-status`, and `gh run view <id> --log-failed` on a red run.
 
 ## Why it works this way
 
@@ -57,17 +58,14 @@ run, which has the final say.
 - **The landing gate covers the whole population.** Merging several changes behind `A|B|C|D`, one filter term
   per change, leaves out every test no term names, and that leftover set is where breakage shows up.
   *(Validated 2026-09-28.)* Under a merge queue that gate is CI's merge-group run, the merged tree itself.
-- **The local gate is targeted; CI is the regression net.** In one measured campaign (2026-10-10), local
-  whole-population gate runs were 41 % of the landing agents' time, 8 of 15 went RED mostly on fixed time limits
-  under load, and CI ran the same population on 20 free runners in 13 min. The targeted leg still runs on the other
-  OS too (3 of 38 landed changes had other-OS-only reds in their own tests, each caught before a CI round trip), and
-  host-only witnesses (a filesystem CI lacks) stay in the local leg by trait. *(Validated 2026-10-11 (measurement); the redesign's effect is not yet
-  measured.)*
-- **The battery runs in its own worktree.** It rebuilds mid-run, so on the main checkout it once
-  measured a half-finished edit and had to be redone, and nothing could land during its ~45 min of machine time
-  (the blocked landing work was modelled at about seven clusters, not measured). In a detached worktree at the
-  batch head, landings continued in parallel; it still shares the cores, so other gates run slower meanwhile.
-  *(Validated 2026-09-28.)*
+- **The gate rule is an outcome; the design is one way to meet it.** Every case the merge run executes ran green
+  at the head that lands, or a recorded pass at the same inputs covers it, so a merge-group red is never an untested
+  case. The worked design runs the whole population on the developer's OS locally and leaves the other OS and the
+  merged tree to the merge group: in the project it comes from, a per-change local Linux leg found one red in 78
+  records, and that one false. Earlier, a targeted local leg on both OSes was the design (local whole-population
+  runs had been 41 % of landing time on 2026-10-10, 8 of 15 RED mostly on fixed time limits under load; 3 of 38
+  landed changes had other-OS-only reds in their own tests), and it is still the right shape with no merge group.
+  Content keys and the removal of fixed time limits are what make the whole population affordable locally.
 - **Conflict markers are checked in what is staged, by output.** Four unresolved hunks in a script that no test
   imports passed three green gates. `git diff --cached --check` also flags every line of a CRLF file as trailing
   whitespace, so the rule reads the output for "conflict marker" rather than the exit code, and a repo-wide
@@ -108,7 +106,7 @@ run, which has the final say.
   as "CI is red" on a green run. A red CI run blocks further work until its fix lands on its own. *(CI as final authority: validated 2026-09-28.
   The failed-lookup rule: practice, not yet validated: its retry path has not been exercised yet.)*
 
-The *Standards* section applies the [`engineering-standards`](../engineering-standards/SKILL.md) bar at the gate:
+The *Standards* section states the bar at the gate:
 fix a red at its root cause (never weaken an assertion, widen a tolerance, add a skip, re-baseline an expected
 value or edit valid input); never scope a test to the bug; treat a green test that pins wrong behaviour as a
 defect; take expected values from the authority, not the current output.

@@ -1,30 +1,27 @@
 # The orchestrator as short units, run by a supervisor
 
-*(Practice — validated in live runs of one campaign: a quota-meter unit, a resume unit and a 2.5-hour wave unit ran for
-real, and every defect listed below was found by those runs and fixed. Nothing here has been run across several
-campaigns, and the measurements are from one.)*
+For a long or unattended campaign, a supervisor script runs the orchestrator as a series of short `claude -p` units.
+A crash then loses at most one unit, and no session grows long. Read this before writing or running that supervisor.
 
 ## Where the tokens go
 
-Measure it before optimizing the orchestrator. In one campaign day, from the local telemetry, the orchestrating session's
-main thread was about 8 % of the estimated spend (about 480 calls, averaging about 350k tokens of context per call because
-the session had grown long) and the agents about 92 % (about 6,300 calls; Opus agents about a third of that). Cutting the
-orchestrator's context to about 100k would save roughly 5 % overall. The larger levers are in the agents: the model chosen
-per group, turns per agent (the cost law), failed landings that waste a whole group, and re-gating.
+Measure it before optimizing the orchestrator. In campaigns measured from local telemetry, the orchestrating
+session's main thread was a small share of the spend and the agents it started were most of it, so cutting the
+orchestrator's context saves little. The larger levers are in the agents: the model tier chosen per group
+([`role-agents.md`](../../automating-agent-guardrails/references/role-agents.md#model-tiers-and-effort)), turns per agent
+(the cost law), failed landings that waste a whole group, and re-gating.
 
 ## Short units instead of one long session
 
 A supervisor script runs one bounded unit per fresh session (`claude -p`, one wave or one enqueue or one resume), each
-ending by writing a handoff file, then starts the next. A session never gets long, and a crash loses at most one unit.
+ending by writing a handoff file, then starts the next.
 
 - Move everything that needs no judgment out of the model: choosing the next wave, allocating ids and codes, rendering
   specs, estimating the quota from local telemetry, generating the status page, pruning worktrees, running the enqueue
   step and reading the merge queue. Local CPU time is free; tokens are not.
-- **The landing unit is an ENQUEUE unit** (since 2026-10-11): for every DONE branch waiting to land, in priority order,
-  run the project's enqueue script (fetch, rebase, the targeted gate, stamp the log entry, the landing checks, open the
-  pull request, add it to the merge queue); dispatch a finisher for each rebase conflict or queue bounce; render the
-  status view; hand off. Its model turns are the finisher dispatches and the handoff. There is no lander and no landing
-  lease: the merge queue serializes, and CI's merge-group run is the whole-population gate (`landing.md`).
+- **The landing unit is an ENQUEUE unit**: for every DONE branch waiting to land, in priority order, run the project's
+  enqueue script; dispatch a finisher for each merge conflict or queue bounce; render the status view; hand off. Its
+  model turns are the finisher dispatches and the handoff (the `merge-queue-landing` skill).
 - Choose the next unit with a deterministic script from the last handoff and the state on disk (dirty tree, unpushed commits,
   an unlanded branch with a newer commit, a stale quota reading), never from the model's mood.
 - Guards the loop needs: a stop file, a single-instance lock, a circuit breaker (a few units that fail stop the loop), a
@@ -34,92 +31,67 @@ ending by writing a handoff file, then starts the next. A session never gets lon
   does not change how they run. Run agents as separate terminal processes only if a measurement shows the cost is within a
   few percent of background execution.
 
-## What the first live runs taught
+## Supervisor rules
 
-Each item is a defect the real runs exposed that a fake-CLI self-test could not, with its cause and the fix. Test the
-supervisor against a fake `claude` that emits canned stream-json, but expect the real CLI to disagree.
+Test the supervisor against a fake `claude` that emits canned stream-json, and expect the real CLI to disagree: each
+rule below is CLI behaviour a fake did not show.
 
-1. **A one-shot `claude -p` terminates background tasks 600 seconds after its model ends a turn.** A unit launched a
-   workflow of eight agents, wrote "waiting for the workflow", ended its turn, and the process killed the workflow at 600 s
-   (its stderr: `Background tasks still running after 600s; terminating. Set CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 to
-   wait indefinitely.`). A prompt rule telling the model to keep waiting is not a design; it depends on the model obeying.
-   **Make the supervisor own the session's lifetime.** Start the unit with `--input-format stream-json`, send the prompt as
-   the first `{"type":"user","message":{"role":"user","content":...}}` line, and keep stdin OPEN. An open stdin never enters
-   the exit wait: probed with the ceiling set to 5 s, a session whose model had ended a turn was still alive 30 s later and
-   was woken by the background task's completion notification. The supervisor then closes stdin only when the unit is over:
-   the model has ended a turn (a `result` event arrived), the last `system/background_tasks_changed` event lists no running
-   task, and the stream has been quiet for a short interval (a finishing task's completion event arrives just after its list
-   empties, so closing at the first idle instant can cut a woken turn off). Keep the prompt's advice to wait with foreground
-   calls as a second line of defence, never the only one.
-2. **Read the unit's stderr before its stream.** The stream's tail (`end_turn`, tasks `killed`) read like "the model ended
-   its turn, so the process exited", which was the wrong mechanism; the stderr file named the real one. The first resume
-   unit found it. Save stderr beside the stream log, always.
-3. **Frequent handoffs.** A handoff written only when a unit ends is lost with the unit. Three layers, ordered by how little
-   they trust the model: (a) a checkpoint file the SUPERVISOR writes at unit start, every few minutes, whenever the set of
-   background tasks changes and at the end (stream counters, each worktree's head, commits ahead of the base, uncommitted
-   file count, the headline of its status file); (b) one line the unit's model appends per milestone (a decision and its
-   reason, what landed), for what the supervisor cannot see; (c) a handoff the supervisor SYNTHESIZES from the checkpoint,
-   the last milestones and the worktrees as they are now when a unit ends without a valid one (outcome split, next unit
-   resume, flagged synthesized, and still counted as a failure by the breaker). A checkpoint that survives into the next
-   supervisor start means the supervisor itself died mid-unit, so turn it into the missing handoff first.
-4. **STOP is a wind-down, not a kill.** A stop file honoured only between units leaves a multi-hour unit running. While a
-   unit runs, the supervisor creates the unit's own stop file and the fleet's graceful-stop file, so every implementer
-   checkpoint-commits and returns split and the unit hands off for a resume, waits, and only then ends the loop; a kill comes
-   only after a grace period. Clear the fleet's stop file at the start of the next unit, or it stops that fleet at its first
-   step. Give the owner one command that creates, reports and clears the stop.
-5. **A fast unit that wrote a valid done handoff is not a failure.** A "fewer than N seconds is a crash" rule scored a
-   legitimate 40-second quota-read unit as a failure, and three of them would have tripped the breaker. Treat a short unit as
-   a failure only when it did not hand off done.
-6. **Pass the budget decision to the unit.** The supervisor's gate had the owner's borrowed-day allowance, but the unit's own
-   planner call defaulted it to zero and planned an empty wave. Anything a decision depends on that is an argument of the
-   supervisor must be substituted into the unit's prompt.
-7. **Plan from the disk, not from remembered reports.** After a killed wave the planner scheduled finishers for the
-   half-done work from the base branch, and dropped the work-in-progress branches that carried it. State that survives a
-   crash is branches and worktrees; derive the plan from them, and make a finisher's spec name the branch it must resume.
-8. **A headless session may lack tools the attended one has.** It had no artifact-publishing tool (asked, it answers no), so
-   the owner's status page could not be published by a unit. Split the work where the capability is: the unit renders the
-   page, a small script compares the page's stamp with the last published one, the supervisor announces an owed publish after
-   every unit, and the attended session publishes and marks it.
-9. **Never write to a child's stdin synchronously before you are reading its stdout.** The CLI writes a large `init` event
-   (tools, MCP servers, slash commands) to stdout BEFORE it reads stdin. Once that fills the stdout pipe the child blocks until
-   you read; a synchronous write of a prompt larger than the stdin pipe buffer (about 4 KB on Windows) blocks until the child
-   reads. Each waits for the other: a unit sat two hours with a 0-byte log and a child at under a second of CPU. It appeared only
-   when a unit prompt grew past the buffer (a 3 KB prompt always worked), so a green history proves nothing about it. Write the
-   prompt as a task and start the read loop at once, and add a startup watchdog: a unit that has emitted NO event after a number
-   of loop ticks is killed and its handoff synthesized. Count ticks (one per second waited), not wall time, so a suspended
-   machine cannot trip it. Test it with a fake CLI that writes several hundred KB before reading stdin, run under a time bound so
-   a regression fails instead of hanging the suite; a fake that merely stays quiet must emit NOTHING, not even `init`, or it
-   disarms the watchdog it is meant to test.
-10. **Recovery was measured, not assumed.** After the killed wave, a resume unit (141 s, about one dollar) read the six
-   worktrees, committed the uncommitted work in four of them, wrote a status file in each, and named the next unit; nothing was
-   lost. The next wave then ran 2.5 hours, well past the old 600-second ceiling, and landed all eight groups (then in two
-   lander trains, the pipeline `landing.md` retired on 2026-10-11) with none dropped.
-11. **A standing constraint carried as prose is eventually dropped.** The owner limited the loop to finishing started work
-   (a drain).
-   - A steer told one unit, and units passed the rule on in their handoff summaries.
-   - A few units later a handoff summarized other things, and the next wave unit planned four new groups. They launched
-     before the operator could stop them.
-   - A steer lasts one unit, and a handoff sentence is a summary, so neither carries a rule.
-
-   **Make every standing constraint a supervisor argument**, substituted into each unit's planning command as in item 6,
-   switched on and off with the supervisor's own command. Pin it with a test that the unit's rendered prompt carries it.
-   *(Observed 2026-10-18; the fix is practice, not yet validated.)*
-12. **One orchestrator per branch.** An attended session ran its own wave beside the loop. The loop's review unit
-   reviewed every branch the branch survey listed as waiting for review, including the attended session's in-flight
-   branch, and stamped its report. Its next handoff then asked for a finisher on that branch, which would have run on a
-   cheaper model than the branch's owner had chosen. The fix:
-   - record the dispatching orchestrator with each group in the dispatch ledger, and show it in the branch survey;
-   - a unit reviews, finishes or plans only its own orchestrator's branches and the ones explicitly handed to it;
-   - the landing step still lands any branch its owner's review approved.
-
-   *(Observed 2026-10-18; the fix is practice, not yet validated.)*
-
-## Measured in that campaign (one campaign, so a starting point rather than a law)
-
-The supervisor-launched unit that drove a rolling wave made 79 model calls in 2.5 hours; the agents it started did the rest.
-Rows closed per percent of weekly quota stayed about the same across supervised landings and the unattended wave (about 14 to 15
-rows per percent). Compare tokens per closed item across your own runs before concluding the loop is cheaper; the main
-benefits seen were that a long run no longer needs an attended session and that a death costs minutes, not the unit.
+1. **The supervisor owns each unit's lifetime.** A one-shot `claude -p` terminates background tasks 600 seconds after
+   its model ends a turn; its stderr says `Background tasks still running after 600s; terminating. Set
+   CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 to wait indefinitely.` A prompt rule telling the model to keep waiting
+   depends on the model obeying, so it is not the design. Start the unit with `--input-format stream-json`, send the
+   prompt as the first `{"type":"user","message":{"role":"user","content":...}}` line, and keep stdin OPEN: an open
+   stdin never enters the exit wait, and the session is woken by the background task's completion notification.
+   Close stdin only when the unit is over: the model has ended a turn (a `result` event arrived), the last
+   `system/background_tasks_changed` event lists no running task, and the stream has been quiet for a short interval
+   (a finishing task's completion event arrives just after its list empties, so closing at the first idle instant can
+   cut a woken turn off). Keep the prompt's advice to wait with foreground calls as a second line of defence. The
+   ceiling and the variable are CLI behaviour: after a CLI upgrade, re-check them by running a unit that ends its turn
+   with a background task running and reading its stderr.
+2. **Save each unit's stderr beside its stream log, and read it first.** The stream's tail (`end_turn`, tasks
+   `killed`) can suggest the wrong mechanism; stderr names the real one.
+3. **Write handoffs in three layers**, ordered by how little they trust the model: (a) a checkpoint file the
+   SUPERVISOR writes at unit start, every few minutes, whenever the set of background tasks changes and at the end
+   (stream counters, each worktree's head, commits ahead of the base, uncommitted file count, the headline of its
+   status file); (b) one line the unit's model appends per milestone (a decision and its reason, what landed), for
+   what the supervisor cannot see; (c) a handoff the supervisor SYNTHESIZES from the checkpoint, the last milestones
+   and the worktrees as they are now when a unit ends without a valid one (outcome split, next unit resume, flagged
+   synthesized, and still counted as a failure by the breaker). A checkpoint that survives into the next supervisor
+   start means the supervisor itself died mid-unit, so turn it into the missing handoff first.
+4. **STOP is a wind-down, not a kill.** While a unit runs, the supervisor creates the unit's own stop file and the
+   fleet's graceful-stop file, so every implementer checkpoint-commits and returns split and the unit hands off for a
+   resume; the supervisor waits, and only then ends the loop; a kill comes only after a grace period. Clear the fleet's
+   stop file at the start of the next unit, or it stops that fleet at its first step. Give the owner one command that
+   creates, reports and clears the stop.
+5. **Judge a unit by its handoff, not its duration.** A short unit that wrote a valid done handoff (a quota read, say)
+   is not a failure; count a unit as failed only when it did not hand off done.
+6. **Every standing constraint and budget decision is a supervisor argument**, substituted into each unit's prompt
+   and planning command, switched on and off with the supervisor's own command, and pinned by a test that the
+   rendered prompt carries it. A steer lasts one unit and a handoff sentence is a summary, so neither carries a rule:
+   a drain ("finish started work only") passed on in handoffs is dropped within a few units, and a unit's own planner
+   call defaults any argument it was not given.
+7. **Plan from the disk, not from remembered reports.** State that survives a crash is branches and worktrees; derive
+   the plan from them, and make a finisher's spec name the branch it must resume, or a resume plans finishers from
+   the base branch and drops the work in progress.
+8. **Check a unit's capabilities instead of assuming the attended session's.** A headless session can lack a tool the
+   attended one has (an artifact-publishing tool, for one). Split the work where the capability is: the unit renders
+   the page, a small script compares its stamp with the last published one, the supervisor announces an owed publish
+   after every unit, and the attended session publishes and marks it.
+9. **Read the child's stdout before writing to its stdin.** The CLI writes a large `init` event (tools, MCP servers,
+   slash commands) to stdout BEFORE it reads stdin. Once that fills the stdout pipe the child blocks until you read; a
+   synchronous write of a prompt larger than the stdin pipe buffer (about 4 KB on Windows) blocks until the child
+   reads, and each waits for the other with a 0-byte log. It appears only when a prompt outgrows the buffer, so a green
+   history proves nothing about it. Write the prompt as a task and start the read loop at once, and add a startup
+   watchdog: a unit that has emitted NO event after a number of loop ticks is killed and its handoff synthesized.
+   Count ticks (one per second waited), not wall time, so a suspended machine cannot trip it. Test it with a fake CLI
+   that writes several hundred KB before reading stdin, run under a time bound so a regression fails instead of
+   hanging the suite; a fake that merely stays quiet must emit NOTHING, not even `init`, or it disarms the watchdog it
+   is meant to test.
+10. **One orchestrator per branch.** Record the dispatching orchestrator with each group in the dispatch ledger and
+    show it in the branch survey; a unit reviews, finishes or plans only its own orchestrator's branches and the ones
+    explicitly handed to it; the landing step still lands any branch its owner's review approved. Otherwise a loop
+    beside an attended session reviews and finishes that session's in-flight branch, on a tier its owner did not
+    choose.
 
 ## Techniques Anthropic has published that bear on this
 

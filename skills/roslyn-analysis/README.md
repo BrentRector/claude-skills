@@ -97,8 +97,6 @@ pass, write only with `--write` and only under that root.
 
 **Sibling skills.**
 
-- [`engineering-standards`](../engineering-standards/SKILL.md) is the bar this toolkit serves: one rule in one place,
-  every bug is a pattern, standard tools for solved problems, verify values, pin every collapse with a drift test.
 - [`variant-analysis`](../variant-analysis/SKILL.md) owns the sweep method (name the mechanism, query every form,
   record the queries); this skill supplies the Roslyn queries.
 - [`review`](../review/SKILL.md): its duplication-and-efficiency dimension should run `detect-clones.cs` over the
@@ -125,6 +123,18 @@ Adapted from [glennawatson/CSharpAgentSkills](https://github.com/glennawatson/CS
 and `skills/csharp-assembly-inspection/`, used under the MIT License (Copyright (c) 2026 Glenn Watson and
 Contributors). The three skills were merged into one toolkit and the helper programs rewritten after vetting; a
 `SymbolFinder` semantic sweep was added, and the unpinned `npx --yes` install, the Sonar framing and the
-project-specific examples were removed. The full list of changes is in the attribution block at the top of
-[`SKILL.md`](SKILL.md); the license text is in
+project-specific examples were removed. The license text is in
 [`references/THIRD-PARTY-NOTICES.md`](references/THIRD-PARTY-NOTICES.md).
+
+The full list of changes:
+- Merged into one toolkit organized around the review dimensions; the helper programs were rewritten after vetting
+  found defects in the originals.
+- Clone detector: the `--exact` mode keeps token text (the original reduced identifiers to their kind). Excludes
+  are matched on root-relative path segments, nested bodies are counted once, and output is sorted.
+- Rewriters: files keep their BOM and line endings, and whitespace is not trimmed (trimming changed verbatim and raw
+  strings). Attributes match by exact name, not substring. A comment that would be lost is reported instead of
+  being pasted in front of the declaration, which commented the declaration out. A result that does not parse is
+  refused.
+- Assembly inspection: the reflection loader was replaced with metadata-only reads, and an IL listing was added.
+- Removed: the unpinned `npx --yes` install, the Sonar framing, and the project-specific examples.
+- Added: a semantic sweep using `SymbolFinder`.

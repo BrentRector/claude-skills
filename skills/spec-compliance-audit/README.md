@@ -111,8 +111,7 @@ It composes with sibling skills:
 - [`spec-oracle`](../spec-oracle/SKILL.md): the per-rule question, the documented latitude precedence, page
   rendering, and the citation checker (`references/citation-checker.md` there).
 - [`agent-fleet`](../agent-fleet/SKILL.md): checkpointing, budgets and restart-safety for the per-rule agents.
-- [`engineering-standards`](../engineering-standards/SKILL.md): the bar for fixing findings (implement the
-  complete rule, fix the root mechanism, sweep siblings).
+- Fixing a finding means implementing the complete rule, fixing the root mechanism and sweeping its siblings.
 - The `pr-test-analyzer` agent's check 4 carries the same witness-discrimination list.
 
 ## Files

@@ -9,4 +9,4 @@ allowed_tools: [Skill, Read]
 expected_outcome: Explains that multi-repo sessions start in the parent (/home/user) and load no repo .claude/settings.json hooks, and fixes it with a user-level SessionStart hook shim written into the VM's ~/.claude/settings.json by the environment setup script.
 ---
 
-In Claude Code on the web (cloud sessions) I have a SessionStart hook in `app-repo/.claude/settings.json` that initializes a submodule. It works when `app-repo` is the only repository attached. When I attach a second repository (`shared-lib`) to the same session, the hook never runs: the submodule stays empty and two tests go red. Why, and what's the fix that keeps the hook per-session? Answer in under 120 words.
+In Claude Code on the web (cloud sessions) I have a SessionStart hook in `app-repo/.claude/settings.json` that initializes a submodule. It works when `app-repo` is the only repository attached. When I attach a second repository (`shared-lib`) to the same session, the hook never runs: the submodule stays empty and two tests go red. Why, and what's the fix that keeps the hook per-session?

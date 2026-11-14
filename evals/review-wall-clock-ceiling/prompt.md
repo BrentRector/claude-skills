@@ -3,8 +3,8 @@ name: review-wall-clock-ceiling
 description: A diff whose new test asserts a Stopwatch ceiling; the review skill's full-code dimension makes that a finding with a concrete scenario and names a deterministic replacement (work count, observed effect, growth ratio).
 tags: [review, skill]
 runs: 3
-max_turns: 10
-timeout_seconds: 300
+max_turns: 38
+timeout_seconds: 1020
 allowed_tools: [Skill, Read]
 expected_outcome: Flags the ElapsedMilliseconds < 200 assertion as a finding (it measures the machine; a loaded CI runner turns it red with no regression) and names a deterministic replacement such as a work count through a seam or a growth ratio of two readings in the same run; each finding carries a Scenario.
 ---

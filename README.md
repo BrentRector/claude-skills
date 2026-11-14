@@ -35,6 +35,34 @@ Project skills that extend one of these can then open by invoking the base (`bre
 what is specific to the project. Where the plugin isn't loaded (some cloud sessions don't receive project
 marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
+## Unreleased
+
+- **The skills were audited** against Anthropic's guidance for Claude Fable 5.2 and Mythos 5.2, and against eval
+  results measured with and without the plugin on two tiers (Opus 5.5 at medium effort, Mythos 5.2 at high).
+- **Every eval result records its model and effort.** `scripts/run_evals.py` takes `--model` and `--effort`, writes
+  them into the result, and checks each run's trace for the model; `evals/baselines/` keeps one table per model,
+  effort and tree.
+- **The eval prompts no longer name the skill**, and all but one length cap is gone, so each case also tests whether
+  the skill's description makes it load (`evals/RETUNE.md`).
+- **The dated validation labels moved out of the skills** into [LEARNINGS.md](LEARNINGS.md); a skill states its
+  rule, and LEARNINGS.md says how far each rule is proven.
+- **`agent-fleet` was split.** The landing rules (the enqueue step, review before landing, finishers, bounce classes,
+  the ruleset) are the new [`merge-queue-landing`](skills/merge-queue-landing/) skill.
+- **Delegation is stated cost-first**: the orchestrator does small work itself, and a subagent is used for parallel
+  breadth, isolation or an independent judgment. A role's model and effort live in its role definition
+  (`automating-agent-guardrails`), not in each dispatch.
+- **Three skills were removed** because neither tier showed a gain attributable to them
+  ([`evals/baselines/README.md`](evals/baselines/README.md)): `engineering-standards` (Δ +0.00 on Opus and +0.08
+  on Mythos over two cases; it loaded in 0 of 6 runs on both tiers), `performance-diagnosis` (Δ −0.25 on Opus,
+  0.00 on Mythos, over two cases) and `architecture-audit` (Δ +0.22 on Opus and +0.11 on Mythos over three cases,
+  all of it in cases where the skill did not load). Their seven eval cases went with them; the suite is 28 cases
+  over 13 skills and the four agents.
+- **Known unfinished.** In the latest run on each tier the skill loaded in 0 of 3 runs in three cases on a plain
+  request: `cross-platform-per-os-commands` (Opus), and `agent-fleet-reprobe-backlog` and
+  `test-gate-conflict-markers-staged` (Mythos, measured before the description changes aimed at them). About twenty
+  rules are still prose with no script or check behind them, among them a checker for a brief's required lines, a
+  record that a new test was seen to fail, and read-only enforcement for the plugin agents that keep Bash.
+
 ## What's new in 1.22.0
 
 - **Finished work lands at once** (`agent-fleet` §6 and §7, `references/landing.md`, `references/grouping-fixes.md`,
@@ -169,7 +197,7 @@ marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 
 ## What's new in 1.15.0
 
-- **[`architecture-audit`](skills/architecture-audit/)**: a comprehensive review AND restructuring of a whole
+- **`architecture-audit`** (removed since): a comprehensive review AND restructuring of a whole
   codebase, run as a campaign:
   1. a measured baseline and a behavior-neutrality oracle (emitted artifacts, diagnostics, tokens and parse trees,
      tests on every OS, performance);
@@ -196,7 +224,7 @@ marketplaces), the base's `SKILL.md` is still readable at its submodule path.
 Two new skills, each built from incidents measured in one long-running project. Their rules are marked *not yet
 validated* until they have been exercised across more work, and neither has regression eval cases yet.
 
-- **[`performance-diagnosis`](skills/performance-diagnosis/)**: measure first, find the mechanism, prove the fix is
+- **`performance-diagnosis`** (removed since): measure first, find the mechanism, prove the fix is
   behavior-neutral, and guard it structurally. It is the method that found a lexer bug nobody was looking for:
   - one process used 4 of 24 cores;
   - threads stopped scaling past 8;
@@ -482,7 +510,7 @@ loads the full instructions and follows them — you don't have to invoke anythi
 ("run the review skill"), or type `/` in Claude Code to pick it from the list of available skills. Supporting files
 live beside it in `references/` — templates, checklists and small scripts the instructions call.
 
-Every skill folder here also has a **`README.md` written for people**: what the skill does, how it runs, and — most
+Most skill folders here also have a **`README.md` written for people**: what the skill does, how it runs, and — most
 importantly — *why* each rule exists, since every rule traces back to a failure it prevents. Start there; the
 `SKILL.md` holds the complete rules.
 
@@ -491,47 +519,40 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 
 ## Skills
 
-**The bar**
-
-| Skill | Use it when | What it enforces |
-|---|---|---|
-| [`engineering-standards`](skills/engineering-standards/) | writing, changing, designing or reviewing production code | Commercial-grade, decades-maintainable code. No god classes; one mechanism per job; one rule in one place; fix the root cause, never paper over; **every bug is a pattern**; implement the complete feature (tests verify, they don't scope); re-architect when the right structure demands it, even if the build breaks on the way. |
-
 **Finding defects**
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`review`](skills/review/) | reviewing a diff, branch or PR, or a fleet's finished branch before it is enqueued | Four dimensions (architecture · full code · performance · duplication/efficiency) as parallel reviewers, plus specialist agents; every finding carries a concrete failure scenario; an adversarial skeptic tries to refute each one; confirmed bugs trigger a sibling sweep. |
-| [`variant-analysis`](skills/variant-analysis/) | right after any defect is confirmed | Name the mechanism, not the symptom; textual, structural (Roslyn, ANTLR, tree-sitter, Semgrep) and semantic queries; "which arm of the dispatch did you fix?"; a probe per candidate; a sweep report in which zero hits is evidence. |
-| [`architecture-audit`](skills/architecture-audit/) | the whole codebase needs a comprehensive review and restructure, not one diff | A measured baseline and a behavior-neutrality oracle before any change; an adversarially reviewed target architecture with dependency rules enforced by tests; a review fleet by subsystem × dimension whose findings become tracked work; behavior-neutral waves (extract · unify · move and rename with every caller · data-ize · delete, census-measured); analyzer-driven modernization; model tiers (frontier for the target architecture, mid for judgment waves, small for mechanical ones); architecture tests left behind. |
+| [`review`](skills/review/) | reviewing a diff, branch or PR (code, architecture, performance, duplication and efficiency), a whole-subsystem audit, or a finished branch before it lands | Defects that survive an honest attempt to refute them: the four dimensions (architecture · full code · performance · duplication/efficiency), with the fan-out priced (one finder and one skeptic for an ordinary diff; a finder per dimension plus specialist agents for a large or high-consequence one; a fleet for an audit); every finding carries a concrete failure scenario; a skeptic tries to refute each one; a claimed sweep is a table with a calibration line, and a new test is seen to fail. |
+| [`variant-analysis`](skills/variant-analysis/) | right after any defect is confirmed, or when asked "are there others like this?" | Name the mechanism, not the symptom; textual, structural (Roslyn, ANTLR, tree-sitter, Semgrep) and semantic queries, including every consumer of a new value kind; "which arm of the dispatch did you fix?"; a probe per candidate; the sweep recorded as a table (each query, its scope and hits, a calibration line) so a zero result is evidence. |
 
 **Specs and standards**
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
 | [`spec-oracle`](skills/spec-oracle/) | behavior is governed by a written standard (language standards, RFCs, file formats, ECMA-335 …) | The spec is the only oracle; derive the expected result *before* reading the code; every citation checked mechanically. Includes a small generic citation checker. |
-| [`spec-compliance-audit`](skills/spec-compliance-audit/) | auditing a whole implementation against a whole standard | A rule catalog, one agent per rule/subject, a verdict vocabulary, refuters on every closing verdict, a traceability inventory whose GAP count is the progress metric. |
+| [`spec-compliance-audit`](skills/spec-compliance-audit/) | auditing a whole implementation against a whole standard | A rule catalog, one agent per rule group (a clause or one construct's rule family), a verdict vocabulary, refuters on every closing verdict, a traceability inventory whose GAP count is the progress metric. |
 
 **Testing and .NET**
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`test-gate`](skills/test-gate/) | before every commit, merge, enqueue or push | The targeted local gate for every change (on both OSes, host-only witnesses included, audits reused when unchanged, no fixed time limits); CI's merge-group run is the whole population and the final word; the battery in its own worktree; read the verdict line, not the exit code; filters that silently match nothing; confirm new tests actually ran; no conflict markers in what is staged. |
-| [`dotnet-engineering`](skills/dotnet-engineering/) | .NET / C# work | Latest .NET and C#, strong types, warnings as errors; `dotnet test` filter traps; test gaps and smells; BenchmarkDotNet with a witness; binlog failure analysis; trimming/Native AOT; NuGet trusted publishing. |
-| [`roslyn-analysis`](skills/roslyn-analysis/) | C# duplication review, sibling sweeps, mechanical refactors, verifying built assemblies | Structural clone detection, symbol sweeps (every implementation/override/reference), a safe rewriter harness (dry-run, preserves encoding and line endings, refuses unparseable output), metadata-only assembly and IL inspection. |
+| [`test-gate`](skills/test-gate/) | choosing and running the gate before a commit, merge, enqueue or push; deciding whether a result allows the merge; local and CI results disagree | The gate rule: every case the merge run executes ran green at the head that lands, or a recorded pass at the same inputs covers it (worked design: the whole population on the developer's OS locally, the other OS and the merged tree in the merge group); host-only witnesses; no fixed time limits; read the verdict line, not the exit code; filters that silently match nothing; confirm new tests ran; a red the branch did not cause is root-fixed first, and a second re-run of one cause is refused; no conflict markers in what is staged. |
+| [`dotnet-engineering`](skills/dotnet-engineering/) | .NET / C# work: code and project files, `dotnet test`, test quality, benchmarks, binlogs, trimming and AOT, moving to the latest .NET, NuGet publishing | Latest .NET and C#, strong types, warnings as errors; `dotnet test` filter traps; test gaps and smells; BenchmarkDotNet with a witness; binlog failure analysis; trimming/Native AOT; NuGet trusted publishing. |
+| [`roslyn-analysis`](skills/roslyn-analysis/) | a C# review or refactor needs compiler facts: duplicated bodies and near-clones, every implementation and reference of a mechanism, one mechanical change across many files, or a built assembly's metadata and IL | Structural clone detection, symbol sweeps (every implementation/override/reference), a safe rewriter harness (dry-run, preserves encoding and line endings, refuses unparseable output), metadata-only assembly and IL inspection. |
 
-**Performance and platforms**
+**Platforms**
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`performance-diagnosis`](skills/performance-diagnosis/) | something is slower than it should be, adding threads stops helping, or before any optimization | Measure first, with a benchmark that proves it did the work; a scaling curve and a processes-versus-threads split to locate the limit; stack sampling; the mechanism explained from the library's source before fixing; a behavior-neutral differential over the whole input population; a structural guard, never a wall-clock limit. |
-| [`cross-platform`](skills/cross-platform/) | code, tests, scripts or agents must work on Windows and Linux (including WSL), or CI runs on an OS your gates don't | The targeted leg runs on both OSes, on a clone built there, and CI runs the whole population; host-only witnesses (a filesystem CI lacks) run locally; one line-ending format, LF, enforced; no path literal crosses OSes; build paths are never assumed portable; per-OS commands written explicitly; never export `GIT_DIR` into test processes. |
+| [`cross-platform`](skills/cross-platform/) | code, tests, scripts or agents must behave the same on Windows and Linux (including WSL): CI runs an OS the local gates do not, git, line endings, paths or encodings differ, or something passes on one OS and fails on the other | Each change's other-OS behaviour checked on that OS, on a clone built there, wherever the project's gate puts the run (`test-gate` decides where); a difference CI sees is a build input to pin; host-only witnesses (a filesystem CI lacks); one line-ending format, LF, enforced; no path literal crosses OSes; build paths are never assumed portable; per-OS commands written explicitly; never export `GIT_DIR` into test processes. |
 
 **Running agents at scale**
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`agent-fleet`](skills/agent-fleet/) | dispatching many parallel subagents on a long campaign | One self-contained input per agent; checkpoint to disk; fresh agents from checkpoints; concurrency and token budgets; land finished work first, one pull request per branch through a merge queue, by a deterministic enqueue step, with review on the branch and finishers for bounces; adversarial refuters; cost per unit decides the lane. |
+| [`agent-fleet`](skills/agent-fleet/) | deciding whether a long engineering campaign should run parallel subagents or a multi-agent workflow, and before dispatching one | Cost first: the orchestrator does small work itself and a subagent pays only for parallel breadth, isolation or an independent judgment; one self-contained input per agent; checkpoint to disk; fresh agents from checkpoints; turn caps in the role, not the brief; concurrency, STOP and death handling; ids from one allocator; adversarial refuters; roles routed by model tier; cost per unit decides the lane. |
+| [`merge-queue-landing`](skills/merge-queue-landing/) | landing finished branches through a merge queue: the enqueue step, the gate record it reads, review before landing, finishers and bounces, the ruleset and CI triggers | One pull request per branch, landed by a deterministic script with no agent in the landing step; nothing finished held; every bounce classed against the gate record (infra or runner, merge, genuine, flake); one source of truth for review findings; conflict-free landing files; the ruleset applied only with the owner present. |
 | [`claude-cloud-sessions`](skills/claude-cloud-sessions/) | running work in Claude Code cloud sessions | Environment setup scripts and snapshots; multi-repo sessions and hooks; private-repo access; launch surfaces and **billing** (measured, including where it differs from the docs); stopping cleanly before a credit runs out. Includes a setup-script template. |
 | [`automating-agent-guardrails`](skills/automating-agent-guardrails/) | agents keep breaking a project's rules, or when setting up guard hooks, role agents, a session-start readiness check, cost telemetry or LSP navigation | Guard hooks on every shell tool that fail open, are scoped to the repo and prove each rule with a self-test in CI; role definitions (implementer, finisher, refuter, analyst, chore, locator) with model, effort, turn cap, 1-hour cache and read-only hooks in the role itself, proven by a smoke dispatch after restart; a readiness check every session (OK / REPAIRED / N/A / TODO / ASK-OWNER) where anything needing your permission becomes a question; local per-agent cost telemetry. Includes the scripts and templates. |
 
@@ -539,10 +560,9 @@ use it and which tools it may use. Claude can launch one as a focused, independe
 
 | Skill | Use it when | What it enforces |
 |---|---|---|
-| [`devlog`](skills/devlog/) | keeping a development log, work history or fix log that agents write and read; recording a failed or overturned approach; checking whether something was tried before | Three forms by purpose (working history, defect/fix log, published narrative); one entry per landing, one file per entry, numbered at enqueue, the newest-first view rendered; timestamps from the clock; corrections as new entries, never rewrites; failures kept; only the log is historical. Agents search it before retrying instead of reading it at session start; consolidation yields candidate learnings, and only those an adversarial validation vets enter the learnings file or a skill. Includes the entry script (`new`, `stamp`, `check --base` for CI, `render`, `migrate`), a pull-request hook and the templates. |
+| [`devlog`](skills/devlog/) | setting up or keeping a development log, work history or fix log; writing, numbering or timestamping an entry; recording a failed or overturned approach; checking whether something was tried before; enforcing one entry per change (a hook, a CI check, numbering at landing); consolidating the log into validated learnings | Three forms by purpose (working history, defect/fix log, published narrative); one entry per landing, one file per entry, numbered at enqueue, the newest-first view rendered; timestamps from the clock; corrections as new entries, never rewrites; failures kept; only the log is historical. Agents search it before retrying instead of reading it at session start; consolidation yields candidate learnings, and only those an adversarial validation vets enter the learnings file or a skill. Includes the entry script (`new`, `stamp`, `check --base` for CI, `render`, `migrate`), a pull-request hook and the templates. |
 
-`engineering-standards` is the bar every other skill applies in its own context — each has a short *Standards*
-section saying how.
+Each skill states the quality bar it holds in its own context, in a *Standards* section or beside the rule.
 
 ## Agents
 
@@ -554,20 +574,18 @@ Specialist reviewers the `review` skill adds when a change calls for them:
 
 ## How the skills fit together
 
-- **`engineering-standards` is the bar.** Every other skill applies it in its own domain (each has a short *Standards*
-  section saying how).
 - **Before building against a standard:** `spec-oracle` derives the expected behavior and checks the citation first;
   `spec-compliance-audit` scales that to a whole implementation against a whole standard, using the same citation
   checker and the refuter pattern from `agent-fleet`.
-- **Changing code:** `test-gate` picks and reads the right gate before each commit and push; `dotnet-engineering` adds
-  the .NET-specific bar; `engineering-standards`' `rule_index.py` lists the structural rules that govern a file before
-  you edit it.
+- **Changing code:** `test-gate` holds the gate rule and reads the gate's result before each commit and push; `dotnet-engineering` adds
+  the .NET-specific bar; the repo's own rule query lists the drift tests that govern a file before you edit it.
 - **Reviewing:** `review` runs the four dimensions with the specialist `agents/`; a confirmed defect hands off to
   `variant-analysis`, which sweeps for its siblings (using `roslyn-analysis` for compiler-accurate C# queries).
-- **At scale:** `agent-fleet` runs many agents on a long campaign without losing work to limits, and
+- **At scale:** `agent-fleet` runs many agents on a long campaign without losing work to limits,
+  `merge-queue-landing` lands their finished branches one pull request at a time through a merge queue, and
   `claude-cloud-sessions` covers running that work in Claude Code cloud sessions. `automating-agent-guardrails` turns
-  the rules those agents must follow into hooks and role definitions, and checks at every session start that they
-  are in force.
+  the rules those agents must follow into hooks and role definitions, defines the three model tiers every skill names,
+  and checks at every session start that they are in force.
 - **Remembering:** `devlog` keeps what every change tried and learned, so the next session starts from it instead of
   repeating it; its consolidation brief turns the log into candidate learnings, and its validation brief admits only
   the vetted ones to a learnings file or a skill.
@@ -583,7 +601,8 @@ and a `## Testing` section records gate commands and baseline counts.
 [`evals/`](evals/README.md) is a `claude plugin eval` suite with one to six cases per skill and one per agent. Each
 case runs with the plugin and with no plugin at all, and it is kept only if the plugin arm scores higher. That makes
 it a regression test: a skill edit that stops changing Claude's behavior shows up as a shrinking Δ. To run it:
-`claude plugin eval . -j 4 --no-publish --threshold 0`. A skill change ships with its eval; see the
+`python scripts/run_evals.py run --model <full model id> --effort <level>`, which records the model and effort in
+the result (the two tiers' exact commands are in the evals README). A skill change ships with its eval; see the
 [evals README](evals/README.md) for the rule, how to read the delta, and the cases dropped because Claude already
 passed them without the plugin.
 

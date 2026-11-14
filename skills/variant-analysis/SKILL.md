@@ -1,6 +1,6 @@
 ---
 name: variant-analysis
-description: Use immediately after any defect is confirmed - a wrong answer, crash, security hole, or bad pattern - and whenever someone asks "are there others like this?" or "is this the same bug?". Names the mechanism rather than the symptom, derives textual, structural (Roslyn, ANTLR, tree-sitter, Semgrep) and semantic queries, checks the other arms of the dispatch and every place the same rule is written, probes each candidate with a minimal repro, and reports the sweep so a zero result is evidence. Not for initial discovery with no bug in hand.
+description: Finds every other instance of a confirmed defect's mechanism - other call sites, other arms of the dispatch, other copies of the rule - probes each candidate, and records the sweep as a table so a zero result is evidence. Use immediately after any defect is confirmed (a wrong answer, crash, security hole or bad pattern) and whenever someone asks "are there others like this?" or "is this the same bug?". Not for initial discovery with no bug in hand.
 ---
 
 > **Attribution.** Adapted from [trailofbits/skills](https://github.com/trailofbits/skills)
@@ -13,10 +13,15 @@ description: Use immediately after any defect is confirmed - a wrong answer, cra
 
 # Variant analysis
 
+**Every other instance of a confirmed defect's mechanism is found, probed and classified, and the sweep is recorded
+as a table a reviewer can check.** The proof is the table: each query verbatim with its scope and hits, a
+calibration line showing the query matched the known instance before the fix, and every hit confirmed, cleared
+with its reason, or latent.
+
 **Every bug is a pattern.** Once a defect is confirmed, it is one instance of a mechanism, and the same mistake
 usually lives elsewhere: in a copy-pasted neighbor, at another call site of the same API, in the other arm of the
 same dispatch, or in a second copy of the same rule. The fix is not done until the sweep is done, and the sweep is
-not done until you can show the queries you ran and what each one found. *(Validated 2026-09-28.)*
+not done until you can show the queries you ran and what each one found.
 
 ## When to use
 
@@ -49,6 +54,9 @@ concrete identifiers or constructs that exist in the code (grep for them before 
    type, negative zero, a collection with one element, the first and last iteration.
 6. **Name/contract mismatch.** Functions whose return value contradicts their name or doc comment. Every caller
    of such a function is a candidate.
+7. **Every consumer of a new kind.** When the fix adds a value kind, carrier type, enum member or node type, every
+   place that dispatches on that kind is a candidate, enumerated by a semantic query (every `switch` over the type,
+   every caller of its factory), not from memory: a recalled list misses the consumer nobody remembered.
 
 ## Step 2: Search at three levels, one abstraction at a time
 
@@ -61,6 +69,13 @@ every new hit before the next step. Stop climbing when more than half the hits a
 | Textual | `rg`, `git grep` | copy-paste, same identifiers, comments and docs repeating the rule | renamed variables, different formatting, semantics |
 | Structural | Roslyn syntax walker, ANTLR listener, tree-sitter query, Semgrep | same shape under any names; every `switch` over the enum; every rule alternative | type-driven and cross-procedure flow |
 | Semantic | Roslyn `SemanticModel`, CodeQL, Semgrep taint | every call resolving to the symbol, every read of a field, value flow | code that does not build |
+
+**A textual query alone does not close a sweep** whose mechanism has a symbol or a dispatch: grep misses renamed,
+aliased and escaped forms, and running a text-only method carefully did not catch them (one sweep grepped one
+helper's name and never its sibling's; another grep missed the escaped spelling of the same literal). The protection
+is a structural or semantic query, for C# `skills/roslyn-analysis/references/sweep-symbol.cs` (every implementation,
+override, caller and reference) or `detect-clones.cs`, and, once the rule lives in one place, the drift test of
+Step 4.
 
 Search the **whole repository root**, never only the module where the bug was found. Include tests, generated
 code sources (templates, grammars), and docs, because a wrong rule stated in a doc gets re-implemented. See
@@ -101,12 +116,17 @@ A candidate is not a finding until something runs. For each hit:
    *latent* (unreachable today but unprotected; report at lower severity and say what would make it reachable).
 
 Code with no callers today is not cleared. It is latent, and the sweep is exactly how you find it before a caller
-arrives. Keep every probe as a regression test once it is fixed. *(Validated 2026-09-28.)*
+arrives. Keep every probe as a regression test once it is fixed.
 
 ## Step 6: Report the sweep
 
-The report is what turns "I swept it" from an assertion into evidence. A zero result is only meaningful if the
-queries could have found something. Prove that each query hits the original instance before the fix.
+**A sweep is recorded as a table, and a sweep reported as a sentence is not a sweep.** The table names each query
+verbatim, what it matched, and how each hit was classified; its calibration line shows each query hit the original
+instance before the fix, because a zero is only evidence when the query could have found something. Where the
+mechanism has a symbol or a dispatch, at least one row is a structural or semantic query (Step 2). *Why: in one
+compiler project a sibling arm or second copy of a rule left wrong was the largest class of defects, 20-30 %, and
+two dozen of them sat in code a recorded sweep had covered. "Swept, no other instances" cannot be checked; a table
+can, by the reviewer and by the next reader.*
 
 ```markdown
 ## Variant sweep: <mechanism statement>
@@ -125,7 +145,7 @@ Regression guard: <test or analyzer or CI rule derived from the best query>.
 ```
 
 File every confirmed and latent variant in the project's work register, one item each, before it turns into a
-paragraph of prose. *(Practice — not yet validated: the lesson held in use, but its original evidence was only partly re-sourced.)* Record the queries that failed alongside those that worked.
+paragraph of prose. Record the queries that failed alongside those that worked.
 
 ## Examples
 
@@ -151,21 +171,19 @@ page size. Mechanism: "an exclusive upper bound is computed as `count / size` in
 bound. Arms: forward versus reverse paging, and the server's copy of the calculation. Probe with count = 0, 1,
 size, size + 1.
 
-## Why hunts fail
+## Why hunts fail, and where the record shows it
 
-1. **Narrow scope.** Only the original module was searched.
-2. **Symptom search.** The query matched the error text, not the mechanism.
-3. **One arm.** The sibling arm of the dispatch was never probed.
-4. **Patching copies.** N copies of a rule were fixed N times instead of once.
-5. **Generalizing too fast.** Several abstractions at once, so the noise cannot be attributed to any of them.
-6. **Uncalibrated zero.** A query that could not have hit the original was reported as "no variants."
-7. **Happy-path probes.** Null, empty, boundary and both-sides-null cases were never tried.
+Each part of the sweep record exposes one way a hunt fails, so a reviewer reading the record can see which
+happened: the **Scope** column, a search of only the original module; the **mechanism statement**, a query that
+matched the symptom's error text; the **arms** line, a sibling arm never probed; the **rule copies** line, N copies
+patched N times instead of extracted once; the one-element-per-step **queries**, several abstractions generalized
+at once so the noise cannot be attributed; the **calibration** line, a zero from a query that could not have hit
+the original; and each **probe's inputs**, a happy path with no null, empty, boundary or both-sides-null case.
 
 ## Standards
 
-The bar is the **engineering-standards** skill. Its "every bug is a pattern", "two-arm dispatch" and "one rule in
-one place" rules are Steps 1 to 4 here, and its root-cause rule forbids calling a variant "a quirk" or working
-around it. A sweep shaped to the smallest diff, where the defect class calls for extracting the rule, falls
+The bar: every bug is a pattern, a two-arm dispatch has its other arm checked, and one rule lives in one place
+(Steps 1 to 4 here); a variant is fixed at its root cause, never worked around. A sweep shaped to the smallest diff, where the defect class calls for extracting the rule, falls
 short of that bar. The **review** skill's sibling-sweep step runs this skill for each confirmed finding.
 
 ## Project hooks

@@ -14,4 +14,4 @@ hand-maintained catalog loses rules that are written as plain prose. Where a tab
 render the page (see `spec-oracle` §2): extracted figures skew toward falsely restrictive syntax.
 
 For a very large standard, audit a named scope and say which clauses were NOT covered. Never imply that a
-partial audit covered the whole standard. *(Validated 2026-09-28.)*
+partial audit covered the whole standard.

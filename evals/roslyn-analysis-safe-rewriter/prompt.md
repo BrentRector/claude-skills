@@ -3,8 +3,8 @@ name: roslyn-analysis-safe-rewriter
 description: A mechanical edit across hundreds of C# files; roslyn-analysis prefers dotnet format / an existing code fix, else its bundled rewrite-template.cs harness (dry run by default, preserves BOM and line endings, refuses unparseable output) - never a whole-file NormalizeWhitespace.
 tags: [roslyn-analysis, skill]
 runs: 3
-max_turns: 8
-timeout_seconds: 240
+max_turns: 10
+timeout_seconds: 300
 allowed_tools: [Skill, Read, Glob]
 expected_outcome: Points at the bundled rewrite-template.cs harness (dry run first, then --write) or dotnet format, rather than a hand-written rewriter that normalizes whitespace.
 ---

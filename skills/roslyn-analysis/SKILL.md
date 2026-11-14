@@ -1,23 +1,19 @@
 ---
 name: roslyn-analysis
-description: Use in C#/.NET code when a review or refactor needs facts from the compiler rather than from grep - finding duplicated method bodies and near-clones across a solution, listing every implementation, override, caller and reference of a mechanism for a sibling sweep, applying one mechanical change across many files with a syntax rewriter that preserves comments and formatting, or inspecting a built assembly's metadata and IL to check what the compiler actually emitted. Read-only by default. Not for one-off edits or for questions a build or analyzer already answers.
+description: Answers C# questions from the compiler instead of from grep, with vetted helper programs. Use when a review or refactor needs duplicated method bodies and near-clones across a solution, every implementation, override, caller and reference of a mechanism for a sibling sweep, one mechanical change applied across many files without losing comments or formatting, or a built assembly's metadata and IL. Read-only by default. Not for one-off edits or questions a build or analyzer already answers.
 ---
 
 > **Attribution.** Adapted from [glennawatson/CSharpAgentSkills](https://github.com/glennawatson/CSharpAgentSkills)
 > `skills/roslyn-duplicate-detection/`, `skills/roslyn-rewriters/` and `skills/csharp-assembly-inspection/`
-> (MIT; notice in `references/THIRD-PARTY-NOTICES.md`). Changes: merged into one toolkit organized around the
-> review dimensions; the helper programs were rewritten after vetting found defects in the originals.
-> - Clone detector: the `--exact` mode now keeps token text (the original still reduced identifiers to their kind).
->   Excludes are matched on root-relative path segments, nested bodies are counted once, and output is sorted.
-> - Rewriters: files keep their BOM and line endings, and whitespace is not trimmed (trimming changed verbatim and raw
->   strings). Attributes match by exact name, not substring. A comment that would be lost is reported instead of
->   being pasted in front of the declaration, which commented the declaration out. A result that does not parse is
->   refused.
-> - Assembly inspection: the reflection loader was replaced with metadata-only reads, and an IL listing was added.
-> - Removed: the unpinned `npx --yes` install, the Sonar framing, and the project-specific examples.
-> - Added: a semantic sweep using `SymbolFinder`.
+> (MIT; notice in `references/THIRD-PARTY-NOTICES.md`). The changes are listed in `README.md`.
 
 # Roslyn analysis
+
+**Questions about a C# solution that text search can answer wrongly are answered from the compiler instead: which
+bodies are duplicated, every implementation, caller and reference of a mechanism, one structural edit applied
+everywhere, and what the build emitted.** Each answer is checked by a re-run or a build: the detector re-run with
+the clone set gone, a rewrite proven by the build, the tests and a read of the diff, and emitted IL passed through
+ILVerify.
 
 grep matches text. Roslyn reads C# the way the compiler does. Use it when the answer has to be correct across the whole
 solution: *is this logic written twice?*, *who else implements this rule?*, *change this shape in 400 files
@@ -62,7 +58,7 @@ different methods get the same hash. For each set, check it with the semantic mo
 3. **Do not merge look-alikes that will diverge.** A false merge that couples independent rules is worse than
    the duplication. State the reason instead of forcing it.
 4. **Run the detector again afterwards.** The extracted set must disappear. Add a drift test that fails if the
-   second copy comes back (see engineering-standards §5).
+   second copy comes back.
 
 The detector works on whole bodies. It will not find a six-line run inside two otherwise different methods.
 For fragment clones, lower `--min-tokens` on the detector, or run a token-window detector such as jscpd. Install
@@ -119,12 +115,10 @@ what we meant?", read the binary:
   methods. **`inspect-assembly.cs <x.dll> <Ns.Type> <Method>`** prints the IL of every overload of that method,
   with call, field and type operands resolved to names and branch targets as labels. It uses
   `System.Reflection.Metadata` only, so it installs no package and never loads or runs the assembly.
-- **Do not use `Assembly.LoadFrom` for inspection.** Loading can run module initializers and fails when a
-  dependency is missing. If you need the reflection object model (member signatures, custom attributes as
-  objects), use `System.Reflection.MetadataLoadContext`, which loads metadata only.
 - **Check that the IL is valid** with ILVerify (`dotnet-ilverify`, from dotnet/runtime) for any assembly you
-  generated or rewrote. For a readable decompile, use `ilspycmd` (third-party, MIT). Both are tool installs, so
-  pin the version and get approval before installing.
+  generated or rewrote. For a readable decompile, use `ilspycmd` (third-party, MIT). Both are tool installs: pin
+  the version, and follow the project's rule for changing the host (some projects require a go-ahead for a global
+  tool install).
 - `ManifestResources.Count == 0` means only that the DLL embeds no manifest resource. Loose files in the package
   or output folder are a separate question. List those with `unzip -l x.nupkg` or a directory listing.
 
@@ -141,7 +135,7 @@ what we meant?", read the binary:
 
 ## Standards
 
-The bar is the **engineering-standards** skill. This toolkit serves these rules from it:
+This toolkit serves these rules:
 
 - **One rule in one place, one mechanism per job.** A clone set is a candidate. When the semantic check
   confirms it, the extraction is the fix, and every copy moves to the helper in the same change.

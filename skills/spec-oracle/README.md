@@ -103,7 +103,7 @@ at the spec file and checker command.
 
 How it composes with sibling skills:
 
-- **engineering-standards** is the bar. For spec-governed work that means implementing the complete feature per the
+- **The bar** for spec-governed work is implementing the complete feature per the
   spec rather than what a test references, implementing the operation the rule names, treating deferral or
   rejecting legal input as debt, citing the clause at the implementation site, and sweeping sibling rules.
 - **spec-compliance-audit** applies the same discipline across a whole standard rather than one question.

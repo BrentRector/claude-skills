@@ -44,7 +44,7 @@
       "scope": "repo",
       "pattern": "\\bgit\\s+(?:-C\\s+\\S+\\s+)?push\\b[^;&|\\n]*?(?:\\s|:|\\+)(?:refs/heads/)?(?:main|master)(?=$|[\\s;&|])|\\bgit\\s+(?:-C\\s+\\S+\\s+)?push\\b[^;&|\\n]*\\s--(?:all|mirror)\\b",
       "reason": "this repository's protected branch is updated only by the merge queue (its ruleset refuses a direct push); each finished branch lands as one pull request.",
-      "instead": "push your own branch (`git push origin HEAD:<your-branch>`) and land it with `bash scripts/enqueue.sh <your-branch>` (rebase, targeted gate, pull request, merge queue).",
+      "instead": "push your own branch (`git push origin HEAD:<your-branch>`) and land it with `bash scripts/enqueue.sh <your-branch>` (rebase, gate, pull request, merge queue).",
       "block": [
         "git push origin main",
         "git push origin HEAD:main",

@@ -4,7 +4,7 @@
 
 A no-build test run tests whatever binary was copied into the test output at the last full build.
 
-- .NET: `dotnet build <Solution>.sln`, **the solution rather than one project**, then `dotnet test --no-build`.
+- .NET: `dotnet build <Solution>.sln` (or `.slnx`), **the solution rather than one project**, then `dotnet test --no-build`.
   Building only the library does not re-copy it into the test projects' `bin`. Or just drop `--no-build`.
 - Python: reinstall editable or compiled extensions (`pip install -e .`, rebuild the C extension) and clear
   stale `__pycache__` / `.pyc` only when you have a reason to think they're stale.
@@ -14,7 +14,7 @@ The symptom: local stays green commit after commit while CI, which checks out cl
 been red since the first one.
 
 Then confirm the build itself **succeeded**: a failed or incremental build can still leave a stale assembly
-behind, so when in doubt, hash the assemblies the tests load. *(Validated 2026-09-28.)*
+behind, so when in doubt, hash the assemblies the tests load.
 
 ## A filter that matches nothing is a silent green
 
@@ -34,7 +34,7 @@ The most common false green is a selector that selects nothing and still exits 0
 **Fix:** read the **count**, not just the pass/fail word. `Total: 0` or "0 passed, 312 skipped" means the gate
 did not run. Better still, wrap the gate in a script that normalises the filter and **fails on a zero or missing
 count**. With several OR'd terms, check each term's own count: one dead term among live ones still prints
-a clean verdict. *(Validated 2026-09-28.)*
+a clean verdict.
 
 ## Confirm the new tests actually ran, by name
 
@@ -42,4 +42,4 @@ A test that was written but never discovered (wrong attribute, missing `test_` p
 a data-driven source that yields no cases, a class that isn't public) passes by never running. It is a red
 failure even though nothing printed red. After adding tests, search the run's output for **their names** or list
 them (`dotnet test --list-tests`, `pytest --collect-only -q`, `jest --listTests`) and check that the count went up
-by the number you added. *(Validated 2026-09-28.)*
+by the number you added.

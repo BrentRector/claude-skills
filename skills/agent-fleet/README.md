@@ -18,11 +18,12 @@ for these fixes" is usually enough. You can also name it explicitly ("use the ag
 
 ## What it does
 
-The skill splits the work into roles. The **orchestrator** (your own session) plans, dispatches, reconciles,
-gates and commits. Every other job (probe, implement, validate, adversarial review, finish a bounced branch) is a
-subagent, and landing itself is a deterministic enqueue script. The
-orchestrator keeps its own transcript short: briefs and reports are files, and the conversation carries only
-their paths.
+The skill starts with cost: a subagent starts from an empty context and is usually most of a campaign's spend, so
+the **orchestrator** (your own session) does small jobs itself (a handful of tool calls, a lookup, something it
+already knows) and delegates only for parallel breadth, isolation or an independent judgment, measuring inline
+before it fans out. The orchestrator plans, dispatches, reconciles, gates and commits; landing is a deterministic
+enqueue script (the [`merge-queue-landing`](../merge-queue-landing/SKILL.md) skill). The orchestrator keeps its own
+transcript short: briefs and reports are files, and the conversation carries only their paths.
 
 A campaign run under the skill looks like this:
 
@@ -45,14 +46,16 @@ A campaign run under the skill looks like this:
    An agent that resumes a worktree or merges a predecessor runs
    [`references/status_delta.py`](references/status_delta.py) first, which prints exactly the commits the summary
    does not cover.
-4. **Agents obey the stop rules**: a hard turn cap per role (e.g. ~160 read-only, ~220 implementer), a graceful
+4. **Agents obey the stop rules**: a turn cap per role that the harness enforces (the role definition's `maxTurns`,
+   e.g. ~160 read-only, ~220 implementer; the brief shows no turn number), a graceful
    `{SCRATCH}/STOP` file checked before every step, and never ending a turn while their own background gate runs.
 5. **Reconcile the returns** against the expected worklist (missing, duplicated, extra) and re-run only the gaps.
 6. **Send closing verdicts to adversarial refuters**, small independent agents told to overturn the claim.
-7. **Land finished work first**: each reviewed DONE branch goes through a deterministic enqueue script (rebase,
-   the targeted local gate, stamp the log entry, open one pull request, add it to the merge queue). CI's
-   merge-group run is the whole-population regression net; a conflict or a bounce goes to a finisher. The
-   comprehensive battery runs in its own detached worktree at the batch head.
+7. **Land finished work first**: each reviewed DONE branch goes through a deterministic enqueue script (refuse a
+   head no green gate record covers, merge the default branch in, stamp the log entry, open one pull request, add it
+   to the merge queue); a conflict or a bounce goes to a finisher. The
+   [`merge-queue-landing`](../merge-queue-landing/SKILL.md) skill holds the pipeline, and
+   [`test-gate`](../test-gate/SKILL.md) the gate it reads.
 8. **After the fleet**, run `git status --short` and account for every unexpected path before staging.
 
 On restart after a cutoff, the skill's recovery procedure is: read the reset time from the limit message, check
@@ -80,9 +83,10 @@ section).
 | The bar | what would make the output worthless even though it is well-formed |
 | Allocated to you | id ranges, code ranges, the report path — agents never mint their own |
 | Checkpoint protocol | a staged-output conflict-marker assertion before every commit; WIP commits + a stamped `STATUS.md` (`STATUS-AT: <sha>`) for worktree agents, and `status_delta.py` first when resuming or merging a predecessor; JSONL-per-item for workflow stages |
-| Stop rules | the STOP file, the turn cap, and blocking on background jobs with `timeout 580 bash -c 'until grep -q "<verdict>" <log>; do sleep 5; done'` (never `tail -f \| grep -m1`, which idles to its timeout) |
+| Stop rules | the STOP file, the harness-enforced turn limit (no number shown to the worker), and blocking on background jobs with `timeout 580 bash -c 'until grep -q "<verdict>" <log>; do sleep 5; done'` (never `tail -f \| grep -m1`, which idles to its timeout) |
 | Ground rules | write only in your worktree or scratch; every reported lead carries repro and code site |
-| Report | 60 lines or fewer: status, one section per item, leads, NEXT if split |
+| Finishing work | implementer only: it owns the code within its group's files, finishes the whole group, works through ordinary obstacles, and returns BLOCKED only for a deliberate blocker |
+| Report | at the allocated path, for a reader who saw none of the tool calls: status, one section per item, leads, NEXT if split; the structured return stays short |
 
 Render copies with a script rather than by hand, and point each agent at its rendered copy instead of pasting it.
 
@@ -109,19 +113,17 @@ Every rule in the skill carries its own *Why*. The main ones:
 | Concurrency budget and a token tally | ~28 concurrent agents burned ~20 % of a window in 11 minutes; ~50 exhausted a window in ~2.5 h. The limit kills every live agent mid-step. *(Practice — not yet validated: no evidence the tally, rather than the real usage meter and the STOP file, prevented a kill.)* |
 | Graceful STOP file | Workflow agents can't be messaged, and a hard kill lands mid-step. *(Validated 2026-09-28.)* |
 | One pull request per finished branch through a merge queue; the enqueue step is a script | In one measured campaign (2026-10-10) the lander pipeline it replaces spent 41 % of 567 lander-minutes in local whole-population gates (8 of 15 RED, mostly fixed time limits under load) and 16.5 % waiting for the CI that had already run the same population on 20 free runners in 13 min; 10 landers for 6 trains, first commit on the default branch 6 h 49 min into the day. *(Validated 2026-10-11 (measurement); the redesign's effect is not yet measured.)* |
-| The local gate is the targeted leg, on both hosts; CI is the whole-population regression net | Local runs are free and fast when narrow; the whole population ran twice, and the local copy's reds were mostly the host's load. The targeted leg still runs on the other OS too: 3 of 38 landed changes had other-OS-only reds in their own tests, each caught before a CI round trip. Host-only witnesses (a filesystem CI lacks) stay in the local leg by trait. *(Validated 2026-10-11 (measurement); the redesign's effect is not yet measured.)* |
 | Review the branch when it is DONE | Review shards inside the landing were 23 % of its tokens and sat on the critical path between gates. *(Practice — not yet validated.)* |
 | Finished work is never held; re-reviews read only the diff; a severity threshold decides | One six-link chain had six groups DONE over seven hours and none landed: predecessors waited for their successors, and three whole-branch review rounds of one branch found 5, 2 and 1 new findings over 2.3 h before the cap turned a LOW finding into a human decision. *(Validated 2026-10-18 on one campaign; the new rule's landing times are not yet measured.)* |
 | Unanswered findings have one source, the findings file; a torn file holds every branch it names | A hold read from a report stamp released a successor exactly when nobody had answered its predecessor's findings, and each partial reader of a damaged file read it more permissively than the whole. The branch that made this rule took seven review rounds; a byte-offset property test ended them. *(Validated 2026-10-18 on one campaign.)* |
-| The comprehensive battery runs in its own detached worktree | It rebuilds mid-run: on the shared checkout one measured a half-finished edit and nothing could land for its ~45 min (the blocked work was modelled at about seven clusters, not measured). From the first worktree battery on, landings continued in parallel, though slower while it shares the cores. *(Validated 2026-09-28.)* |
 | Group related fixes per implementer | Separate implementers on the same files produced merge conflicts and composition defects neither could see. *(Practice — not yet validated: no before/after measure of conflicts per landing.)* |
 | Compute the groups by file (`fix_clusters.py`) | Hand-picked groups carried 1–3 items and split one file's defects across implementers; computed per-file clusters turned 411 open defects into 125 groups, so a six-slot wave carries ~25–30 fixes instead of ~10. *(Practice — not yet validated: no before/after measure of fixes landed per wave.)* |
 | A rolling wave (`rolling-wave.js`), not "N implementers, then one landing" | Under a wave barrier every finished slot waits for the slowest group; a queue refills a slot the moment its agent returns, and each branch is reviewed and enqueued as it finishes. *(Filling a freed slot at once: validated 2026-09-28. The rolling-wave script: practice, not yet validated: no A/B against the barrier.)* |
 | Same-file successors for a file with more defects than one cluster holds | Orientation was about half of every implementer's tokens. Two independent groups on one file pay it twice; a successor merges the first branch's REVIEWED head and starts from its handoff notes, while the first branch lands on its own. It is a fresh agent because cost grows with the square of a transcript's turns. *(Practice — not yet validated: no A/B against independent groups.)* |
 | One-call orientation (`orient.py`) before reading source | Across 7 implementer transcripts, 63 % of tool calls were reads/searches and 15 % of turns came before the first edit, re-deriving what earlier fixes had learned. Cutting ~25 of ~200 turns saves ~15 % of an implementer's tokens. *(Practice — not yet validated: the ~15 % is an estimate, not yet measured.)* |
 | Never chain after a build/test verdict; parallel calls instead of a chaining ban | A chain's exit status is its last command's, so `test && git commit` commits on an unread verdict. A blanket ban adds turns, which are the quadratic cost. *(The verdict rule: validated 2026-09-28. The targeted form: practice, not yet validated.)* |
-| The model follows the role, never a per-call model | A per-call model overrides the role's frontmatter: "top model on every agent" ran the cheap chore role on the top tier, and a 30-lookup code-site pass ran on the top-tier analyst. *(Practice — not yet validated: the cost of the override was never measured.)* |
-| A premium model is a per-item escalation, not a lane | Where it draws the same weekly pool faster, and its usage row is only a ceiling on its share, a premium lane buys similar results for more quota. *(Practice — not yet validated: the premium model's draw per unit was never measured.)* |
+| The model follows the role; a per-call model only per item, or for a role that inherits | Each role's tier is set in its definition ([model tiers](../automating-agent-guardrails/references/role-agents.md#model-tiers-and-effort)), and a per-call model overrides it: a rule to pass the orchestrator tier on every agent ran the mechanical chore role on the orchestrator tier, and a 30-lookup code-site pass ran on an orchestrator-tier analyst. *(Practice — not yet validated: the cost of the override was never measured.)* |
+| An orchestrator-tier dispatch is a per-item escalation, not a lane | Where the orchestrator tier draws the same weekly pool faster, and its usage row is only a ceiling on its share, an orchestrator-tier lane buys similar results for more quota. *(Practice — not yet validated: its draw per unit was never measured.)* |
 | Central id allocation | Five id collisions in one day each cost a renumbering pass; parallel landing agents overwrote each other's reports. *(Practice — not yet validated: collisions recurred whenever a second allocator existed.)* |
 | Pinned read-only worktree; frozen tree during a fleet | A landing that rebuilds the main tree swaps binaries under running probes. *(Practice — not yet validated: its effect on contaminated results was never measured.)* |
 | Never poll a fleet's output directory | An adversarial stage 2 only removes confidence, so an early read is biased upward. One early merge moved 10 of 55 results. *(Validated 2026-09-28.)* |
@@ -167,10 +169,12 @@ Every rule in the skill carries its own *Why*. The main ones:
 - **Prerequisites.** Git with worktree support (implementers and pinned analysis probes each use a worktree),
   a subagent or workflow tool, and a shell that can run `timeout`, `tail` and `grep` for the blocking-gate pattern.
 - **Composes with:**
-  - [`engineering-standards`](../engineering-standards/SKILL.md) — the quality bar every implementer brief must
-    carry. Briefs also tell implementers to run that skill's rule query for the files they will touch
-    (`engineering-standards/references/rule_index.py --tests "<glob>" <files>`, or the repo's own) before editing.
-  - [`test-gate`](../test-gate/SKILL.md) — how implementers and the enqueue step choose and read the targeted gate.
+  - Implementer briefs carry the quality bar (root cause, complete feature, sibling sweep), and tell implementers
+    to list the drift tests that govern the files they will touch (the repo's rule query) before editing.
+  - [`test-gate`](../test-gate/SKILL.md) — the gate rule implementers run at their branch head, and the gate record
+    the enqueue step reads.
+  - [`merge-queue-landing`](../merge-queue-landing/SKILL.md) — the landing: the enqueue step, review before landing,
+    finishers and bounce classes.
   - [`review`](../review/SKILL.md) and [`spec-compliance-audit`](../spec-compliance-audit/SKILL.md) — fleets whose
     closing verdicts go through the refuter step described here.
   - [`claude-cloud-sessions`](../claude-cloud-sessions/SKILL.md) — the same restart-safety rules applied to fleets
@@ -184,7 +188,7 @@ Every rule in the skill carries its own *Why*. The main ones:
 | [`references/inputs-and-briefs.md`](references/inputs-and-briefs.md) | Sections 2 and 3 in full: inputs, briefs, orientation, registrar re-checks, stating the bar |
 | [`references/checkpointing.md`](references/checkpointing.md) | Section 4's rules in full: stash, conflict markers, the stamped handoff |
 | [`references/concurrency-and-watchdog.md`](references/concurrency-and-watchdog.md) | Section 5 in full: the budget, liveness, the stall watchdog, blocking waits |
-| [`references/landing.md`](references/landing.md) | Section 6 in full: the 2026-10-10 measurement, the merge-queue pipeline, the enqueue script and finishers, review on the branch, conflict-free landing files, measuring per landing, cutover, and what retired |
+| [`../merge-queue-landing/SKILL.md`](../merge-queue-landing/SKILL.md) | Section 6 moved to its own skill: the merge-queue pipeline, the enqueue step and finishers, review on the branch, conflict-free landing files, measuring per landing, cutover |
 | [`references/grouping-fixes.md`](references/grouping-fixes.md) | Section 7 in full: computed groups and same-file successors |
 | [`references/refuters-and-routing.md`](references/refuters-and-routing.md) | Sections 10 and 11 in full: refuters and cost routing |
 | [`references/restart-and-standards.md`](references/restart-and-standards.md) | Section 12 and the Standards in full |

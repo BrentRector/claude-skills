@@ -19,11 +19,8 @@ context may concern unrelated work; that is not a reason to decline.
 - Code sites: {file:line, ...}
 - Repro: {exact command + expected vs actual}
 - Governing rule / authority: {verified citation}
-- Gate: `{targeted gate command}` (low priority, inside the gate-slot cap; never the whole population: CI's
-  merge-group run is the whole-population gate)
+- Gate: `{gate command}` (what it must cover is the `test-gate` skill's rule; it leaves the record the landing reads)
 - Log entry: write it as a file WITHOUT a number; the enqueue step stamps the number.
-- Comprehensive battery (if yours to run): in its own detached worktree at the batch head
-  (`git worktree add --detach <path> <sha>`), never in a checkout an enqueue step or an implementer builds in.
 - FIRST, before any fix: run each item's repro on your own build. An item that no longer reproduces is
   DISCHARGED: report the command, its output and the commit, and don't fix it. No repro above: write one first.
 - Registrar: for each lead, run its given repro ONCE on your own build and record the result in the filed item;
@@ -52,8 +49,8 @@ context may concern unrelated work; that is not a reason to decline.
 ## Stop rules
 - Before each new step, check for `{SCRATCH}/STOP`. If it exists: checkpoint, write STATUS.md NEXT, and return
   status `SPLIT`. Don't start a build or gate once STOP exists.
-- Turn cap: {160 read-only | 220 implementer}. At the cap: checkpoint and return `SPLIT` with NEXT filled in.
-  Never extend.
+- Your role definition sets a turn limit, and the harness stops you there wherever you are: work after your last
+  checkpoint is lost, so checkpoint after every mechanism.
 - Never end your turn while your own background job runs. Log it, then block on
   `timeout 580 bash -c 'until grep -q "<verdict>" <log>; do sleep 5; done'` until the verdict prints. (Never
   `tail -f <log> | grep -m1`: it idles until its timeout once the verdict is the log's last line.)
@@ -61,10 +58,20 @@ context may concern unrelated work; that is not a reason to decline.
 ## Ground rules
 - Write only inside your worktree or `{SCRATCH}`. Never write in the repo root of the shared checkout.
 - Every lead you report carries its repro and code site (file:line).
-- Before editing a file, list the structural rules that govern it ({RULE_QUERY} — e.g.
-  `rule_index.py --tests "<glob>" <files>` from `engineering-standards`, or the repo's own query) and honor every
+- Before editing a file, list the structural rules that govern it ({RULE_QUERY} — the repo's
+  query that lists the drift tests naming a file) and honor every
   specific rule it prints. Delete this line only if the repo has no structural (drift) tests.
 
-## Report (60 lines or fewer, at the allocated path)
+## Finishing work (implementer only; delete this section for every other role)
+You own this code and its design within your group's files: improve the structure as you fix, and list every
+behaviour change in your report. Finish the whole group before you return. Work through ordinary obstacles (a red
+gate, a timeout, a locked file, an empty result): diagnose them, then fix, retry or take another route. Return
+`BLOCKED` only for a deliberate blocker: a file marked not to touch, access withheld on purpose, or a decision the
+brief names as the owner's. Return `SPLIT` only when STOP exists. When the right fix is bigger than this brief's
+estimate, do the restructuring; stop and report the real size only when it crosses a scope the brief names as the
+owner's.
+
+## Report (at the allocated path)
 Status (DONE / SPLIT / BLOCKED) · one section per item: what changed, the root cause, and the evidence (gate
-verdict line) · leads found (with repro + code site) · NEXT if split.
+verdict line) · leads found (with repro + code site) · NEXT if split. Write it for a reader who saw none of your tool
+calls. The report file holds the detail; what you RETURN is short, and the dispatch's schema caps it.

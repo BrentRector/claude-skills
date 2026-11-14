@@ -12,8 +12,10 @@
 3. Repair automatically only what needs no permission. Anything that edits committed files, installs software,
    changes user settings, or is owner-only or billed is an ASK-OWNER line.
 4. **Put the asking rule in `CLAUDE.md`**: paste `templates/CLAUDE-guardrails.md`. Every ASK-OWNER line becomes
-   one AskUserQuestion at session start, before other work, and none is skipped silently. Hook output alone is not
-   enough, because a rule that exists only there disappears when the hook fails. *(Practice — not yet validated: no recorded silent skip or measured effect.)*
+   one AskUserQuestion at session start, before other work, and none is skipped silently. In a session nobody
+   attends (a scripted `claude -p` worker, an orchestrator loop), the lines go into the final report instead and the
+   work that does not depend on them goes on. Hook output alone is not enough, because a rule that exists only there
+   disappears when the hook fails.
 5. **It fails open at every level**, including config loading. Any failure becomes an ASK-OWNER line saying "run it
    by hand", never a traceback or a non-zero exit.
 6. **It detects the environment.** With `CLAUDE_CODE_REMOTE=true` (cloud) or `CI` set, machine-local capabilities

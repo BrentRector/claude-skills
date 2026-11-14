@@ -23,11 +23,22 @@ Each file here uses these fields:
 |---|---|
 | `name` | the identifier Claude (or you) uses to call the agent |
 | `description` | when to use it; Claude reads this to decide whether a task matches |
-| `tools` | `Read, Grep, Glob, Bash` for all four: they read code and can run things (a test, a search, a citation checker), but have no edit tools |
-| `model` | `inherit`: the agent runs on the same model as the session that calls it |
+| `tools` | `Read, Grep, Glob`, plus `Bash` for the three that run things (a test, a search, a citation checker); none has an edit tool |
+| `model`, `effort` | a worker-tier alias at `effort: medium` (the tiers: [role-agents](../skills/automating-agent-guardrails/references/role-agents.md)) |
 | `color` | the label color Claude Code shows for the agent |
 
 The body is the agent's instructions: what to find, how to rank harm, the finding format, and what not to report.
+
+**Why the tier is named, not inherited.** A read-only analyzer does bounded judgment whose every finding then
+faces a skeptic, so it does not need the orchestrator tier. With `model: inherit`, an orchestrator-tier session
+would run every specialist on that tier, several in one parallel batch, and where a project requires approval for
+each dispatch on that tier, the batch would spend those approvals without asking. Raise a specialist's tier or
+effort only where a measurement (its findings overturned by the skeptic, or defects it missed) shows a gain.
+
+**Read-only is an instruction, not a guard.** These definitions carry no write-blocking hook, and `Bash` can write.
+Each agent is told what read-only means for it: Bash runs searches, tests and checkers, and never writes, moves or
+deletes a file in the repository, changes git state or installs anything; `pr-test-analyzer`'s break-it check runs
+in a scratch copy or detached worktree of its own. `type-design-analyzer` runs nothing, so it has no `Bash`.
 
 ## Using them standalone
 
@@ -45,8 +56,10 @@ Run standalone, an agent's findings are candidates: nothing refutes them for you
 
 ## When the `review` skill brings them in
 
-The `review` skill launches these **alongside** its four dimension agents (architecture, full code review,
-performance, duplication and efficiency), in the same parallel batch, when the change matches:
+When a review fans out (a large, cross-subsystem or high-consequence change), the `review` skill launches these
+**alongside** its four dimension agents (architecture, full code review, performance, duplication and efficiency),
+in the same parallel batch, when the change matches. For an ordinary diff its one finder applies the matching
+agent's checks itself, using the agent's file as a checklist:
 
 | Agent | Added when the change touches... |
 |---|---|
@@ -90,13 +103,14 @@ Reviews test coverage by asking whether the tests would go red on a wrong implem
 2. **Oracle** - where did each expected value come from? Derived from the authority is good; captured from the code
    under test pins the bug. A test asserting "not supported yet" for legal input pins a gap as a decision.
 3. **Discovery** - run the tests scoped to the change and check the **count executed**, not the exit code, since
-   many runners exit 0 when a filter matches nothing. Where cheap, break the code and confirm the test goes red.
+   many runners exit 0 when a filter matches nothing. Where cheap, break the code in a scratch copy or a detached
+   worktree (never the tree under review) and confirm the test goes red.
 4. **Strength** - weak assertions, over-mocking, and tests that do not discriminate the rule they claim (a negative
    test whose input another rule also rejects; a generic error standing in for a specific diagnostic; a test of an
    implementation choice that every plausible choice passes).
 5. **Determinism** - fixed time limits, wall-clock dates, unseeded randomness, order dependence, shared fixed paths.
-   For a time-limit assertion it names a deterministic replacement: a work count, an observed effect, completion, or
-   a growth ratio of two readings in the same run.
+   For a time-limit assertion it names a deterministic replacement: a work count, an observed effect, or completion
+   (count the work at two sizes when the property is complexity).
 
 Findings carry `Check`, `Scenario` (the regression and which tests still pass), `Why` and `Fix`. It is read-only
 except for running the suite to confirm discovery.
@@ -150,7 +164,8 @@ Why: <the mechanism, pointing at the exact line>
 Fix: <approach, and whether it is local or structural>
 ```
 
-Severity is **Critical**, **Warning** or **Suggestion**, defined per agent in its file; Suggestions are reported only
+Severity is the `review` skill's one scale - **critical**, **high**, **medium**, **low** or **info**
+(`skills/review/references/report-and-scale.md`) - with each agent's classes defined in its file; low is reported only
 when asked. No scenario, no finding. Each agent is also told to say plainly when nothing survives and to list what it
 examined, so an empty report is evidence rather than silence.
 

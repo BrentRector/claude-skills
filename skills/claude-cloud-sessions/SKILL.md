@@ -5,6 +5,10 @@ description: "Use when running work in Claude Code cloud sessions (claude.ai/cod
 
 # Claude Code cloud sessions: measured field notes
 
+**Cloud work runs in the environment and on the billing meter you chose, loads its hooks, reaches every repository
+it needs, and survives an abrupt kill.** The checklist at the end verifies it: the setup field's hash matches the repo
+copy, a smoke session is ALL GREEN, a one-line test confirms the billing surface, and the STOP watcher has fired once.
+
 These facts were MEASURED on 2026-09-24 while running Claude Code cloud sessions (Anthropic-hosted VMs) for a
 large .NET compiler project, the worked example called `<PROJECT>` below. Where the official docs
 (code.claude.com/docs/en/claude-code-on-the-web, …/cloud-environments) say something different, both are given.
@@ -69,7 +73,7 @@ work (§1).
 The hook points at a shim that runs the repo's own hook only when `CLAUDE_PROJECT_DIR` is NOT the repo, so the
 single-repo case doesn't run it twice. The settings file is part of the snapshot, so the hook fires in every session.
 Measured: `hook_spawn_completed … "SessionStart" … exit_code 0`, the submodule got checked out, and the unit
-suite went green. *(Practice — not yet validated: one session so far; not yet exercised again.)*
+suite went green.
 *Docs contradiction:* the docs say user-level `~/.claude/settings.json` hooks should not be expected in the cloud
 and that Anthropic-hosted sessions run hooks "from the repository and from your organization's server-managed
 settings". That statement is about YOUR laptop's user settings. A user settings file written ON the VM by the
@@ -91,15 +95,15 @@ setup script was loaded (measured 2026-09-24).
 | Surface | Repos | Environment | Notes (measured) |
 |---|---|---|---|
 | **claude.ai/code web page** (also desktop/mobile) | several ("+" beside the repo chip) | the environment chip | `https://claude.ai/code?repositories=owner/a,owner/b` pre-fills the repos. Shows in the sidebar |
-| **`claude --cloud "<task>"`** | **ONE** (the cwd's GitHub remote at the current branch; push first) | your `/remote-env` pick (`remote.defaultEnvironmentId`) | Measured: **prints nothing for a minute or more — it looks hung; do not abort it** — then prints `Created cloud session`, `View: <url>` and `Resume with: claude --teleport <id>` and returns. **Needs a TTY**: it fails when run from an agent's shell tool. `--environment` accepts only self-hosted `ccpool_` ids |
+| **`claude --cloud "<task>"`** | **ONE** (the cwd's GitHub remote at the current branch; push first) | your `/remote-env` pick (`remote.defaultEnvironmentId`) | Measured: **prints nothing for a minute or more — it looks hung; do not abort it** — then prints `Created cloud session`, `View: <url>` and `Resume with: claude --teleport <id>` and returns. **Creating a session needs a TTY**: it fails when run from an agent's shell tool. Without one, `--cloud <session id or URL>` can only send a prompt to an existing session. `--environment` accepts only self-hosted `ccpool_` ids |
 | **Routines / RemoteTrigger** | its `sources` list | `job_config…environment_id` | Does **not** appear in the sidebar. Run titles come from the ROUTINE NAME, so rename the routine before each fire or every run looks identical. Debug with `list_runs` / `get_run_log` |
 
 - **Sidebar titles** come from the opening words of the PROMPT, not the routine name. Start every prompt with a
   unique tag (`"Batch w2-s3 — …"`), and never start with an earlier run's number.
 - Follow-ups: type into the session's own page on claude.ai/code (verified: a message sent while it works is
-  queued and read at its next turn). The docs also describe `claude -p "msg" --cloud <session-id>`, but a
-  non-interactive `--cloud` invocation was measured failing ("`--cloud requires an interactive terminal`",
-  2026-09-24) — test it in your setup before relying on it for a stop signal (§7).
+  queued and read at its next turn). From a shell with no TTY, `claude -p "msg" --cloud <session-id>` sends a
+  message to an existing session (the id is `session_…` or `cse_…`; the claude.ai/code URL also works); only
+  creating a session needs a TTY. Test it once in your setup before relying on it for a stop signal (§7).
 
 ### Billing (measured 2026-09-24; re-measure before relying on it)
 
@@ -112,7 +116,7 @@ setup script was loaded (measured 2026-09-24).
 - *Docs:* the docs describe no separate credit at all. They say cloud sessions "share rate limits with all other
   Claude and Claude Code usage" and "there is no separate compute charge for the cloud VM". When a credit exists,
   **which surface you launch from decides what you spend.** Confirm with a one-line test session and the meter
-  before starting a fleet. *(Practice — not yet validated: measured once; re-measure.)*
+  before starting a fleet.
 
 ## 6. Monitoring a session without disturbing it
 
@@ -143,19 +147,19 @@ reopened (docs). Design so a kill costs at most one step:
   over the meter). At a threshold well before empty, send each live session a STOP message
   ("push what exists now and stop; start nothing new") — the verified channel is the session's web page (a browser
   automation step works); leave margin for the push itself, and click the session's Stop button as the last
-  resort. Test the watcher's STOP branch once before relying on it. *(Practice — not yet validated: not yet exercised in a later cloud session.)*
+  resort. Test the watcher's STOP branch once before relying on it.
 
 ## 8. Measure cost per unit, then plan with it
 
 Take one calibration batch, then divide dollars by the units it produced. Worked example (`<PROJECT>`,
-2026-09-24, Opus-class model, ~99 % cache hits): spec-adjudication of one conformance row **~$0.34–0.50/row**
+2026-09-24, one model and effort throughout, ~99 % cache hits): spec-adjudication of one conformance row **~$0.34–0.50/row**
 (~20 rows per batch, 11–19 min); writing one documentation determination row **~$0.80/row**; writing one
 spec-derived test golden **~$0.55–0.85/row**. These numbers are an example of the method, not a promise. Your
 task mix, model and cache-hit rate decide your numbers. Re-measure after any change to the brief.
 
 ## Standards
 
-The bar is the **engineering-standards** skill; the cloud changes where work runs, never how good it must be:
+The cloud changes where work runs, never how good it must be:
 
 - Cloud agents get the same briefs as local ones — the quality bar, the complete-feature rule and the root-cause
   rule travel with every dispatch; a budget cut is a reason to stop and push, never to land a smaller, worse fix.

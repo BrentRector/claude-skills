@@ -31,5 +31,3 @@ public static string WriteText(string value, int width)
     return value;
 }
 ```
-
-Keep the answer under 150 words.

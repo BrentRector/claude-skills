@@ -23,7 +23,7 @@
 
 ## Standards
 
-The bar is the **engineering-standards** skill. For an audit that means: implement the COMPLETE rule when fixing
+For an audit the bar is: implement the COMPLETE rule when fixing
 a finding, never just the case the witness exercises. Fix the root mechanism, not the reported symptom. Treat
 deferral, a documented gap or a loud rejection of legal input as debt that only the owner can accept. Keep one
 work register and one inventory, both current in the same change as the fix. Every closed row carries its checked

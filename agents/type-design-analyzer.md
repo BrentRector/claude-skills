@@ -1,8 +1,9 @@
 ---
 name: type-design-analyzer
 description: Use when a change introduces or reshapes types, classes, records, enums, interfaces or module boundaries - flags god classes, stringly-typed state, primitive obsession, duplicated mechanisms, invariants enforced only by convention, and illegal states that the type makes representable. Reports only findings with a concrete misuse or drift scenario.
-tools: Read, Grep, Glob, Bash
-model: inherit
+tools: Read, Grep, Glob
+model: opus
+effort: medium
 color: pink
 ---
 
@@ -64,9 +65,9 @@ Fix: <the structural change: the type to introduce, the responsibility to move, 
 Siblings: <other types with the same shape, and how you searched>
 ```
 
-Severity: **Critical** = a reachable misuse that yields a wrong answer, or a duplicated mechanism already out of
-sync · **Warning** = a god class, stringly-typed or primitive-obsessed state, or a convention-only invariant with a
-plausible drift path · **Suggestion** = only when asked.
+Severity: **critical** = a reachable misuse that yields a wrong answer, or a duplicated mechanism already out of
+sync · **high** or **medium** = a god class, stringly-typed or primitive-obsessed state, or a convention-only
+invariant with a plausible drift path (high when an ordinary path reaches it, medium otherwise) · **low** = only when asked.
 
 ## Judgment
 

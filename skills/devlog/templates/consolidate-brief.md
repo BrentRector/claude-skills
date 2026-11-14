@@ -1,9 +1,10 @@
 # Brief: consolidate the development log into CANDIDATE learnings
 
-<!-- Give this to ONE agent, as a file it reads ("Read and follow <path>"). Fill the <placeholders>. A 1,750-entry
-     log produced 145 candidate learnings and 15 open problems in about 30 minutes with this brief. Its output is
-     NOT LEARNINGS.md: every candidate goes through templates/validate-brief.md, and only the VETTED ones are
-     published or encoded into a skill or rule. -->
+<!-- Give this to ONE worker-tier agent (the tiers: automating-agent-guardrails' references/role-agents.md), as a
+     file it reads ("Read and follow <path>"). Fill the <placeholders>. A 1,750-entry log produced 145 candidate
+     learnings and 15 open problems in about 30 minutes with this brief. Its output is NOT LEARNINGS.md: every
+     candidate goes through templates/validate-brief.md, and only the VETTED ones are published or encoded into a
+     skill or rule. -->
 
 **Goal.** Turn `<devlog/>` (<N> entry files, <first date> to <last date>; read them in number order, or one `devlog.py render` output) into `LEARNINGS-CANDIDATES.md`:
 every learning the project appears to have paid for, as a CANDIDATE that a separate validation run will vet, leave

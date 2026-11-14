@@ -65,7 +65,7 @@ jobs:
       - run: dotnet pack src/MyLib/MyLib.csproj -c Release -o ./artifacts
       - name: NuGet login (OIDC)
         id: login
-        uses: NuGet/login@v1
+        uses: NuGet/login@<sha>       # v1, pinned to the commit its tag names (third-party: pin by SHA)
         with:
           user: ${{ secrets.NUGET_USER }} # nuget.org profile name, not the email address
       - run: >

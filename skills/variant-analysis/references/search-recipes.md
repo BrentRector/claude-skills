@@ -10,7 +10,7 @@ the recipe hits the original instance.
 Structural: finds a shape under any names, and needs no build.
 
 ```csharp
-#:package Microsoft.CodeAnalysis.CSharp@4.*
+#:package Microsoft.CodeAnalysis.CSharp@5.0.0   // the version roslyn-analysis' helpers pin; bump with them
 using Microsoft.CodeAnalysis; using Microsoft.CodeAnalysis.CSharp; using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 foreach (var path in Directory.EnumerateFiles(args[0], "*.cs", SearchOption.AllDirectories))
@@ -30,8 +30,9 @@ and every `switch` expression missing an arm for one enum member.
 
 ## C#: semantic queries (resolve symbols, not names)
 
-Use these when aliases, `using static`, extension methods or overloads defeat the name match. Open the solution
-with `Microsoft.CodeAnalysis.Workspaces.MSBuild` (`MSBuildWorkspace.Create().OpenSolutionAsync(sln)`), then:
+Use these when aliases, `using static`, extension methods or overloads defeat the name match. Load the solution
+as roslyn-analysis' `references/sweep-symbol.cs` does (its `#:package` lines, then `MSBuildLocator.RegisterDefaults()`
+before `MSBuildWorkspace.Create().OpenSolutionAsync(sln)`), or run that helper as it is; then:
 
 - **Every use of a symbol:** `SymbolFinder.FindReferencesAsync(symbol, solution)`.
 - **Every override or implementation of a dispatch method:** `SymbolFinder.FindOverridesAsync` and

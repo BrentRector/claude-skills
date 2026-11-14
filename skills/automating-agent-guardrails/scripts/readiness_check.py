@@ -263,7 +263,7 @@ def check_roles(ctx):
                           on_yes=f"fix the definitions, then `python {this_script()} --ci`"))
     else:
         lines.append(Line("OK", "role agents", f"{len(names)} roles ({', '.join(sorted(names))}); dispatch by "
-                          "agentType / subagent_type, never per-call model or effort"))
+                          "agentType / subagent_type, with no per-call model or effort (a per-call value overrides the role)"))
     if ctx["env"] != "local":
         lines.append(Line("N/A", "role smoke proof", NOT_HERE[ctx["env"]]))
         return lines
@@ -411,7 +411,9 @@ def render(lines, ctx):
     if counts["ASK-OWNER"]:
         out.append(f"ACTION: {counts['ASK-OWNER']} ASK-OWNER line(s). Before other work, ask the owner about EACH "
                    "one: one AskUserQuestion per line, offering its On-yes step. Never skip one silently. On yes, do "
-                   "it; on no, carry on without it and do not re-ask this session.")
+                   "it; on no, carry on without it and do not re-ask this session. When nobody can answer (a scripted or "
+                   "non-interactive session), list these lines in your final report and carry on with work that does "
+                   "not depend on them.")
     if counts["TODO"]:
         out.append(f"ACTION: {counts['TODO']} TODO line(s): no permission needed. Do them this session.")
     triggers = ctx["cfg"].get("ask_at_trigger") or []
@@ -499,13 +501,13 @@ def main(argv):
 # ------------------------------------------------------------------------------------------------ self-test
 
 GOOD_ROLES = {
-    "implementer.md": "---\nname: implementer\ndescription: fixes\nmodel: opus\neffort: high\nmaxTurns: 220\n"
+    "implementer.md": "---\nname: implementer\ndescription: fixes\nmodel: opus\neffort: medium\nmaxTurns: 220\n"
                       "experimental:\n  cacheTtl: 1h\n---\nbody\n",
-    "refuter.md": "---\nname: refuter\ndescription: refutes\nmodel: opus\neffort: xhigh\nmaxTurns: 160\nhooks:\n"
+    "refuter.md": "---\nname: refuter\ndescription: refutes\nmodel: opus\neffort: medium\nmaxTurns: 160\nhooks:\n"
                   "  PreToolUse:\n    - matcher: \"Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell\"\n      hooks:\n"
                   "        - type: command\n          command: python \"$CLAUDE_PROJECT_DIR/.claude/hooks/"
                   "readonly_guard.py\"\nexperimental:\n  cacheTtl: 1h\n---\nbody\n",
-    "chore.md": "---\nname: chore\ndescription: chores\nmodel: sonnet\neffort: medium\nmaxTurns: 80\n---\nbody\n",
+    "chore.md": "---\nname: chore\ndescription: chores\nmodel: haiku\neffort: low\nmaxTurns: 80\n---\nbody\n",
 }
 
 
@@ -623,7 +625,7 @@ def selftest():
             old = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=8)).isoformat()
             stamp.write_text(json.dumps({"at": old}), encoding="utf-8")
             expect("stamp 8 days old: ASK-OWNER", statuses().get("/weekly-review", {}).get("status") == "ASK-OWNER")
-            (agents / "chore.md").write_text(GOOD_ROLES["chore.md"].replace("medium", "low"), encoding="utf-8")
+            (agents / "chore.md").write_text(GOOD_ROLES["chore.md"].replace("effort: low", "effort: medium"), encoding="utf-8")
             expect("edited role: smoke TODO again", statuses().get("role smoke proof", {}).get("status") == "TODO")
 
             s = statuses(CLAUDE_CODE_REMOTE="true")

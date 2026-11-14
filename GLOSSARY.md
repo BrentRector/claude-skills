@@ -16,32 +16,44 @@ files, and the conversation holds only their paths. *Industry term: the orchestr
 pattern.* → `agent-fleet`, "Roles".
 
 **Subagent.** Any agent the orchestrator starts. Each gets a narrow job, a fresh context and a turn cap, and returns
-a structured report. The model follows the ROLE: judgment roles (implementer, finisher, refuter, reviewer) run the top
-everyday model, and mechanical roles (filing notes, lookups) run a cheaper one. → `agent-fleet/references/refuters-and-routing.md`.
+a structured report. The model follows the ROLE: judgment roles (implementer, finisher, refuter, reviewer) run the
+**worker tier**, and mechanical roles (filing notes, lookups) run the **mechanical tier**. → `agent-fleet/references/refuters-and-routing.md`.
+
+**Model tier.** One of three names the skills use instead of a model: the **orchestrator tier** (the most capable
+model; plans, decides, judges hard cases), the **worker tier** (everyday judgment: implementing, reviewing, refuting)
+and the **mechanical tier** (the cheapest model: filing, locating, formatting). Effort is set per role with its tier.
+The concrete model and effort live only in the role definitions' front matter.
+→ [`automating-agent-guardrails/references/role-agents.md`](skills/automating-agent-guardrails/references/role-agents.md#model-tiers-and-effort).
 
 **Implementer.** A subagent that fixes a group of related defects. It works in its own **git worktree** (a separate
 working copy of the repository on its own branch), so several can run side by side without touching each other's
 files. → `agent-fleet/references/inputs-and-briefs.md`, `references/brief-template.md`.
 
-**Enqueue step.** The deterministic SCRIPT that lands one finished branch: fetch, rebase onto the default branch,
-run the targeted gate on both hosts under the gate-slot cap, stamp the log entry's number, run the landing checks,
-open one pull request and add it to the merge queue. No agent runs it unless it stops. "Landing" a change is Mozilla
-and Chromium usage. → `agent-fleet/references/landing.md`.
+**Enqueue step.** The deterministic SCRIPT that lands one finished branch: fetch, refuse a head no green **gate
+record** covers, merge the default branch in, stamp the log entry's number, run the landing checks, open one pull
+request and add it to the merge queue. It runs no gate and waits for no CI. No agent runs it unless it stops.
+"Landing" a change is Mozilla and Chromium usage. → `merge-queue-landing`.
 
 **Finisher.** A subagent dispatched for ONE branch the enqueue step could not take: a rebase conflict, a merge-queue
-bounce, or a reviewer's confirmed findings. It fixes, re-runs the targeted gate and re-enqueues; it never assembles
-branches or runs the whole population. → `automating-agent-guardrails/templates/agents/finisher.md`.
+bounce, or a reviewer's confirmed findings. It fixes the cause at the root, gates the new head (`test-gate`) and the
+branch is enqueued again; it never assembles branches, runs the whole population or reviews. → `automating-agent-guardrails/templates/agents/finisher.md`.
 
 **Merge queue, merge group.** The protected branch accepts only queued pull requests. The queue builds a MERGE GROUP
 (one or several queued pull requests on top of the default branch), CI runs the whole population on it, and the
 branch advances only on green; a red bounces only the pull request that caused it. Merge commits, not squash, so a
 branch's commits stay ancestors of the default branch. *Industry terms: GitHub's merge queue, Bors, Zuul, GitLab's
-merge trains.* → `agent-fleet/references/landing.md`.
+merge trains.* → `merge-queue-landing`.
+
+**Bounce, bounce class.** A merge-group red that sends a pull request back out of the queue. Each bounce is classed
+against the branch's gate record before anything changes: INFRA or RUNNER (the tree did not fail), MERGE (green at
+the head, red only merged), GENUINE (the branch's own red) or FLAKE (fails and passes at one tree). The class decides
+whether a finisher fixes the branch or the branch is held for a root fix elsewhere. → `merge-queue-landing`.
 
 **Lander** *(retired 2026-10-11)*. A subagent that merged several finished branches into a **train**, ran the whole
 test suite locally, reviewed, and pushed under a **landing lease**. In one measured campaign ten of them were spent
 on six trains, and 41 % of their minutes were local gate runs CI repeated. Replaced by the enqueue step, the merge
-queue and the finisher. → `agent-fleet/references/landing.md` ("Retired").
+queue and the finisher. → `merge-queue-landing` (the pipeline that replaced it); the measurement is in
+[LEARNINGS.md](LEARNINGS.md).
 
 **Train** *(retired 2026-10-11)*. One landing's worth of finished branches (four to six), merged and tested
 together. Rational only while each landing carried a large fixed cost; replaced by one pull request per branch.
@@ -95,30 +107,36 @@ formal verification's "discharging a proof obligation".* → `agent-fleet/refere
 
 ## The gates
 
-**Gate.** A check that must pass before work moves forward: the targeted local gate before an implementer reports
-done and again in the enqueue step, and CI's whole-population run on the merge group before anything reaches the
-default branch. *Industry term: quality gate.* → `test-gate`.
+**Gate.** A check that must pass before work moves forward. The gate rule: every case the merge run executes was
+run green at the head that lands, on this host, or a recorded pass at the same inputs covers it. In the worked
+design, the local gate runs the whole population on the developer's OS at the branch head, and CI's merge group runs
+the other OS, the other configurations and the merged tree. *Industry term: quality gate.* → `test-gate`.
 
-**Targeted leg.** A change's own tests, the likely reds for its diff, the cases it reaches and the host-only
-witnesses, run natively and then in a clone on the other OS, fail-fast. The local gate for every change; the whole
-population is CI's. → `test-gate`, `cross-platform` §1.
+**Gate record.** What a gate leaves behind: the head it ran at, its inputs and its verdict per target. A later gate
+reuses a target whose inputs are unchanged, and the enqueue step refuses a head no green record covers.
+→ `test-gate`; read by `merge-queue-landing`.
+
+**Targeted leg.** A change's own tests, the likely reds for its diff and the host-only witnesses, run in a clone on
+the other OS, fail-fast. It runs locally only where the gate needs it (no merge group, or the change's tests often go
+red only on the other OS); a selection is never the landing gate. → `test-gate/references/tiers-and-landing.md`.
 
 **Host-only witness.** A test that reproduces only on the developer host, typically because its filesystem differs
-from CI's runners (ReFS versus NTFS deletes). It carries a trait naming that property and runs in every targeted leg;
-membership is derived from the trait, never listed. → `test-gate/references/tiers-and-landing.md`, `cross-platform` §1.
+from CI's runners (ReFS versus NTFS deletes). It carries a trait naming that property and runs in every local gate;
+membership is derived from the trait, never listed. → `test-gate/references/tiers-and-landing.md`,
+`cross-platform/references/platform-facts.md`.
 
 **Protected main.** The main branch accepts only queued pull requests: a ruleset requires a pull request and the merge
 queue, with the required check evaluated on the merge group, enforced for everyone, the repository's owner included.
-A guard hook tells an agent that tries a direct push which command to run instead. → `agent-fleet/references/landing.md`.
+A guard hook tells an agent that tries a direct push which command to run instead. → `merge-queue-landing`.
 
 **Other-OS repro run.** A local run of CI's FULL legs for the other operating system (for example, CI's Linux jobs
-under WSL on a Windows host). Since 2026-10-11 it reproduces a CI red and is no longer a gate; the targeted leg still
-runs on both OSes. → `cross-platform` §1.
+under WSL on a Windows host). It reproduces a CI red; it is not a gate. → `test-gate/references/ci-flakes-standards.md`,
+`cross-platform/references/platform-facts.md`.
 
 **Drift test.** A test that holds two things in agreement, so a rule stays true as the code changes: every rule the
 specification catalogues has a test, every CI job's projects are covered locally, every brief carries its mandatory
 lines. *Closest industry terms: architecture fitness functions, ArchUnit-style architecture tests.*
-→ `engineering-standards`, `test-gate`.
+→ `test-gate`.
 
 **Hooks and guardrails.** Scripts that run on every tool call an agent makes and can refuse it: a forbidden
 command, a commit with a stale status file. An instruction in a prompt is a suggestion; a hook that blocks the

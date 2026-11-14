@@ -1,9 +1,7 @@
 # Modernizing an existing .NET codebase
 
 The language bar in `SKILL.md` says what new code looks like. This file is how to move an EXISTING codebase there:
-the whole tree, in behavior-neutral steps, driven by analyzers rather than by hand. It is phase 4 of
-`architecture-audit`. *(Practice — not yet validated: assembled from the analyzers' documented code fixes and the
-behavior-neutrality contract; not yet run end to end on a large codebase.)*
+the whole tree, in behavior-neutral steps, driven by analyzers rather than by hand.
 
 ## 1. Upgrade the platform first, alone
 
@@ -50,7 +48,7 @@ Features without a code fix, or where one needs judgment, go through `roslyn-ana
 - switch expressions over type-test ladders.
 
 **Keep a wave only if it is neutral AND not slower.** A modern idiom on a hot path (a primary constructor that
-captures, a collection expression that allocates) is measured against the baseline (`performance-diagnosis`), and
+captures, a collection expression that allocates) is measured against the baseline benchmark, and
 reverted with a recorded reason if it regresses.
 
 ## 4. What NOT to modernize

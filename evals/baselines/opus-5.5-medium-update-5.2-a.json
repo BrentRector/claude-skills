@@ -1,0 +1,268 @@
+{
+  "model": "claude-opus-5-5",
+  "effort": "medium",
+  "cliVersion": "2.1.325",
+  "pluginVersion": "1.22.0",
+  "gitHead": "7483c3849ba6c37675812df5d2e5969970ed7582",
+  "gitDirty": false,
+  "startedAt": "2026-11-14T18:34:11.881Z",
+  "durationSeconds": 906,
+  "costUsd": 22.28,
+  "partial": false,
+  "modelsObservedBesidesRequested": [],
+  "cutOff": [],
+  "cases": {
+    "agent-comment-analyzer": {
+      "with": 1,
+      "without": 0.5,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 12,
+      "timeoutSeconds": 420
+    },
+    "agent-fleet-brief-limits": {
+      "with": 1,
+      "without": 0.5,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 12,
+      "timeoutSeconds": 240
+    },
+    "agent-fleet-file-clusters": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 14,
+      "timeoutSeconds": 480
+    },
+    "agent-fleet-finished-work-lands": {
+      "with": 0.9166666666666666,
+      "without": 0.75,
+      "delta": 0.16666666666666663,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 16,
+      "timeoutSeconds": 300
+    },
+    "agent-fleet-orientation": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 20,
+      "timeoutSeconds": 300
+    },
+    "agent-fleet-registrar-rerun": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 14,
+      "timeoutSeconds": 300
+    },
+    "agent-fleet-reprobe-backlog": {
+      "with": 1,
+      "without": 0.5,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 12,
+      "timeoutSeconds": 300
+    },
+    "agent-fleet-stamped-handoff": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 18,
+      "timeoutSeconds": 300
+    },
+    "agent-pr-test-analyzer": {
+      "with": 0.6666666666666666,
+      "without": 0,
+      "delta": 0.6666666666666666,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 12,
+      "timeoutSeconds": 420
+    },
+    "agent-silent-failure-hunter": {
+      "with": 0.8333333333333334,
+      "without": 0.5,
+      "delta": 0.33333333333333337,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 12,
+      "timeoutSeconds": 420
+    },
+    "agent-type-design-analyzer": {
+      "with": 1,
+      "without": 0.5,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 12,
+      "timeoutSeconds": 420
+    },
+    "automating-agent-guardrails-guard-design": {
+      "with": 1,
+      "without": 0.5,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 8,
+      "timeoutSeconds": 240
+    },
+    "claude-cloud-sessions-multi-repo-hooks": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 6,
+      "timeoutSeconds": 240
+    },
+    "devlog-commit-hook": {
+      "with": 0,
+      "without": 0,
+      "delta": 0,
+      "runsPerArm": 3,
+      "fired": "0/3",
+      "maxTurns": 30,
+      "timeoutSeconds": 540
+    },
+    "devlog-consolidate-brief": {
+      "with": 1,
+      "without": 0.16666666666666666,
+      "delta": 0.8333333333333334,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 14,
+      "timeoutSeconds": 240
+    },
+    "devlog-correction-and-clock": {
+      "with": 1,
+      "without": 0.5,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 8,
+      "timeoutSeconds": 240
+    },
+    "devlog-insert-entry": {
+      "with": 0,
+      "without": 0,
+      "delta": 0,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 22,
+      "timeoutSeconds": 600
+    },
+    "dotnet-engineering-single-current-tfm": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 14,
+      "timeoutSeconds": 240
+    },
+    "engineering-standards-explicit-registry": {
+      "with": 1,
+      "without": 0.5,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 10,
+      "timeoutSeconds": 240
+    },
+    "engineering-standards-no-fallback": {
+      "with": 0.6666666666666666,
+      "without": 0,
+      "delta": 0.6666666666666666,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 12,
+      "timeoutSeconds": 240
+    },
+    "review-wall-clock-ceiling": {
+      "with": 0.8333333333333334,
+      "without": 0.3333333333333333,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "2/3",
+      "maxTurns": 38,
+      "timeoutSeconds": 1020
+    },
+    "roslyn-analysis-renamed-clones": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 12,
+      "timeoutSeconds": 240
+    },
+    "roslyn-analysis-safe-rewriter": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 10,
+      "timeoutSeconds": 300
+    },
+    "spec-compliance-audit-partial-verdict": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 10,
+      "timeoutSeconds": 240
+    },
+    "spec-oracle-render-the-diagram": {
+      "with": 1,
+      "without": 0.5,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 10,
+      "timeoutSeconds": 240
+    },
+    "test-gate-conflict-markers-staged": {
+      "with": 0.8333333333333334,
+      "without": 0.3333333333333333,
+      "delta": 0.5,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 8,
+      "timeoutSeconds": 240
+    },
+    "test-gate-preexisting-red-blocks-merge": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "2/3",
+      "maxTurns": 8,
+      "timeoutSeconds": 240
+    },
+    "variant-analysis-latent-not-cleared": {
+      "with": 1,
+      "without": 0,
+      "delta": 1,
+      "runsPerArm": 3,
+      "fired": "3/3",
+      "maxTurns": 10,
+      "timeoutSeconds": 240
+    }
+  }
+}

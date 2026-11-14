@@ -1,50 +1,57 @@
 ---
 name: agent-fleet
-description: Use before dispatching more than a couple of parallel subagents or a multi-agent workflow on a long-running engineering campaign — so a session-limit kill costs at most one step, a restart never repeats work, and the token budget is spent where it moves the needle.
+description: Use when deciding whether a long engineering campaign should run parallel subagents or a multi-agent workflow, when writing the brief an implementer, reviewer, refuter or lead-filing agent works from, and before dispatching one - so a session-limit kill costs at most one step, a restart never repeats work, and tokens go where they move the result. Covers checkpoints, stop and death handling, id allocation and model tiers; landing finished branches is merge-queue-landing.
 ---
 
 # Agent fleet: restart-safe, budget-aware orchestration
 
-A fleet of parallel agents can burn a session window in minutes and then die all at once when the window closes.
-Everything here serves three goals:
+**A long multi-agent campaign survives a session-limit kill: the kill costs at most one step, a restart re-decides
+nothing, and tokens go to the work that moves the reported metric.** Check it after a kill: `references/status_delta.py`
+reads CURRENT or STALE on every worktree, and the reconciled returns show no item decided twice; check the cost by
+comparing tokens per closed item, per lane, with the last campaign.
 
-1. **A kill costs at most one step.** Work is checkpointed to disk per unit, never held only in a transcript.
-2. **A restart never repeats work.** Fresh agents read the checkpoint and skip what is already decided.
-3. **Tokens go where they move the metric.** Cost is measured per unit, and work is routed to the cheapest lane.
+## When a fleet pays, and when it does not
 
-Roles: the **orchestrator** (your session) plans, dispatches, reconciles, gates and commits. Every other job
-(probe, implement, file leads as work items, validate, adversarial review, finish a bounced branch) is a subagent,
-and landing itself is a deterministic script. The orchestrator keeps its own transcript
-short: reports and briefs are **files**, and the conversation carries only paths to them.
+A subagent starts from an empty context: it reads its brief, orients on the code, and re-reads its whole transcript
+on every turn, and what it returns enters the orchestrator's conversation. Subagents are usually most of a
+campaign's spend. So the orchestrator does a job itself when it is a handful of tool calls, a lookup, or something it
+already knows. A subagent earns its cost in three cases: **parallel breadth** (many independent items, each needing
+its own reading), **isolation** (work whose context would swamp the orchestrator's, or that runs in its own
+worktree), and **an independent judgment** (a refuter or reviewer that must not share the author's framing).
+**Measure inline before you fan out:** when a shell loop or one script run answers the question, run it; a fleet
+that only confirms it in parallel buys nothing. When a subagent does pay, brief it as section 2 says.
+
+Roles: the **orchestrator** (your session) plans, dispatches, reconciles, gates and commits, and keeps its own
+transcript small: briefs and reports are **files**, and the conversation carries only their paths. Implementers,
+reviewers, refuters, registrars and finishers are subagents where the cases above apply. Landing is a deterministic
+script, not an agent (the `merge-queue-landing` skill).
 
 ## 1. The cost law, which drives the other rules
 
 An agent re-reads its whole context on every turn, so **its token cost grows roughly quadratically with its turn
-count**. A long transcript is not a little more expensive. It is usually the largest line item in the campaign.
-In one measured campaign, the ~8 % of agents that ran 250+ turns burned ~39 % of all tokens, and capping them at
-150 turns would have cut that cost by almost half. *(Practice — not yet validated: this law and the caps below: the curve was refit on a newer model with different coefficients, and the saving from splitting, net of the successor's orientation, was never measured.)*
-The law also condemns any role that does everything: in one measured campaign (2026-10-10) a lander that merged,
-gated the whole population twice, reviewed, fixed, logged and pushed took 10 agents to land 6 trains, and 41 % of its
-567 minutes were local gate runs that CI repeated on free runners. *(Validated 2026-10-11 (measurement); the redesign
-in section 6, which replaces the lander with a script, is not yet measured.)*
+count**. A long transcript is not a little more expensive. It is usually the largest line item in the campaign:
+the few agents that run longest burn a large share of all tokens. The law also condemns any role that does
+everything (merge, gate, review, fix, log, push): it runs long, pays the late-turn cost on every step, and needs
+successors to finish. Give each role one job.
 
-- **Set a hard turn cap per role**, for example ~150–160 for read-only agents and ~220 for implementers. At the
-  cap the agent checkpoints, reports what it decided, names what it didn't, and returns `SPLIT`.
-  *Why: a fresh agent starting from a checkpoint pays the low early-turn cost. Extending the old one pays the
+- **Cap turns per role in the harness, not in the brief**: the role definition's `maxTurns` (about 150–160 turns
+  for read-only roles, 220 for implementers; `automating-agent-guardrails`'s `readiness_check.py` fails a role
+  without one), or a supervisor that creates the agent's STOP file at its count, so the agent checkpoints and
+  returns `SPLIT`. The brief shows the worker no turn number, because a budget shown to the model changes how it
+  spends. The harness stops an agent wherever it is, so the checkpoint after every mechanism is what makes the cap
+  safe. *Why: a fresh agent starting from a checkpoint pays the low early-turn cost. Extending the old one pays the
   steep late-turn cost.*
 - **Split a job that will not fit. Never extend it.** *Why: same curve.*
 - **Resuming a long transcript is often more expensive than starting fresh.** *Why: the resumed agent re-reads
-  its entire history on every new turn.* *(Practice — not yet validated: resuming versus starting fresh from a checkpoint was never measured head to head; resuming wins when only a few turns remain.)*
+  its entire history on every new turn.* Resuming wins when only a few turns remain.
 - **Command chaining: targeted rules, not a ban.** (a) Never chain anything after a VERDICT command (build, test,
   gate, a landing script) with `&&`, `||` or `;`: run it alone to a log and read its summary line; to keep the
   status in the same call, append `; echo "EXIT=$?"`. (b) Don't join steps that must stop on failure with `;`,
-  and don't `cd` inside a chain (use absolute paths or `git -C`). (c) Send INDEPENDENT commands as parallel tool
-  calls in ONE turn. (d) Short `&&` chains of read-only or fail-fast steps are fine. Enforce (a) with a guard
+  and don't `cd` inside a chain (use absolute paths or `git -C`). (c) Short `&&` chains of read-only or fail-fast steps are fine. Enforce (a) with a guard
   hook (`automating-agent-guardrails`, rule `no-chain-after-verdict`).
   *Why: a chain's exit status is its last command's, so `test && git commit` commits on a verdict nobody read.
   But a blanket "never chain" rule turns every chain into extra turns, and turns are the quadratic cost; parallel
-  tool calls get the separation without the turns.* *(Rule (a) validated 2026-09-28. The targeted form instead of a
-  blanket ban is practice, not yet validated: no production count of blocks, false positives or turns saved.)*
+  tool calls get the separation without the turns.*
 
 ## 2. Inputs: one agent, one self-contained input file
 
@@ -57,7 +64,7 @@ in section 6, which replaces the lander with a script, is not yet measured.)*
 - Every lead an agent reports carries its repro and code site; the registrar re-runs each lead's given repro once before filing it.
 - Tell the implementer to run the repo's rule query before editing.
 - Put no fact in a brief that you have not verified in this session.
-- Reconcile the returns against the expected worklist by item identity, then re-run only the missing slices.
+- Reconcile the returns against the expected worklist by item identity, then re-run only the missing slices. Never dispatch an agent only to repeat a step whose inputs did not change (a gate at the same head, a probe at the same commit): its record already answers.
 - Cap what an agent RETURNS (a summary of a few hundred characters, a short list of leads, a final text of a couple of dozen lines) and put the detail in a report file: everything returned enters the orchestrator's conversation and is re-read on every later turn. Read references/inputs-and-briefs.md for the reason.
 - Prefer idempotent outputs over appends to a shared file.
 
@@ -76,7 +83,7 @@ Say in the prompt what would make a returned artifact worthless even though well
 | finisher (a conflict or a queue bounce) | a commit on the branch after each step, plus `STATUS.md` | one step |
 | orchestrator | briefs and reports are files under a scratch directory; the conversation holds pointers | — |
 
-*Why: un-checkpointed refuters lost 100 % of their decisions to a single session kill.* *(Practice — not yet validated: the loss is recorded, but a reliable checkpoint is not yet shown: 3 of 14 finished branches still ended with a stale `STATUS.md`.)*
+*Why: a session kill takes every decision that is not on disk with it.*
 
 - Never use `git stash` for WIP (including `--autostash`); commit it instead.
 - Keep checkpoint files out of landings: gitignore them and unstage them explicitly.
@@ -89,35 +96,25 @@ Read `references/checkpointing.md` before writing the checkpoint and resume bloc
 ## 5. The concurrency budget and stopping before the limit
 
 - Default budget: ~3-6 implementers + a reviewer per DONE branch + one read-only chunk ~4 wide; finishers as bounces arrive; run big fan-outs as `parallel()` chunks in a loop.
-- A fleet of more than ~40 agents means you split the work. Keep a running tally; at ~75 % dispatch only finishers, at ~85-90 % stop gracefully.
+- A fleet of more than ~40 agents means you split the work. Drive the stop thresholds from the real usage meter the project names: at ~75 % dispatch only finishers of nearly finished work, at ~85-90 % create STOP.
 
 - **Use a graceful STOP file.** Every dispatch prompt includes: *"Before each new step, check for
   `{SCRATCH}/STOP`. If it exists, checkpoint-commit, write STATUS.md NEXT, and return status SPLIT. Never
   start a build or gate once STOP exists."* To stop, create the file, wait for the agents to return, and only
-  then kill any stragglers. *Why: workflow agents can't be messaged, and a hard kill lands mid-step.* *(Validated 2026-09-28.)*
+  then kill any stragglers. *Why: workflow agents can't be messaged, and a hard kill lands mid-step.*
 
-- Judge a background workflow's liveness by its processes and its journal, never by transcript file times.
-- Run `references/stall_watch.py <workflow transcript dir>` in the background next to EVERY fleet workflow; stop it when the completion notice arrives.
+- Verify every launch started: within a few minutes of a dispatch, each agent has a journal `started` record or a transcript. A spawn failure leaves neither, so no watchdog sees it.
+- Run `references/stall_watch.py <workflow transcript dir>` in the background next to EVERY fleet workflow; stop it when the completion notice arrives. A death it reports (a journal `failed` record) is decided at once: a finisher resumes the branch from its checkpoint, or the branch is recorded as abandoned with the reason.
 - A stalled agent: let the others finish, then stop the workflow and dispatch the remainder by hand.
-- Late in a window dispatch short jobs close to done; early in a window dispatch long ones.
 - An agent never ends its turn while its own background job runs: block with `timeout 580 bash -c 'until grep -q "<verdict>" <log>; do sleep 5; done'`, never `tail -f <log> | grep -m1`.
 
 Read `references/concurrency-and-watchdog.md` before sizing a fleet, before starting a background workflow, and before deciding that an agent is stalled or dead.
 
 ## 6. Land finished work before starting new work
 
-- Land finished work first, as **one pull request per finished branch through a merge queue** on the protected branch (a ruleset: PRs required, merge commits so branch commits stay ancestors, the required check on the merge group, enforced for administrators). No lander, no train, no lease.
-- Every change's local gate is the TARGETED leg (its own tests, the likely reds, the cases its diff reaches, and the host-only witnesses), run natively and then, under the same gate slot, in a clone on the other OS the project supports, fail-fast native first; CI's merge-group run is the whole-population regression net and the only whole-population run (CI's full legs run locally only to reproduce a CI red).
-- The landing step is a deterministic **enqueue** script (fetch, rebase, the targeted gate under the gate-slot cap, stamp the log entry, the landing checks, open the PR, queue it); dispatch a **finisher** only for a rebase conflict or a queue bounce.
-- **Finished work is never held.** A branch reviewed CLEAN is enqueued at once, successor or not; a same-file successor merges its predecessor's REVIEWED head and its pull request merges on top. The landing order is communicated, never enforced by holding.
-- Review each branch the moment it is DONE, inside the wave, with a read-only reviewer; a finding goes back to a finisher, never to the landing step. Round 1 reviews the whole branch; a re-review reads ONLY the finisher's diff since the last reviewed head. Critical and high findings block; medium blocks until the round cap, then becomes a lead; low never blocks and is written as a lead.
-- "Does this branch carry unanswered blocking findings?" has ONE source of truth, the findings file's last verdict, read by ONE function from the wave and the landing survey alike, never from a report stamp. A torn findings file holds every branch it names until a person repairs it.
-- Fill a freed implementer slot in the same turn, with the rolling wave (`references/rolling-wave.js`), never a barrier.
-- Keep landing files conflict-free: one log file per entry, generated views out of the tree, one line-ending format (LF).
-- Watch CI for every run that decides something; a red on the default branch is a blocking fix, landed alone. Run the comprehensive battery in its own detached worktree. Assert on conflict markers before every commit.
-- Measure per landing (DONE → enqueued → merged, bounces and causes, CI wall) and compare with the measurement before the change.
-
-Read `references/landing.md` before scripting a wave, writing or running the enqueue step, dispatching a finisher, running the battery, or changing CI or the ruleset.
+Finished work lands before new work starts, one pull request per branch through the project's enqueue step. The
+`merge-queue-landing` skill holds the landing: the enqueue step, the gate record it reads, review before landing,
+finishers and bounces. Load it before scripting a wave or landing a branch.
 
 ## 7. Group related fixes for each implementer
 
@@ -129,31 +126,26 @@ Read `references/landing.md` before scripting a wave, writing or running the enq
 Read `references/grouping-fixes.md` before filling implementer slots or assigning defects.
 
 
-## 8. Allocate ids centrally
+## 8. No shared next slot: allocate ids centrally
 
-The orchestrator allocates every id an agent might mint (work-item ids, error-code ranges, report filenames,
-log entry numbers) in the dispatch brief. Agents never pick their own. A sequence number that must follow landing order
-(a log entry's number) is stamped by the enqueue step, after the final rebase, never by the implementer.
-*Why: five id collisions in one day each cost a renumbering pass. Parallel landing agents overwrote each other's
-reports.* *(Practice — not yet validated: collisions recurred whenever a second allocator existed, or when ids were taken from a snapshot instead of
-the tree.)*
+Two branches must never be able to take the same slot. The orchestrator allocates every id an agent might mint
+(work-item ids, error-code ranges, report filenames) in the dispatch brief, from ONE allocator that reads the truth
+from the tree (the next id is one past the larger of what the tree holds and what is already reserved), never from a
+snapshot. Agents never pick their own. A sequence number that must follow landing order (a log entry's number) is
+stamped by the enqueue step, after it merges the default branch in, never by the implementer. A registry, table or
+enum that parallel branches extend is keyed by name or kept as one file per entry, never by an ordinal the next
+branch can also take. Each fleet's scratch directory, STOP file and logs are its own, so one fleet's STOP never stops
+another's agents. *Why: each collision costs a renumbering pass and often a bounce, and parallel agents that pick
+names overwrite each other's reports.*
 
-## 9. Isolation, the frozen tree, and the completion signal
+## 9. Isolation and the frozen tree
 
 - **Analysis fleets probe a pinned, read-only worktree** (`git worktree add --detach <path> <sha>`, built once
-  there). *Why: a landing that rebuilds the main tree swaps binaries under running probes.* *(Practice — not yet validated: no before/after measure of contaminated results.)*
+  there). *Why: a landing that rebuilds the main tree swaps binaries under running probes.*
 - **While a fleet or long gate is running, the tree it reads is frozen**: no edits and no builds. If the fix
   can't wait, stop the fleet. *Why: probes against a moving binary produce results you must disclaim. A
-  "file locked by another process" build error is the alarm, not a transient.* *(Practice — not yet validated: the written freeze was broken repeatedly, and its effect was never measured.)*
-- **Work through the freeze in the scratchpad.** Draft the next landing to apply-ready precision: full edited
-  files, expected values, commit message. *Why: the freeze blocks only edits and builds, and ending the turn
-  "waiting" wastes the time.* *(Practice — not yet validated: no measured benefit.)*
-- **Never poll a running fleet's output directory.** Wait for the harness's completion notification.
-  *Why: stage-1 and stage-2 outputs can share a filename and a shape. An adversarial stage 2 only ever removes
-  confidence, so an early read is biased toward a result that looks better than the truth. One early merge
-  moved 10 of 55 results.* If you must read early, have each stage write to a different path. *(Validated 2026-09-28.)*
-- **Measure inline before you fan out.** Dispatch a fleet only for real parallel breadth or independent
-  adversarial judgement, never to "confirm in parallel" something a shell loop already answered. *(Practice — not yet validated: no later measured saving.)*
+  "file locked by another process" build error is the alarm, not a transient.* The freeze blocks edits and
+  builds, not drafting in the scratchpad.
 
 ## 10. Adversarial refuters on closing verdicts
 
@@ -163,7 +155,8 @@ the tree.)*
 ## 11. Measure cost per unit and route to the cheapest lane
 
 - Measure tokens per closed unit for each lane and route each item to the cheapest lane that moves the reported metric.
-- The model follows the ROLE, set in the role definition, never per call; a premium model is a per-item escalation, never a default, and where a person owns the quota each premium dispatch needs their explicit approval.
+- Each role's definition fixes its tier and effort, in the three tiers [`role-agents.md`](../automating-agent-guardrails/references/role-agents.md) defines: the **worker tier** for implementers, finishers, reviewers and refuters (effort `medium`, raised only where a measurement shows a gain), the **mechanical tier** for filing, lookups and formatting (effort `low`), and the **orchestrator tier** for planning and hard judgment. A per-call model overrides the role's, so pass one only to a role that inherits, or as a recorded per-item escalation (the wave script's per-group `model`), the one exception `role-agents.md` item 4 allows.
+- An orchestrator-tier dispatch is an escalation for one item the worker tier has failed twice, never a default, because it draws the same weekly pool faster. Where a person owns the quota, each such dispatch needs their explicit approval for THAT dispatch.
 - Precompute discovery; self-review before a large review fleet.
 
 Read `references/refuters-and-routing.md` before dispatching a refuter, and before choosing a lane or a model for a role.
@@ -171,7 +164,7 @@ Read `references/refuters-and-routing.md` before dispatching a refuter, and befo
 ## 12. After a fleet, and on restart
 
 - After any fleet that could touch the tree, run `git status --short` and account for every path before `git add -A`.
-- For a long or unattended campaign, run the orchestrator as a supervisor of short units with deterministic scripts doing the planning (`references/orchestrator-loop.md`, validated in live runs of one campaign). Three rules from those runs: the SUPERVISOR owns each unit's lifetime (a one-shot `claude -p` terminates background tasks 600 s after its model ends a turn; start the unit with `--input-format stream-json` and keep stdin open, closing it only when the model is idle with no background task); write frequent handoffs (a supervisor-written checkpoint, model milestone lines, and a handoff synthesized when a unit dies); and make STOP a wind-down that checkpoints the fleet, never a kill. Measure where the tokens go first; the reference also lists the published techniques that bear on a campaign.
+- For a long or unattended campaign, run the orchestrator as a supervisor of short `claude -p` units, with deterministic scripts doing the planning. Read `references/orchestrator-loop.md` before writing or running that supervisor: it holds the unit-lifetime, handoff and stop mechanisms the CLI requires.
 - On restart: read the reset time, check each dead agent's worktree and `STATUS.md`, run `references/status_delta.py` on each worktree, re-run the enqueue step for every DONE branch not yet queued, and dispatch fresh agents from the checkpoints in priority order.
 
 ## Standards
@@ -185,4 +178,4 @@ Read `references/restart-and-standards.md` after a fleet, on restart, and before
 ## Brief template
 
 `references/brief-template.md` is a copy-and-fill dispatch brief that already carries the checkpoint, STOP,
-turn cap, blocking-gate and report rules. Point each agent at a rendered copy; don't paste it.
+blocking-gate, finishing and report rules. Point each agent at a rendered copy; don't paste it.

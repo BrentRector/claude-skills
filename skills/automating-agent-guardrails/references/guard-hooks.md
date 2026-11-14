@@ -8,7 +8,7 @@
 3. With a merge queue the protected branch is held by a RULESET (pull requests required, the merge queue, enforced
    for administrators), so a direct push is refused by the server; keep the push rule anyway, because the hook's
    `Instead:` line names the enqueue command at the moment the agent tries, where the server's refusal only says no.
-   A landing LEASE (a lock file one lander held through the CI wait) is retired: the queue serializes.
+   The queue serializes landings, so no landing lock file is needed.
 4. Set `"scope": "repo"` on every rule that encodes this repository's policy: its landing route, protected
    branches, stash hygiene. Only rules about the harness itself, such as escapes in heredocs, stay `"any"`.
 5. Register the guard for every shell tool (`"matcher": "Bash|PowerShell"`, see `templates/settings.json`), with a
@@ -23,10 +23,26 @@
 |---|---|
 | exits 2 with a stderr message naming the rule and an `Instead:` command | A bare "no" invites the agent to rephrase the command; a named alternative gets followed. |
 | covers every shell tool (Bash and PowerShell) | A rule on Bash alone is bypassed by the first PowerShell call. |
-| **fails OPEN**: unparseable input, a missing or corrupt rules file, a git error or a crash all exit 0 (with a stderr note) | A guard that fails closed turns one bad field, a missing interpreter or a harness format change into a block on every shell call in every session and subagent. These rules are workflow conventions with real backstops (branch protection, CI). A security boundary belongs in permissions, a sandbox or the server. *(Practice — not yet validated: no production measure of fail-open silent passes against fail-closed blocks.)* |
-| writes stderr as UTF-8 | Windows otherwise writes the console code page, and the agent reads mojibake. *(Practice — not yet validated: one incident so far.)* |
-| is **scoped to this repository**: a `repo` rule fires only when the command's working tree has the same git common dir as `$CLAUDE_PROJECT_DIR`, following `cwd`, `cd`/`Set-Location` and `git -C` | The same session also works in other repos, and each has its own rules. A push rule keyed on the branch name alone blocks `git push origin main` everywhere. *(Practice — not yet validated: not yet exercised across a rename or a second checkout in production.)* |
-| has a self-test in CI proving each rule fires on `block`, passes `allow`, and passes when the same command runs in an **unrelated** repo | A guard is only trusted once its failure branch has fired. Two checkouts of one repo don't test scope, because they share it. *(Validated 2026-09-28.)* |
+| **fails OPEN**: unparseable input, a missing or corrupt rules file, a git error or a crash all exit 0 (with a stderr note) | A guard that fails closed turns one bad field, a missing interpreter or a harness format change into a block on every shell call in every session and subagent. These rules are workflow conventions with real backstops (branch protection, CI). A security boundary belongs in permissions, a sandbox or the server. |
+| writes stderr as UTF-8 | Windows otherwise writes the console code page, and the agent reads mojibake. |
+| is **scoped to this repository**: a `repo` rule fires only when the command's working tree has the same git common dir as `$CLAUDE_PROJECT_DIR`, following `cwd`, `cd`/`Set-Location` and `git -C` | The same session also works in other repos, and each has its own rules. A push rule keyed on the branch name alone blocks `git push origin main` everywhere. |
+| has a self-test in CI proving each rule fires on `block`, passes `allow`, and passes when the same command runs in an **unrelated** repo | A guard is only trusted once its failure branch has fired. Two checkouts of one repo don't test scope, because they share it. |
 
 Don't use `permissions.deny` for these rules. Deny rules match a prefix, can't see which repository a command runs
 in, and can't tell the agent what to do instead.
+
+## Grant hooks: a contract, not shipped
+
+This skill ships no grant hook. Build one to this contract and give it a `--selftest` like the guard's.
+
+A permission rule sees the command text, never the working directory or the resolved paths, so "allow `git rm -r`
+inside an agent's worktree, nowhere else" cannot be a settings rule. A PreToolUse hook can return
+`permissionDecision: allow` for exactly that shape — one command, run in a directory under the worktrees root, every
+path inside it, no `--force` — and no decision for anything else, so the harness's own safety classifier and every
+deny hook keep their say. The bar for a grant is the mirror of a guard's: its self-test must show every neighbour
+that is NOT allowed (the main checkout, a path that escapes, a chain, `--force`), because its failure branch is a
+permission that should not have been given. *Why: a safety classifier refused a subagent's whole-tree deletion as
+irreversible — correct for an unscoped command, wrong on a branch where every removal is one commit from recovery —
+and the alternative, a person performing the step per wave, cannot run unattended.* Pair it with the never-lose-work
+rule in whatever removes the worktrees: remove one only when its work is committed and landed, never one that is
+dirty, locked, recent or unlanded.

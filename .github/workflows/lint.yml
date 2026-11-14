@@ -23,4 +23,4 @@ jobs:
           python-version: '3.13'
 
       - name: Lint (no model calls)
-        run: python scripts/lint_skills.py .
+        run: python scripts/lint_skills.py --self-test && python scripts/run_evals.py merge --self-test && python scripts/lint_skills.py .

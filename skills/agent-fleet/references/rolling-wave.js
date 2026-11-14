@@ -1,7 +1,7 @@
 export const meta = {
   name: 'rolling-wave',
   description: 'Rolling fix lane: implementer groups run N at a time from one queue (a freed slot refills at once), each DONE branch is reviewed read-only the moment it returns and enqueued at once when CLEAN, same-file successors merge their predecessor\'s REVIEWED head, and each approved branch is enqueued through the project\'s own enqueue command',
-  whenToUse: 'The standard fix-lane dispatch for an agent fleet (agent-fleet references/landing.md and references/grouping-fixes.md).',
+  whenToUse: 'The standard fix-lane dispatch for an agent fleet (the merge-queue-landing skill and agent-fleet references/grouping-fixes.md).',
   phases: [
     { title: 'Implement', detail: 'one implementer per group, isolated worktrees, rolling pool' },
     { title: 'Review', detail: 'a read-only reviewer per DONE branch; a finisher per blocking round; a re-review reads only the diff' },
@@ -16,7 +16,7 @@ export const meta = {
 //
 // The wave PRODUCES DONE BRANCHES. It starts no lander and assembles no train: every approved branch becomes its own
 // pull request through the project's enqueue step, and CI's merge-group run is the whole-population gate
-// (references/landing.md). A conflict or a queue bounce after the wave is the orchestrator loop's enqueue unit's
+// (the merge-queue-landing skill). A conflict or a queue bounce after the wave is the orchestrator loop's enqueue unit's
 // business (it dispatches a finisher).
 //
 // args: {
@@ -25,10 +25,11 @@ export const meta = {
 //                    (lower-cased), e.g. "<scratch>/specs/w12-{letter}.txt",
 //   stopFile:        graceful-stop flag file checked before every step,
 //   implementerAgent, reviewerAgent, finisherAgent: the agent types (judgment roles; the reviewer is read-only),
-//   enqueueAgent:    optional agent type that runs the enqueue command and reports its verdict (a cheap tier is enough;
+//   enqueueAgent:    optional agent type that runs the enqueue command and reports its verdict (a mechanical-tier role at low effort;
 //                    a Workflow script cannot run a shell command itself),
-//   readerAgent:     optional agent type that runs lastVerdictCommand (a cheap read-only tier; default enqueueAgent),
-//   model:           optional model alias for the judgment roles (omit to inherit); a group's own `model` overrides it,
+//   readerAgent:     optional agent type that runs lastVerdictCommand (a read-only mechanical-tier role; default enqueueAgent),
+//   model:           optional model for the judgment roles, passed on every call; use it only when those agent types
+//                    inherit their model (it overrides a role definition's own). A group's own `model` overrides it,
 //   reviewBrief:     path of the reviewer's brief (the review skill's branch form, correctness first). It names the
 //                    project's ONE writer of the findings file, which records each finding with its severity and
 //                    computes the round's verdict from the file,
@@ -36,14 +37,14 @@ export const meta = {
 //   lastVerdictCommand: optional: the project's ONE reader of a findings file, with {file} substituted. It prints the
 //                    file's newest verdict as one JSON line ({round, head, verdict: CLEAN | FINDINGS | TORN,
 //                    blocking}) and never fails: a torn or unreadable file reads TORN. The landing survey must call
-//                    the same reader (references/landing.md). Without it, every FINDINGS end reads `unanswered`,
+//                    the same reader (the merge-queue-landing skill). Without it, every FINDINGS end reads `unanswered`,
 //   finisherBrief:   path of the finisher's brief (fix each blocking finding at the root, regression test, sibling
-//                    sweep, the targeted gate again),
+//                    sweep, the gate again, as the test-gate skill says),
 //   reviewFixRounds (2): finisher rounds per branch; the review round after the last finisher is the CAPPED round,
 //   blocking ('critical,high,medium'): the severities that block a round a finisher can still answer,
 //   blockingAtCap ('critical,high'): the severities that block the capped round,
 //   enqueueCommand:  optional: the project's DETERMINISTIC enqueue step for one branch, with {branch} and {worktree}
-//                    substituted (fetch, rebase, the targeted gate under the gate-slot cap, stamp the log entry, the
+//                    substituted (fetch, refuse a head no green gate record covers, merge the default branch in, stamp the log entry, the
 //                    landing checks, open the pull request, add it to the merge queue). Omit it to return the approved
 //                    branches as `ready` for the orchestrator loop's enqueue unit,
 //   concurrency (6),
@@ -59,7 +60,9 @@ export const meta = {
 // `leads` holds every review's non-blocking findings, for the loop to file as work items.
 const W = args.wave
 const CONC = args.concurrency || 6
-// A group may carry its own `model` ('sonnet' | 'opus'), which overrides args.model: size the model to the group's work.
+// A group may carry its own `model` (the alias of the orchestrator tier for one hard item, or of the mechanical tier
+// for a mechanical one, where its role's is the worker tier), which overrides args.model:
+// a per-item escalation sized to the group's work. Tiers: automating-agent-guardrails references/role-agents.md.
 const opt = (extra, model) => ((model || args.model) ? { ...extra, model: model || args.model } : extra)
 const CEILING_MIN = args.implementerCeilingMin === undefined ? 240 : args.implementerCeilingMin
 const REVIEW_FIX_ROUNDS = args.reviewFixRounds === undefined ? 2 : args.reviewFixRounds
@@ -189,7 +192,7 @@ function predecessorEnd(p) {
     ? 'capped' : 'unanswered'
 }
 
-// THE ONE READER of a findings file, run by one cheap read-only agent (a workflow script cannot run a command itself).
+// THE ONE READER of a findings file, run by one read-only mechanical-tier agent (a workflow script cannot run a command itself).
 // null (read as unanswered) when the project names no reader or the reader gave no verdict line.
 async function lastVerdict(letter) {
   if (!args.lastVerdictCommand) return null

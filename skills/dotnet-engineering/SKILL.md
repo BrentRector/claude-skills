@@ -1,6 +1,6 @@
 ---
 name: dotnet-engineering
-description: Use for any .NET or C# work - writing or reviewing C#, running or filtering dotnet test, writing tests or judging whether tests would catch a bug, BenchmarkDotNet measurements, diagnosing an MSBuild failure from a binlog, trimming or Native AOT warnings (IL2026, IL3050 and friends), or publishing a NuGet package from GitHub Actions. States the .NET-specific bar - latest .NET and C#, no back-compat baggage, strong types, tests that verify values from the authority, benchmarks that carry a witness, and a test filter that matched nothing counted as a red.
+description: States the .NET-specific bar and the tool contracts that let .NET work pass silently when it should fail. Use for any .NET or C# work: writing or reviewing C# or project files, running or filtering dotnet test, judging whether tests would catch a bug, BenchmarkDotNet measurements, an MSBuild failure read from a binlog, trimming or Native AOT warnings (IL2026, IL3050 and friends), moving a codebase to the latest .NET, or publishing a NuGet package from GitHub Actions.
 ---
 
 # .NET engineering
@@ -9,13 +9,15 @@ description: Use for any .NET or C# work - writing or reviewing C#, running or f
 > `plugins/dotnet-test/skills/test-gap-analysis`, `plugins/dotnet-test/skills/test-smell-detection`,
 > `plugins/dotnet-diag/skills/microbenchmarking`, `plugins/dotnet-msbuild/skills/binlog-failure-analysis`,
 > `plugins/dotnet-upgrade/skills/dotnet-aot-compat` and `plugins/dotnet-advanced/skills/nuget-trusted-publishing`
-> (MIT, © .NET Foundation and Contributors). **Changes:** seven skills consolidated into one with a reference file
-> per topic; condensed and reworded; multi-targeting, .NET Framework, netstandard polyfill and older-SDK guidance
-> dropped (latest .NET only); added the owner's bar (zero-match filter is a red, expected values from the
-> authority, benchmarks carry a witness, suppressions are defects, no fallbacks). The MIT notice is in
+> (MIT, © .NET Foundation and Contributors). The changes are listed in `README.md`; the MIT notice is in
 > [references/THIRD-PARTY-NOTICES.md](references/THIRD-PARTY-NOTICES.md).
 
-This is the .NET-specific layer on top of **engineering-standards** and **test-gate**. It says what the generic
+**.NET work meets the generic bar in the places the .NET tools let it slip: no silent green, no hidden
+suppression, no unproven speed-up.** The proof is what each tool prints: a `Total:` count from the test run, a
+benchmark's witness and report file, zero IL warnings with the published binary tested, and a package inspected
+before it is pushed.
+
+This is the .NET-specific layer on top of **test-gate**. It says what a commercial-grade, root-cause
 bar means in C#, MSBuild, `dotnet test`, BenchmarkDotNet, the trimmer and NuGet. Detail lives in the reference
 files; load the one for the task in hand, not all of them.
 
@@ -114,7 +116,7 @@ checked by the workflow, not by memory.
 
 ## Standards
 
-The bar is the **engineering-standards** skill; the gate mechanics are the **test-gate** skill. In .NET terms:
+The gate mechanics are the **test-gate** skill. In .NET terms the bar is:
 
 - Root cause, never a suppression. A `NoWarn`, a `#pragma`, an `[UnconditionalSuppressMessage]`, a `!`, a skipped
   test or a widened tolerance that makes a red go away is a hidden defect unless it states why it is correct.

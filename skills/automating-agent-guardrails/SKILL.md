@@ -5,10 +5,13 @@ description: Use when a project's rules for Claude agents keep getting broken or
 
 # Automating agent guardrails
 
+**A project's agent rules hold because the harness enforces them, not because an agent remembers them.** Guard
+hooks refuse forbidden commands with an `Instead:` line, role definitions fix each agent's tier and write access, and
+a session-start check turns anything that needs the owner into a question. Success is proved by every script's
+`--selftest` GREEN, `readiness_check.py --ci` passing in a CI run someone has seen, and a `--stamp roles-smoke` proof
+that matches the current role files.
+
 Agents forget rules they have to remember, especially under pressure or in a subagent that never saw the prose.
-This skill makes a project's agent rules **structural**, so the harness enforces them through hooks and role
-definitions, and **automatic**, so a check runs at every session start and anything that needs the owner becomes a
-question instead of a silent skip.
 
 Every item in the contracts below exists because a capable agent building the same piece without it got that item
 wrong. **Violating the letter of a contract is violating its spirit.**
@@ -38,26 +41,17 @@ them from the clone. Every script runs as `python <script>` and has a `--selftes
 
 Read `references/guard-hooks.md` before writing or auditing any guard rule, hook registration or the guard's self-test (it holds the full contract and the reason for each item).
 
-### A hook can also GRANT, within a scope a settings rule cannot express
-
-A permission rule sees the command text, never the working directory or the resolved paths, so "allow `git rm -r`
-inside an agent's worktree, nowhere else" cannot be a settings rule. A PreToolUse hook can return
-`permissionDecision: allow` for exactly that shape — one command, run in a directory under the worktrees root, every
-path inside it, no `--force` — and no decision for anything else, so the harness's own safety classifier and every
-deny hook keep their say. The bar for a grant is the mirror of a guard's: its self-test must show every neighbour
-that is NOT allowed (the main checkout, a path that escapes, a chain, `--force`), because its failure branch is a
-permission that should not have been given. *Why: a safety classifier refused a subagent's whole-tree deletion as
-irreversible — correct for an unscoped command, wrong on a branch where every removal is one commit from recovery —
-and the alternative, a person performing the step per wave, cannot run unattended.* Pair it with the owner's
-never-lose-work rule in the cleanup script: remove a worktree only when its work is committed and landed, never one
-that is dirty, locked, recent or unlanded.
+A hook can also GRANT a permission in a scope no settings rule can express. No grant hook ships with this skill;
+`references/guard-hooks.md` holds the contract one must meet.
 
 ## 2. Role agent definitions
 
-- Every role sets `model`, `effort` and `maxTurns`; mechanical roles (`chore`, read-only `locator`) get a cheaper model and lower effort.
+- Every role sets `model`, `effort` and `maxTurns`: judgment roles on the worker tier, the mechanical roles (`chore`, read-only `locator`) on the mechanical tier (the tiers and their effort levels: `references/role-agents.md`).
 - Every role that waits on gates, builds or CI sets `experimental:` / `cacheTtl: 1h`; roles that never wait keep the default.
 - Read-only roles carry `readonly_guard.py` in their OWN frontmatter `hooks:`, never in project settings keyed on `agent_type`.
-- Select roles by name (`agentType` / `subagent_type`); never set `model` or effort per call.
+- Select roles by name (`agentType` / `subagent_type`). A call to a role that names its model passes no `model` or
+  `effort` (a per-call value overrides the role), except a recorded per-item escalation; for an agent type that inherits, the caller picks the cheapest tier
+  that does the job.
 - Restart, then prove each role with a smoke agent and `--stamp roles-smoke`; roll a role back up if its quality metric drops.
 
 Read `references/role-agents.md` before creating, editing or auditing any role definition, and before dispatching a role smoke test.
@@ -67,6 +61,8 @@ Read `references/role-agents.md` before creating, editing or auditing any role d
 - Every capability gets one status each session: OK, REPAIRED, N/A (with reason), TODO, or ASK-OWNER (with the exact On-yes step).
 - Repair automatically only what needs no permission; anything else is ASK-OWNER.
 - Paste `templates/CLAUDE-guardrails.md` into `CLAUDE.md`: every ASK-OWNER line becomes one AskUserQuestion at session start.
+  Its ownership section is where the project names who decides what, the exact actions that stay the owner's, and
+  the steps that need no approval.
 - Fail open at every level, including config loading; detect `CLAUDE_CODE_REMOTE=true` / `CI` and mark machine-local capabilities N/A.
 - Recurring owner-only commands are `recurring` entries (`--stamp <id>` after the owner runs one); trigger-bound owner steps go in `ask_at_trigger`.
 
@@ -76,7 +72,9 @@ Read `references/readiness-check.md` before installing or changing the readiness
 
 - Telemetry is enabled only in the USER settings, only after asking (`readiness_check.py --enable-telemetry`).
 - Use the LSP tool before grep for definitions and references when the LSP line is OK; fix diagnostics on files you touched.
-- Skill and agent edits ship with an eval case and a plugin eval run (ask first, it is billed); each finished branch gets a read-only review when it is DONE, and a confirmed finding blocks its enqueue.
+- In a repository that ships skills or agents with an eval suite, an edit ships with an eval case and a plugin eval run
+  (ask first, it is billed). Each finished branch gets a read-only review when it is DONE, and a confirmed finding
+  blocks its enqueue.
 
 Read `references/telemetry-lsp-gates.md` before enabling telemetry, adding an `lsp` entry or running a regression gate.
 
@@ -99,7 +97,7 @@ Every contract item exists because a baseline agent without it got it wrong. Rea
 
 ## Standards
 
-The bar is the **engineering-standards** skill. Here that means one home per rule: the rule text lives in
+The bar here is one home per rule: the rule text lives in
 `guard-rules.json` or the role file, and `CLAUDE.md` states the rule without copying the pattern. Every guard has
 a check that has been seen to fail (make each new rule's `block` example fire once before trusting its green). A
 scope or fail-mode shortcut is reported as debt, not shipped.

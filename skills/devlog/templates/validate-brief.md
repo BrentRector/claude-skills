@@ -1,9 +1,10 @@
 # Brief: validate a batch of candidate learnings
 
-<!-- Give this to ONE agent per batch of candidates (about 10-20), as a file it reads ("Read and follow <path>").
-     Use a fresh agent that did not write the candidates. Fill the <placeholders>. When every batch has reported,
-     the orchestrator marks each candidate in LEARNINGS-CANDIDATES.md with its verdict and writes LEARNINGS.md from
-     the VETTED ones only (see "Publishing" at the end). -->
+<!-- Give this to ONE worker-tier agent per batch of candidates (about 10-20), as a file it reads ("Read and follow
+     <path>"). Use a fresh agent that did not write the candidates. Each agent re-reads the log for its batch, so a
+     batch costs a full context: make batches as large as one agent can check in full, not smaller. Fill the
+     <placeholders>. When every batch has reported, the orchestrator marks each candidate in LEARNINGS-CANDIDATES.md
+     with its verdict and writes LEARNINGS.md from the VETTED ones only (see "Publishing" at the end). -->
 
 **Goal.** Rule on candidates `<C12 to C27>` in `LEARNINGS-CANDIDATES.md`. Each is a claim the consolidation run read
 out of `<devlog/>` (one file per entry); none is known to be true yet. **Your job is to try to overturn each one.** A

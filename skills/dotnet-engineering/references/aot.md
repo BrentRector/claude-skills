@@ -39,10 +39,9 @@ zero, so they stay there.
 Triage by code and count first; the largest group usually has one mechanical fix.
 
 1. **Replace reflection with source generation.** This removes the warning and the run-time cost together.
-   - `System.Text.Json`: one `JsonSerializerContext` with `[JsonSerializable(typeof(T))]` for every type you own,
-     and every call site passes `MyContext.Default.T`. Set `JsonSerializerIsReflectionEnabledByDefault=false` so a
-     forgotten call site fails loudly. For types you don't own, use their own writer (`IJsonModel<T>`) or a
-     hand-written `JsonConverter<T>` registered on the context.
+   - `System.Text.Json`: set `JsonSerializerIsReflectionEnabledByDefault=false` so a call site the context does
+     not cover fails loudly. For types you don't own, use their own writer (`IJsonModel<T>`) or a hand-written
+     `JsonConverter<T>` registered on the context.
    - `[GeneratedRegex]` for `Regex`, `[LoggerMessage]` for logging, `[LibraryImport]` for P/Invoke, the
      configuration binder source generator, and typed factories instead of `Activator.CreateInstance`.
    - Reflection-only serializers (Newtonsoft.Json, `XmlSerializer`, `BinaryFormatter`) are replaced, not

@@ -1,9 +1,13 @@
 ---
 name: spec-compliance-audit
-description: Use when auditing a whole implementation against a written standard (language standards, ECMA-335, RFCs, file formats, protocol specs) - decompose the standard into a rule catalog, one agent per rule with a self-contained input, a fixed verdict vocabulary, mechanically checked citations, an adversarial refuter on every closing verdict, findings clustered into tracked work, and a traceability inventory whose GAP count is the progress metric.
+description: Use when auditing a whole implementation against a written standard (language standards, ECMA-335, RFCs, file formats, protocol specs) - decompose the standard into a rule catalog, one agent per rule group (a clause or one construct's rule family) with a self-contained input, a fixed verdict vocabulary, mechanically checked citations, an adversarial refuter on every closing verdict, findings clustered into tracked work, and a traceability inventory whose GAP count is the progress metric.
 ---
 
 # Spec compliance audit
+
+**Every normative rule of a standard ends with a closed verdict backed by evidence, or with a tracked work item,
+until the traceability inventory's GAP reaches zero.** Progress is checked by GAP regenerated from the inventory;
+each closing verdict is checked by a spec-derived witness and an independent refuter.
 
 ## Attribution
 
@@ -32,8 +36,8 @@ actually happens. Each gap is either a defect or a documented, deliberate positi
 **Do not audit inline.** Honestly judging one rule means reading its enforcement, the enforcement's callees and
 its callers. Doing that for hundreds of rules in one context produces a few real checks followed by plausible
 ones, and the transcript looks the same either way. A verdict that rests on a promising function name reads
-exactly like one that rests on having read the function. One rule per agent, each in its own context, is what
-makes the difference visible.
+exactly like one that rests on having read the function. One rule group per agent, each in its own context, is
+what makes the difference visible.
 
 ## 1. Decompose the standard into a rule catalog
 
@@ -41,6 +45,8 @@ makes the difference visible.
   definitions it depends on.
 - Generate the catalog mechanically from the standard's text; re-derive it when the text changes.
 - For a very large standard, audit a named scope and say which clauses were NOT covered.
+- A row is verdicted at an edition only from that edition's own text. Where that text is not in hand, the audit does
+  not begin at that edition and its rows stay GAP (`spec-oracle`, "One edition's rule answering for another").
 
 Read `references/rule-catalog.md` before building or re-deriving the catalog.
 
@@ -49,16 +55,19 @@ Read `references/rule-catalog.md` before building or re-deriving the catalog.
 The inventory joins each catalog row to its verdict, its evidence and any work item it points to. It is
 **derived**: a generator builds it from the catalog plus the recorded verdicts. **GAP** is the number of rows
 without a closed verdict backed by evidence. GAP is the only honest progress number. "Tests passing" and
-"features implemented" both count what you looked at, and GAP counts what you have not proven. *(Validated 2026-09-28.)*
+"features implemented" both count what you looked at, and GAP counts what you have not proven.
 
 Keep one inventory. Do not start side lists, "remaining work" sections or per-campaign trackers. Every open item
-belongs in the tracked-work system (§7), linked from its inventory rows. *(Validated 2026-09-28.)*
+belongs in the tracked-work system (§7), linked from its inventory rows.
 
 
-## 3. One agent per rule, with a self-contained input
+## 3. One agent per rule group, with a self-contained input
 
 - Do not audit inline: one rule group per agent, each with its own input file (rule rows verbatim, cited definitions, known
   code entry points, verdict vocabulary, return schema, the bar).
+- Size the groups by cost: each agent costs a fresh context plus its input file, so a group is as large as one
+  context can judge honestly (each rule's enforcement, its callees and its callers), and a scope of a handful of rules
+  is one group, not one agent per rule.
 - State the bar, not only the format: say what makes a well-formed answer worthless.
 - Bind the return to a one-record-per-rule schema that names the lines read, the paths walked and the searches run.
 - Use the `agent-fleet` skill for checkpointing, budgets and restart-safety.
@@ -83,9 +92,12 @@ Read `references/agent-inputs.md` before writing the agent inputs or the return 
 
 ## 5. Evidence: citations and witnesses
 
-- Run every citation through the `spec-oracle` citation checker before recording a verdict, including inherited ones.
+- Run every citation through the `spec-oracle` citation checker before recording a verdict.
 - A verdict closes only with a spec-derived witness that exercises the governed branch and discriminates THIS rule; reading
   the code closes nothing.
+- A witness closes a row only after it was seen to fail under a mutation (the enforcing line reverted, or the expected
+  value moved by one unit of the rule's quantity), and the verdict record names that mutation so the refuter can re-run
+  it. A witness never seen red cannot be told from one that cannot fail.
 - Never document wrong behaviour as the implementation's choice: document the intended choice and record `DIVERGES`.
 - `NOT-IMPLEMENTED` and other absence verdicts rest on the `searched` record (patterns tried, hit counts).
 
@@ -97,6 +109,12 @@ Read `references/verdicts-and-evidence.md` before recording any verdict, writing
   drop or downgrade what it knocks down.
 - A refuter that fails leaves the verdict **unverified**, not confirmed.
 - Check that the refuter agrees with the reasoning, not just the label, and that it checks the premise.
+- Readers answer the refuters' overturn categories before submitting (does the witness exercise this rule's branch, is
+  the citation re-checked, does its edition match, is the expected value derived rather than observed, is the premise
+  expressible), and the audit reports the first-pass overturn rate per batch, by category, beside GAP. *Why: a measured
+  first-pass overturn rate of 29-42 % did not fall over three months while the categories never reached the readers.*
+- No pre-submit check prevents a careful misreading of the right rule; the refuter is that protection, so it runs even
+  when every answer is yes.
 
 Read `references/refuter.md` before dispatching or judging a refuter.
 
@@ -113,7 +131,7 @@ Read `references/clustering.md` before filing work items or assigning implemente
 
 - A missing documentation row is not a divergence; a missing observation is not a negative one; verdicts close only with a
   witness; run a separate reverse-direction pass from the implementation's dispatch tables.
-- The bar is the `engineering-standards` skill: implement the COMPLETE rule, fix the root mechanism, keep one register and one
+- The bar: implement the COMPLETE rule, fix the root mechanism, keep one register and one
   inventory current in the same change.
 
 Read `references/lessons-and-standards.md` before trusting a batch of verdicts or closing out an audit.
@@ -124,8 +142,9 @@ Read `references/lessons-and-standards.md` before trusting a batch of verdicts o
 - [ ] Audit scope named; uncovered clauses listed
 - [ ] Each agent got a self-contained input with the bar and a return schema
 - [ ] Every citation run through the `spec-oracle` checker before recording
-- [ ] Every closing verdict has a spec-derived witness that exercises the governed branch
+- [ ] Every closing verdict has a spec-derived witness that exercises the governed branch, seen to fail under a named mutation
 - [ ] Every closing verdict and every divergence survived an independent refuter; failed refutations marked unverified
+- [ ] Each record answered the overturn categories before refutation; the per-batch overturn rate, by category, reported beside GAP
 - [ ] Latitude settled by documented precedence and recorded, not filed as a divergence
 - [ ] Findings clustered by mechanism into tracked work items that link their inventory rows
 - [ ] GAP regenerated from the inventory and reported. It is the only progress number

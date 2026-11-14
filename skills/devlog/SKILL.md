@@ -1,9 +1,13 @@
 ---
 name: devlog
-description: Use when a project keeps (or should keep) a development log, work history, changelog of findings or fix log that Claude agents write and read, including setting one up, writing, numbering or timestamping an entry, recording a failed, reverted or overturned approach, checking whether something was tried before, enforcing one entry per landing (one file per entry, numbered at enqueue, checked in CI), migrating a single-file log, or consolidating a long log into candidate learnings and validating them before they are published or encoded into a skill.
+description: Keeps a project's development log trustworthy for the agents that write and read it. Use when setting up a development log, work history or fix log; writing, numbering or timestamping an entry; recording an approach that failed, was reverted or was overturned; checking whether something was tried before; enforcing that every change or pull request carries its entry (a hook, a CI check, numbering at landing); migrating a single-file log; or consolidating a log into validated learnings.
 ---
 
 # Development log
+
+**Every landing leaves one trustworthy, searchable log entry, numbered and timed by a script, and learnings are
+drawn from the log only after adversarial validation.** Success is checked by `devlog.py check --base <base> --one`
+passing in CI, both self-tests GREEN, and `LEARNINGS.md` holding only VETTED learnings.
 
 A development log is the project's memory: agents lose their context at every session end, and the log is where
 what happened, what was tried and why survives. The rules below make it trustworthy. Every rule carries its *why*;
@@ -27,12 +31,12 @@ history is the source for the other two; they never replace it.
 | Rule | Why |
 |---|---|
 | **An entry with every landing.** For the working history, one entry file per pull request, written in the branch by the agent that did the work. A branch's checkpoint commits carry none. | An entry written later loses the reasoning of the moment, and a batch of changes gets one vague entry. |
-| **One file per entry, numbered at enqueue, the view rendered.** | Entries inserted at the top of one shared file collide whenever two pull requests are queued together, and each collision bounces one. Numbering at enqueue (after the final rebase) makes number order landing order; an implementer cannot know the landing order. *(Practice — not yet validated: adopted 2026-10-11 with a merge queue.)* |
-| **The timestamp comes from the clock**: `devlog.py new` stamps it, or `date "+%Y-%m-%d %H:%M %Z"`. Never a time you estimated or were told approximately ("around 4:30"). | Estimated stamps were caught wrong twice in one day. Readers reconstruct order and duration from them. *(Practice — not yet validated: a prose rule alone did not hold; no enforced check yet.)* |
-| **A correction is a NEW entry** that names the entry it overturns. Never edit, delete or renumber an old one, even to "fix" a wrong cause (`devlog.py check --base` refuses a landing that does). | The log records what was believed when. A rewritten entry hides the mistake, and commits and docs that cite it now point at different text. *(Practice — not yet validated: no measured effect.)* |
-| **Keep failures, dead ends and overturned verdicts.** | "Tried X, failed because Y" saves the most time later and is the entry most often skipped. *(Practice — not yet validated: no measured effect.)* |
+| **One file per entry, numbered at enqueue, the view rendered.** | Entries inserted at the top of one shared file collide whenever two pull requests are queued together, and each collision bounces one. Numbering at enqueue (after the final rebase) makes number order landing order; an implementer cannot know the landing order. |
+| **The timestamp comes from the clock**: `devlog.py new` stamps it, or `date "+%Y-%m-%d %H:%M %Z"`. Never a time you estimated or were told approximately ("around 4:30"). | Estimated stamps were caught wrong twice in one day. Readers reconstruct order and duration from them. |
+| **A correction is a NEW entry** that names the entry it overturns. Never edit, delete or renumber an old one, even to "fix" a wrong cause (`devlog.py check --base` refuses a landing that does). | The log records what was believed when. A rewritten entry hides the mistake, and commits and docs that cite it now point at different text. |
+| **Keep failures, dead ends and overturned verdicts.** | "Tried X, failed because Y" saves the most time later and is the entry most often skipped. |
 | **Each entry records context, what was tried and why, the result (with numbers), the lesson, and what's next.** | Without the why and the rejected alternatives, the next agent repeats them. |
-| **Only the log is historical.** Every other doc describes the current state. | History scattered into design docs rots, and those docs stop saying what is true now. *(Practice — not yet validated: no measured effect.)* |
+| **Only the log is historical.** Every other doc describes the current state. | History scattered into design docs rots, and those docs stop saying what is true now. |
 
 ## Writing an entry
 
@@ -83,8 +87,8 @@ says "the top of the log" in that landing too.
 | Stage | Produces | How |
 |---|---|---|
 | **1. Record** | the log: everything, hypotheses and wrong turns included | an entry with every landing |
-| **2. Consolidate** | `LEARNINGS-CANDIDATES.md`: numbered CANDIDATE learnings (problem / root cause / fix / evidence / when), reversals labeled, closing with **open problems** and **not yet acted on** | one agent, `templates/consolidate-brief.md` |
-| **3. Validate** | a verdict per candidate: **VETTED**, **UNPROVEN** or **REFUTED**, with its evidence; then `LEARNINGS.md` holding the vetted ones only | a fresh adversarial agent per batch, `templates/validate-brief.md` |
+| **2. Consolidate** | `LEARNINGS-CANDIDATES.md`: numbered CANDIDATE learnings (problem / root cause / fix / evidence / when), reversals labeled, closing with **open problems** and **not yet acted on** | one worker-tier agent, `templates/consolidate-brief.md` |
+| **3. Validate** | a verdict per candidate: **VETTED**, **UNPROVEN** or **REFUTED**, with its evidence; then `LEARNINGS.md` holding the vetted ones only | a fresh worker-tier agent per batch, `templates/validate-brief.md` |
 
 - **VETTED requires all four:** (1) the root cause is confirmed, not a hypothesis later overturned; (2) the evidence
   is re-checked against primary sources; (3) no later log entry contradicts it; (4) the fix has been used and shown
@@ -96,11 +100,10 @@ says "the top of the log" in that landing too.
 - **Refuted candidates stay in the record**, marked REFUTED with the contradicting source; UNPROVEN ones stay marked
   with what is missing. Never drop one silently.
 
-*Why: a log records hypotheses as well as conclusions, and some are later refuted: in one project a published
-explanation of an observed silence was refuted the same day. A learnings file compiled straight from the log inherits
-those errors, and a skill that encodes them spreads them. Consolidation is cheap and finds real problems (one run:
-145 candidates and 15 open problems in ~30 min, and a contradiction it surfaced was real and was fixed), but its
-output is a list of claims read out of the log, not a list of facts. The first validation of those 145 vetted 46, left 90 unproven and refuted 9, and independent refuters overturned 21 of the 67 that a first validator had vetted.*
+*Why: a log records hypotheses as well as conclusions, and some are later refuted. A learnings file compiled
+straight from the log inherits those errors, and a skill that encodes them spreads them. Consolidation is cheap and
+finds real problems, but its output is a list of claims read out of the log, not a list of facts: of the first 145
+candidates one validation run vetted only 46.*
 
 ## Enforcing it
 
@@ -117,7 +120,7 @@ three points:
 - **Register the hook with matcher `Bash|PowerShell` and NO `if` filter.** *Why: an `if` filter such as
   `Bash(git commit*)` or `Bash(gh pr create*)` does not match a chained command (`git add -A && git commit …`,
   `git push … && gh pr create …`), the usual agent form; measured on a sibling hook, the filter silenced it in most
-  sessions. The script finds the command anywhere and exits at once on anything else.* *(Practice — not yet validated: the filter's effect was measured in a sandbox, not yet in production.)*
+  sessions. The script finds the command anywhere and exits at once on anything else.*
 - **It asks; it does not deny.** *Why: a message-only amend or a deliberate exception needs a person to wave it
   through, not a refusal the agent learns to route around.*
 - It is silent outside repos with `.devlog.json`, fails open on any error (an unresolvable base included: CI

@@ -1,7 +1,5 @@
 # Target, triage and calibration (Steps 1, 3, 4)
 
-Moved out of `SKILL.md` verbatim. Read it before Step 1 when a PR already carries a review, before skipping any dimension, and before Step 4.
-
 ## Target selection and incremental PR mode (Step 1)
 
 - **No argument:** the local diff against the default branch (detect it: `git symbolic-ref refs/remotes/origin/HEAD`,
@@ -12,16 +10,16 @@ Moved out of `SKILL.md` verbatim. Read it before Step 1 when a PR already carrie
   implementer reports DONE, inside the wave and beside the other implementers. Target: `<default>...HEAD` in the
   branch's worktree (read only; the reviewer's role carries a hook that refuses writes inside a git tree). Run the
   dimensions the triage selects, correctness first, plus the project's drift rules for the changed files, fixed time
-  limits in tests and a citation spot-check. Output: a findings file at the path the dispatch names, one entry per
+  limits in tests, a citation spot-check, and the fix's own sweep table and witness proofs (SKILL.md Step 7). Output: a findings file at the path the dispatch names, one entry per
   CONFIRMED finding (it survived Step 6) with its scenario, repro, code site and severity, and a structured verdict
   computed from the file under the dispatch's blocking severities (`CLEAN`, or `FINDINGS` with the count of blocking
   findings) plus the non-blocking ones as leads. A finisher answers each blocking finding — fixed at its root with a
-  regression test and a sibling sweep, or refuted with evidence written beside the finding — and re-runs the targeted
-  gate; the branch is then reviewed again over the finisher's diff only, and enqueued the moment a round is CLEAN.
-  *Why: in one measured campaign (2026-10-10) review inside the landing step cost 23 % of the landing tokens and sat on
-  the critical path between two gate runs; on the branch it runs in parallel, and the landing step stays a script.*
-  *(Practice — not yet validated.)* The thresholds, the diff-only re-review and the findings file's integrity rule are
-  `agent-fleet` `references/landing.md`'s.
+  regression test and a sibling sweep, or refuted with evidence written beside the finding — and re-runs the
+  gate (`test-gate`); the branch is then reviewed again over the finisher's diff only, and enqueued the moment a round is CLEAN.
+  *Why: review inside the landing step, measured, cost 23 % of the landing tokens and sat on the critical path
+  between two gate runs; on the branch it runs in parallel, and the landing step stays a script.*
+  The thresholds, the diff-only re-review and the findings file's integrity rule are the
+  `merge-queue-landing` skill's.
 - **"Audit" / "be comprehensive" / a subsystem name:** whole-source mode (see *Scale* below).
 - **Incremental PR mode:** if the PR already carries a review from a previous run, read the full conversation first
   (`gh pr view --json reviews,comments`), diff only the commits pushed since that review, and open the report with
@@ -43,7 +41,7 @@ Read the project's instructions (CLAUDE.md, README) for explicit context first; 
 anything inferred. The axes are independent - a small internal payroll tool is low-scale and high-consequence.
 
 - **Scale** (tunes architecture and performance): *pre-launch* - drop speculative scale concerns, downgrade perf
-  and architecture to suggestions · *early users* - flag clear regressions, no premature optimization · *at scale*
+  and architecture to low · *early users* - flag clear regressions, no premature optimization · *at scale*
   or *long-lived* (a product expected to be maintained for years) - full rigor; structural debt compounds.
 - **Consequence** (tunes correctness): *low* - recoverable, nothing sensitive · *standard* - normal product code ·
   *high* - money, PII, auth, compliance, safety, data loss, or output other systems trust - edge cases are real.

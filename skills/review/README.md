@@ -33,8 +33,8 @@ Asking in words ("review this PR", "audit the parser, be comprehensive") works t
 | 2. Run the free checks | Build, linters/analyzers, tests scoped to the change, and any invariant checkers the repo names. Anything a tool catches needs no reviewer; a defect *class* a rule could catch gets a proposed rule. |
 | 3. Triage | Skip dimensions that cannot apply, and say why (table below). A trivial diff gets a single direct pass with no agents. |
 | 4. Calibrate | Two independent axes, **scale** and **consequence**, read from the project instructions or inferred (default *early users / standard*, stated as inferred). |
-| 5. Parallel agents | One agent per selected dimension, all launched in one message, plus specialist agents where the change calls for them. |
-| 6. Adversarial verification | A skeptic per candidate tries to refute it; when uncertain it defaults to *refuted*. Survivors are de-duplicated and ranked Critical → Warning → Suggestion. |
+| 5. Find | One finder across the four dimensions for an ordinary diff (the session or one agent); one agent per selected dimension, launched in one message, plus specialist agents where the change calls for them, for a large or high-stakes change. |
+| 6. Adversarial verification | A skeptic tries to refute each candidate (one skeptic for a diff's candidates, 3-5 per finding in an audit); when uncertain it defaults to *refuted*. Survivors are de-duplicated and ranked critical → high → medium → low → info. |
 | 7. Sibling sweep | For each confirmed bug, search for the same shape elsewhere and report how the sweep was done. |
 | 8. Report | A fixed report format. Posting to a PR is confirm-first; the skill never approves or requests changes on the author's behalf unless asked. |
 
@@ -65,7 +65,8 @@ Fix: <approach, and whether it is local or structural>
 No scenario, no finding. For duplication, the scenario is the divergence: change the rule in place A, and path B
 still does the old thing.
 
-**Scale of the run.** "Review this diff" uses one finder per dimension and a single skeptic. "Audit this
+**Scale of the run.** "Review this diff" uses one finder and a single skeptic; a large or high-stakes change gets
+one finder per dimension plus the matching specialists. "Audit this
 subsystem" or "be comprehensive" uses several finders per dimension with different starting points, 3–5
 independent skeptics per finding (a majority must fail to refute it), and a completeness critic that asks what
 was *not* examined and sends finders there.
@@ -122,9 +123,8 @@ standard.
 
 Prerequisites: `git`; the `gh` CLI for PR targets and posting; subagent support for the parallel agents.
 
-Composition: [`engineering-standards`](../engineering-standards/README.md) is the bar — every rule there is a
-finding category here — and its `references/rule_index.py` is the per-file drift-rule query used in Full code
-review. The four specialist agents live in the repository's `agents/` folder.
+Composition: Full code review lists the drift tests that govern each changed file with the repo's own rule
+query. The four specialist agents live in the repository's `agents/` folder.
 
 ## Files
 

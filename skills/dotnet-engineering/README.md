@@ -31,6 +31,7 @@ You can also ask for it by name ("use the dotnet-engineering skill") or describe
 | A build fails and the console doesn't explain it | [`references/build-failures.md`](references/build-failures.md) | recording a binlog (`-bl`); reading it (binlog MCP server, Structured Log Viewer, or replay to text); finding the first cause; "fixes that are not fixes" |
 | Trim / AOT warnings | [`references/aot.md`](references/aot.md) | turning the analyzers on; a table of common IL codes; the fix order; what never to do; running the published binary |
 | Publishing to nuget.org | [`references/publishing.md`](references/publishing.md) | pack-and-inspect before the first push; the nuget.org trusted-publishing policy; an OIDC workflow with a tag-equals-version gate; troubleshooting |
+| Moving an existing codebase to the latest .NET and C# | [`references/modernization.md`](references/modernization.md) | the SDK, target framework and language upgrade first; then analyzer-driven feature waves, one rule per wave, applied with code fixes or a rewriter |
 
 The core rules, in brief:
 
@@ -88,8 +89,8 @@ on conflict:
 Prerequisites: the .NET SDK. The references also mention optional tools (BenchmarkDotNet, the MSBuild Structured
 Log Viewer, the binlog MCP server).
 
-**Sibling skills.** It sits on top of [`engineering-standards`](../engineering-standards/SKILL.md) (the bar) and
-[`test-gate`](../test-gate/SKILL.md) (gate mechanics). For C# duplication checks, symbol sweeps and assembly
+**Sibling skills.** It sits on top of [`test-gate`](../test-gate/SKILL.md)
+(gate mechanics). For C# duplication checks, symbol sweeps and assembly
 inspection, see [`roslyn-analysis`](../roslyn-analysis/README.md).
 
 See [`SKILL.md`](SKILL.md) for the full rules.
@@ -104,6 +105,7 @@ See [`SKILL.md`](SKILL.md) for the full rules.
 | [`references/build-failures.md`](references/build-failures.md) | MSBuild binlog capture and failure analysis |
 | [`references/aot.md`](references/aot.md) | Trimming and Native AOT compatibility |
 | [`references/publishing.md`](references/publishing.md) | nuget.org trusted publishing from GitHub Actions |
+| [`references/modernization.md`](references/modernization.md) | Modernizing an existing .NET codebase |
 | [`references/THIRD-PARTY-NOTICES.md`](references/THIRD-PARTY-NOTICES.md) | Upstream attribution and the MIT license text |
 
 ## Credits / license

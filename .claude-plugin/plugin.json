@@ -1,14 +1,13 @@
 {
   "name": "brent-tools",
   "version": "1.22.0",
-  "description": "Engineering-standards, review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, claude-cloud-sessions, automating-agent-guardrails, devlog, performance-diagnosis, cross-platform and architecture-audit",
+  "description": "Review (+ specialist agents), variant-analysis, spec-oracle, spec-compliance-audit, test-gate, dotnet-engineering, roslyn-analysis, agent-fleet, merge-queue-landing, claude-cloud-sessions, automating-agent-guardrails, devlog and cross-platform",
   "author": {
     "name": "Brent Rector"
   },
   "repository": "https://github.com/BrentRector/claude-skills",
   "license": "MIT",
   "skills": [
-    "./skills/engineering-standards",
     "./skills/review",
     "./skills/variant-analysis",
     "./skills/spec-oracle",
@@ -17,12 +16,11 @@
     "./skills/dotnet-engineering",
     "./skills/roslyn-analysis",
     "./skills/agent-fleet",
+    "./skills/merge-queue-landing",
     "./skills/claude-cloud-sessions",
     "./skills/automating-agent-guardrails",
     "./skills/devlog",
-    "./skills/performance-diagnosis",
-    "./skills/cross-platform",
-    "./skills/architecture-audit"
+    "./skills/cross-platform"
   ],
   "agents": [
     "./agents/comment-analyzer.md",

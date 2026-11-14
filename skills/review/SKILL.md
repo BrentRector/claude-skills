@@ -1,14 +1,15 @@
 ---
 name: review
-description: Use when asked for a code review, architecture review, performance review, or duplication/efficiency analysis of a diff, branch or PR (or a whole subsystem audit), including the read-only review of a finished branch before it is enqueued to land - runs the four review dimensions (architecture, full code review, performance, duplication and efficiency) as parallel agents, requires a concrete failure scenario for every finding, adversarially verifies each finding before reporting it, and sweeps every confirmed defect for its siblings.
+description: Reviews code for defects that survive an attempt to refute them. Use when asked for a code review, architecture review, performance review, or duplication/efficiency analysis of a diff, branch or PR, a whole-subsystem audit, or the read-only review of a finished branch before it lands. Every finding carries a concrete failure scenario and is adversarially verified, and every confirmed defect is swept for its siblings.
 argument-hint: "[PR number/URL | branch | path | 'audit <subsystem>'] (optional, defaults to the local diff)"
 ---
 
 # Review
 
-Four independent review dimensions, run in parallel, followed by an adversarial verification pass that tries to
-kill every finding before it reaches the author. The output is a short list of defects that survived an honest
-attempt to refute them, each with a scenario that reproduces it.
+**The result is a short list of defects that survived an honest attempt to refute them, each with a scenario that
+reproduces it and a sweep for its siblings.** It is checked in the report: the `N candidates -> M survived` line,
+a scenario per survivor, and the query and scope of every sweep. The four review dimensions (architecture, full
+code review, performance, duplication and efficiency) say what to look for.
 
 The premise: a plausible-but-wrong finding costs more than a missed one. It sends the author (or the next agent) to
 rewrite working code, and it erodes trust in every later review. So this skill is built to *filter*, not to
@@ -35,7 +36,7 @@ Detail lives in `references/`; each step says when to read which file.
   torn: stop and say so. A finisher answers EACH blocking finding — fixed at the root with a regression test, or
   refuted with evidence written beside it — before the branch is enqueued. A RE-REVIEW reads ONLY the finisher's diff
   since the head the last round reviewed, plus its answers; the earlier content is reviewed and is not re-opened
-  unless the diff touches it. The landing step never reviews and never fixes (`agent-fleet` `references/landing.md`).
+  unless the diff touches it. The landing step never reviews and never fixes (the `merge-queue-landing` skill).
 
 Empty diff → say so and stop.
 
@@ -55,8 +56,8 @@ Skip dimensions that clearly cannot apply, and say which were skipped and why.
 
 - Never skip Full code review, nor Duplication and efficiency for new files.
 
-A genuinely trivial diff (typo, version bump, comment) gets a direct single-pass review with no agents; state that
-a full review was not warranted.
+A genuinely trivial diff (typo, version bump, comment) gets a direct single-pass review with no agents and no
+skeptic; state that a full review was not warranted.
 
 Read `references/target-triage-calibration.md` (the triage table) before skipping Architecture, Performance or Duplication and efficiency.
 
@@ -67,20 +68,30 @@ Read `references/target-triage-calibration.md` (the triage table) before skippin
 
 Read `references/target-triage-calibration.md` before Step 4 for what each level changes.
 
-## Step 5 - The four dimensions, as parallel agents
+## Step 5 - The four dimensions: one finder, or a fan-out the change pays for
 
-Launch one agent per selected dimension **in a single message** so they run concurrently. Give each the diff (or
-subsystem), the changed-file list, the PR description, the calibration, any project review rules (see *Project
-hooks*), and its criteria below. Each agent reads surrounding code as needed - a diff alone hides most defects.
+What a review needs is all four dimensions applied by a reader of the surrounding code (a diff alone hides most
+defects), and every candidate put to an independent skeptic (Step 6). How many agents that takes is a cost choice:
 
-- The four dimensions are Architecture, Full code review, Performance, Duplication and efficiency.
-- Specialist agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) launch
-  in the same message when the change matches and go through the same Step 6 skeptic.
-- A fixed time limit in a test is a finding; a performance finding names an input size.
-- A change to I/O, storage, sorting or concurrency code whose tests miss a failure path it can reach (a status it can
-  return, a refused write or sync, a crash point, contention) is a finding (`engineering-standards` section 5).
+- **Each agent costs a full read of the change** and the code around it, in a context of its own, and returns only
+  its summary. What it buys is a fresh context on one lens (more depth there, no anchoring on the other finders) and
+  parallel wall time. A specialist adds the same cost for its one defect class.
+- **An ordinary diff** (one subsystem, up to a few hundred lines, standard consequence): ONE finder takes all four
+  dimensions, the session itself or one agent when the session's context should stay clean, and applies the
+  checks of each specialist whose trigger matches (the specialist files are its checklists). Then ONE skeptic for
+  all the candidates: two agents at most.
+- **A large, cross-subsystem or high-consequence change**: one finder per selected dimension plus each specialist
+  agent whose trigger matches, launched in one message so they run concurrently, then one skeptic. Add an agent
+  where its lens is likely to find what one finder would miss, never for completeness.
+- **An audit**: *Scale*.
 
-Read `references/dimensions.md` before launching the Step 5 agents: it holds the criteria to hand each agent and when each specialist applies.
+Brief every finder, inline or delegated, with the diff (or subsystem), the changed-file list, the PR description,
+the calibration, the project review rules (*Project hooks*) and its criteria. Two criteria every finder carries: a
+fixed time limit in a test is a finding, and a performance finding names an input size. A change to I/O, storage,
+sorting or concurrency code whose tests miss a failure path it can reach (a status it can return, a refused write
+or sync, a crash point, contention) is a finding.
+
+Read `references/dimensions.md` before Step 5: it holds each dimension's criteria and when each specialist applies.
 
 ### What every finding must carry
 
@@ -97,9 +108,11 @@ place A, and path B still does the old thing.*
 
 ## Step 6 - Adversarial verification
 
-- Agent output is candidates: spawn a skeptic per candidate to REFUTE it, running the scenario when cheap. Uncertain
-  means refuted; only survivors are reported; a null result is valid.
-- Then de-duplicate, apply the calibration, rank Critical, Warning, Suggestion.
+- Agent output is candidates: a skeptic tries to REFUTE each one, running the scenario when cheap. For a diff that is
+  ONE skeptic agent for all the candidates; an audit gets 3-5 per finding (*Scale*). Uncertain means refuted; only
+  survivors are reported; a null result is valid.
+- Then de-duplicate, apply the calibration, rank critical, high, medium, low, info (the scale is in
+  `references/report-and-scale.md`).
 
 Read `references/verification-and-siblings.md` before spawning the Step 6 skeptics.
 
@@ -107,6 +120,16 @@ Read `references/verification-and-siblings.md` before spawning the Step 6 skepti
 
 - For each survivor search the other arm of the same dispatch, the paired function, the copied neighbor, the same
   idiom elsewhere; report siblings under the parent and say how the sweep was done.
+- The sweep's method is the `variant-analysis` skill; in C#, `roslyn-analysis`' `sweep-symbol.cs` lists every
+  implementation, override and reference of the finding's symbol, and its output is the finding's evidence.
+- When the change under review is itself a fix, two of its claims are checked, not taken on trust. A claimed sweep
+  is a table (the structural or semantic query, what it matched and how each match was settled, and a calibration
+  line showing the query hit the origin), never a sentence such as "swept, no others"; a sweep with no table, with
+  no calibration line, or with no structural or semantic row where the mechanism has a symbol or a dispatch (the
+  `variant-analysis` sweep table) is a finding. Each new test or witness was seen to fail against the defect or a mutation of it; one never seen red is
+  a finding. *Why: a sibling arm left wrong is the largest class of defect a landed fix leaves behind, and sweeps
+  recorded as a sentence or a textual grep missed renamed and escaped forms; a test that does not exercise its rule
+  passes on a wrong implementation, the most common reason a first-pass verdict was overturned.*
 
 Read `references/verification-and-siblings.md` before the Step 7 sweep.
 
@@ -119,14 +142,14 @@ Read `references/report-and-scale.md` before writing the Step 8 report and befor
 
 ## Scale
 
-- A diff gets one finder per dimension and one skeptic; an audit gets several finders, 3-5 skeptics per finding and a
-  completeness critic.
+- An ordinary diff: one finder for the four dimensions and one skeptic. A large or high-stakes change: up to four
+  dimension finders, the specialists whose triggers match and one skeptic, at most nine agents. An audit: several
+  finders per dimension, 3-5 skeptics per finding and a completeness critic, because a missed defect in a whole
+  subsystem costs more than the fleet.
 
 Read `references/report-and-scale.md` before an audit-sized run.
 
 ## Standards
-
-The bar is the **engineering-standards** skill; every rule there is a finding category here, even when every test passes.
 
 Read `references/standards-and-hooks.md` before Step 2 when the repo carries engineering standards.
 

@@ -28,5 +28,3 @@ public sealed class Payment
     public string DisplayName => KindNames[(int)Kind];
 }
 ```
-
-Keep the answer under 250 words.

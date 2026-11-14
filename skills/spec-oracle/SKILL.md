@@ -5,6 +5,10 @@ description: Use BEFORE implementing, debugging or deciding any behavior governe
 
 # Spec oracle
 
+**Every behavior a written standard governs is derived from the text of the edition that governs it, with a
+mechanically checked citation, before any code is read or written.** The proof is the checker passing on each citation and expected
+values computed from the cited rule, never observed from an implementation.
+
 When a written standard governs a behavior, **the standard is the only oracle.** Other implementations, test
 suites, golden files, a legacy system and "what the code does today" are regression nets. They are useful and
 they have holes, and none of them is authority.
@@ -21,11 +25,11 @@ then calling that "expected". If you catch yourself doing that, stop and restart
 - **A differential test is blind to any violation both sides share.** If your implementation was ported from,
   or tuned against, the reference, the bug and the oracle came from the same place.
 - **Conformance suites are mostly happy paths.** A green suite says nothing about the rules it never runs.
-- **Vendor behavior is a choice the vendor made,** often an extension or a known deviation. *(Validated 2026-09-28.)*
+- **Vendor behavior is a choice the vendor made,** often an extension or a known deviation.
 
 Every difference from the expected output counts as a bug until a citation says otherwise. "Close enough" and
 "implementation variation" are not answers. If something is a common extension and not standard behavior,
-call it that. Never claim conformance without a citation. *(Practice — not yet validated: shown on one program, on one day.)*
+call it that. Never claim conformance without a citation.
 
 ## 1. Find the governing rule
 
@@ -33,7 +37,7 @@ Locate the standard's text. Keep it in the repo as Markdown or plain text if you
 checked mechanically (see step 3). Then find the **specific** rule for the exact construct, not the nearest
 general sentence. A "gap" found in a general sentence usually disappears once you read the rule for that
 argument, field or state. A "decision fork" about to be escalated often dissolves the same way: check it against
-the text first. *(Validated 2026-09-28.)*
+the text first.
 
 Look in all the places the answer can live: the syntax or grammar, the semantic rules for that construct, the
 shared definitions and concepts sections, conformance and requirement-level text (MUST/SHALL, see RFC 2119),
@@ -44,7 +48,7 @@ errata, and any annex listing implementation-defined behavior or differences bet
 Rule prose usually survives text extraction. **Diagrams, syntax railroads, bit-layout figures and tables often
 do not.** Choice bars, optional brackets, underlines that mark required keywords, column alignment and footnote
 markers all get lost. The damage is usually one-directional: text extraction makes the syntax look **more
-restrictive** than it is, so legal input looks illegal. *(Validated 2026-09-28.)*
+restrictive** than it is, so legal input looks illegal.
 
 - If the figure decides the answer, **render the actual page** (PDF to image) and look at it. Don't work out a
   diagram's meaning from the prose around it, and don't trust extracted text of a figure over the rendered page.
@@ -62,7 +66,7 @@ Before touching code, write down three things:
 
 Then **check the citation mechanically.** Confirm that the quoted text occurs inside that clause's own section,
 not merely somewhere in the document. See `references/citation-checker.md` for a small tool that does this and
-also reports which section really holds a quote. **A citation you haven't checked isn't a citation.** *(Validated 2026-09-28.)*
+also reports which section really holds a quote. **A citation you haven't checked isn't a citation.**
 
 Test expected values are **computed from this rule**. Never copy them from another implementation's output.
 
@@ -77,9 +81,7 @@ regression. It never proves correctness.
 **Inheriting an unchecked citation.** The usual failure is not making up a citation. It is inheriting one. A
 ticket, design doc or code comment carries "§7.3.2 rule 4", the quoted text really is in the standard, and
 nobody re-derives the clause NUMBER. It then spreads into comments, tests and commit messages as if someone had
-checked it. Re-check every citation you pass on, including ones you wrote yourself last week. *(The inherited-citation failure:
-validated 2026-09-28. Re-checking your own is practice, not yet validated: the catches so far came from a CI
-audit, not from re-checking.)*
+checked it. Re-check every citation you pass on, including ones you wrote yourself last week.
 
 **A real clause answering a different question.** A mechanical check proves the quote is in that clause. It
 cannot prove the clause **governs your question**. This shows up most in comments that justify NOT doing
@@ -91,16 +93,43 @@ ask:
   that *selects* one. A rule about non-local elements does not govern local ones.
 - **Is there a MORE SPECIFIC rule** for this exact construct that overrides the general one?
 - Freedom over the *form* of something is never freedom over whether it *exists*. Be suspicious when a design
-  doc says "permanently" or "never needed". *(Validated 2026-09-28.)*
+  doc says "permanently" or "never needed".
 
 **A valid rule with an impossible premise.** A finding can quote a real rule correctly and still ask for
 something that can't happen. Before building the fix, write the test input and ask whether it is even legal
 under the grammar or format. If the fix's own test case can't be written, the finding is refuted, not hard.
 Refuting it is a real result: record the evidence and remove the unreachable code. When a finding explains an
-*asymmetry* between two paths, first check whether that asymmetry is simply what a syntax difference implies. *(Validated 2026-09-28.)*
+*asymmetry* between two paths, first check whether that asymmetry is simply what a syntax difference implies.
+
+**One edition's rule answering for another.** Where a standard has several editions or versions, a behavior at an
+edition is derived only from that edition's own text, and a citation supports only the edition it comes from. When
+that text is not in hand, no behavior at that edition is derived, gated, closed or written into code, and the work
+does not begin: the behavior is recorded as unverified (an open row or a loud note naming the missing text) until
+the text arrives. Memory, a neighboring edition, a change annex and another implementation do not stand in for it.
+A citation of a different edition is acceptable only as an explicit cross-edition argument ("unchanged since
+...", shown against both texts). *Why: in one multi-edition compiler this was a leading source of wrong behavior:
+work at the older editions went ahead before their text was in hand, so a later edition's rule leaked into the
+earlier one or the earlier rule was never read; and a finding about the older edition was retired on citations
+that each passed the checker, because each was a real clause of the wrong edition.* The checker in
+`references/citation-checker.md` verifies clause, rule and quote, not edition, so the edition match is checked by
+the reader and the refuter until a project's checker carries it.
+
+**The implementation's own tests read as evidence against the rule.** When a spec-derived change turns existing
+tests red, the reds are claims to examine, not evidence against the change: an expected value pinned from earlier
+output is the implementation's old answer, not the standard's. Derive each red test's expected value from the rule
+before re-pinning it or citing it. A finding is not retired, and a spec-derived fix is not reverted, on the
+strength of red tests alone, and a bulk re-bless records which values were re-derived and which were only
+regenerated. *Why: a correct finding was once retired because two dozen of the product's own goldens went red,
+and those goldens pinned the very answers the finding said were wrong.*
 
 **A right answer for a wrong reason.** When a second review agrees with a verdict, check that it agrees with the
-*reasoning* too. Record the corrected reasoning along with the corrected verdict. *(Validated 2026-09-28.)*
+*reasoning* too. Record the corrected reasoning along with the corrected verdict.
+
+**What no instruction here catches.** A reader who follows every step can still misread the right rule, and a
+citation can pass the checker and still answer the wrong question. More care does not fix that; an independent
+check does: a refuter that re-derives the verdict from the text (`spec-compliance-audit` runs one on every closing
+verdict; `skills/spec-compliance-audit/references/refuter.md`), a differential, or the next reader. Where a verdict
+closes a row or retires a finding, that refuter is the check.
 
 ## Where the spec leaves latitude
 
@@ -121,7 +150,7 @@ catalogs, their test suites, or run them. Don't reason from first principles or 
 memory is a guess, and you should label it as one. Surveys often overturn the "obvious" choice: what looked like
 an open question can turn out to have one answer every implementation agrees on. When the survey is unanimous,
 say so and recommend that answer rather than presenting a balanced menu. Respect licenses: observe behavior and
-read documentation, don't copy source. *(Validated 2026-09-28.)*
+read documentation, don't copy source.
 
 **Record the choice** in a conformance or implementation-defined-behavior document, next to the survey that
 justifies it. A survey is expensive to redo, and the record is what makes the choice defensible later.
@@ -134,7 +163,7 @@ wrong behavior.
 
 ## Standards
 
-The bar is the **engineering-standards** skill. For spec-governed work it means:
+For spec-governed work the bar means:
 
 - **Implement the complete feature per the spec**: enumerate every syntax and general rule the construct owes
   and build all of them. Never scope the work to what a test, a corpus or an oracle happens to reference.
@@ -149,8 +178,10 @@ The bar is the **engineering-standards** skill. For spec-governed work it means:
 - [ ] Found the specific governing rule, not a general sentence
 - [ ] Rendered the page if a diagram, table or figure decides it
 - [ ] Wrote down citation, expectation and applicability BEFORE reading code
+- [ ] The citation comes from the edition the behavior is for, and that edition's text is in hand
 - [ ] Citation mechanically checked (quote occurs in THAT clause)
 - [ ] Asked: is this the clause for MY question, and is there a more specific one?
 - [ ] Confirmed the premise is expressible (the test input is legal)
 - [ ] Latitude? Survey measured, precedence applied, choice recorded
 - [ ] Test expectations computed from the rule, not copied from an oracle
+- [ ] Any test the change turned red had its expected value re-derived from the rule before it counted

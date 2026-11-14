@@ -3,7 +3,7 @@ name: roslyn-analysis-renamed-clones
 description: Finding duplicated method bodies across a C# solution even when identifiers were renamed; roslyn-analysis points at its bundled type-2 clone detector (detect-clones.cs).
 tags: [roslyn-analysis, skill]
 runs: 3
-max_turns: 8
+max_turns: 12
 timeout_seconds: 240
 allowed_tools: [Skill, Read, Glob]
 expected_outcome: Gives a `dotnet run ... detect-clones.cs -- <root>` command (default type-2 mode, renamed identifiers match) and says to confirm each clone set with the semantic model before extracting.

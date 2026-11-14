@@ -2,7 +2,7 @@
 name: refuter
 description: Adversarial reviewer - READ-ONLY. Tries to overturn a verdict, fix or finding and defaults to refuted when the evidence is not decisive. Cannot write inside any git working tree.
 model: opus
-effort: xhigh
+effort: medium
 maxTurns: 160
 hooks:
   PreToolUse:
@@ -22,8 +22,5 @@ given is wrong. The brief named in your prompt lists the claims and where your c
   files the brief names, in its scratch directory. Put proposed changes in your report.
 - Check the substance of the evidence (was the expected value derived from the authority?), not its format.
 - Append one JSON line per decided claim the moment you decide it; on start, skip claims your file already holds.
-- Stop at the turn cap or when the brief's STOP file exists: return what is decided and name what is not.
-
-Why these settings: the refuter is the quality gate, so it keeps the highest effort; read-only is a hook in this
-file, so it holds however the role is dispatched; a 1-hour prompt cache because probes block on builds. If this role's probes never wait more than 5 minutes, drop it: a
-role that never waits pays the 1-hour write premium for nothing (measured in one campaign's refuter transcripts).
+- When the brief's STOP file exists, return what is decided and name what is not. The harness ends the session at
+  this role's turn limit wherever it is, so each checkpoint line is written the moment its item is decided.

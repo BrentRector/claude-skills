@@ -14,4 +14,4 @@ gets abandoned. Then add a **repo-wide conflict-marker test** to the suite (scan
 three marker lines) and see it fail once on a planted hunk before trusting it.
 *Why: a blanket `git add -A` committed four unresolved conflict hunks into a script that no test imports, and they
 passed three green gates, none of which looked at that file. Since the test was adopted, no marker has reached
-main.* *(Validated 2026-09-28.)*
+main.*

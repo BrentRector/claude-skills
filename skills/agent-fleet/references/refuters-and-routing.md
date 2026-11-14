@@ -9,43 +9,42 @@ through a second, independent agent told to **overturn** it, and that agent sees
 Run refuters in small chunks (~4 wide) that are checkpointed per item.
 *Why: the first agent's framing is contagious. Only an agent looking for a counter-example finds the
 well-formed-but-wrong result.* Refuters check the **substance** of the evidence (for example, was the expected
-value derived from the authority), not its format. *(Validated 2026-09-28.)*
+value derived from the authority), not its format.
 - **Keep verdicts per claim AND per piece of evidence.** When one piece of evidence (a test, a golden) supports several
   claims, a refuter's overturn of one claim must not withhold that evidence from the sibling claims it upheld, and
   evidence the refuter never judged must never be recorded because its claim was upheld on something else. Key the
   integration on (claim, evidence); withhold evidence from EVERY claim only when the refuter says the evidence itself is
-  invalid (for example, the test input is non-conforming). *Why: pooling overturns by claim silently dropped valid
-  evidence and recorded unjudged evidence, and every landing had to hand-check every row.* *(Practice — not yet validated: not yet exercised on later batches.)*
+  invalid (for example, the test input is non-conforming). *Why: pooling overturns by claim silently drops valid
+  evidence and records unjudged evidence.*
 
 ## 11. Measure cost per unit and route to the cheapest lane
 
 - **Measure tokens per closed unit for each lane** (items closed per agent, cache-read per item) from the
-  transcripts, and re-measure at each milestone. *Why: across lanes, cost per unit can differ by ~10×.* *(Practice — not yet validated: tokens per closed item are not yet measured the same way for each lane.)*
+  transcripts, and re-measure at each milestone. *Why: across lanes, cost per unit can differ by ~10×.*
 - **Route each item to the cheapest lane that moves the metric you actually report.** For example, writing a
   witness test for already-correct behavior beats re-running a full review fleet. *Why: a large review fleet
-  can burn billions of tokens for single-digit movement.* *(Practice — not yet validated: routing by that figure was not shown to move the metric faster.)*
-- **The model follows the ROLE, set in the role definition, never per call.** Judgment roles (implementer,
-  finisher, analyst, refuter, reviewer) run the top everyday tier. Mechanical roles run a cheaper tier: chores
-  that write (filing notes, doc sweeps) and READ-ONLY lookups (code sites, orientation and cluster summaries,
-  measurements). A mechanical agent that hits a judgment call returns `NEEDS-ESCALATION` for that item.
-  *Why: a per-call `model` overrides the role's own, so "pass the top model on every agent" silently ran the
-  cheap chore role on the top tier, and a 30-lookup code-site pass that judged nothing ran on the top-tier
-  analyst.* *(Practice — not yet validated: the cost of the override was never measured.)*
-- **A premium model is an exception, never a default, unless its quota is truly separate.** Read the plan's
-  terms, not the usage page's labels. On a plan where a premium model "draws from your plan's regular weekly
-  usage limits" and uses them faster, with its own row only a CEILING on its share, every unit of premium work
-  costs more of the same pool. Use it only as a per-item escalation, for one item the everyday tier has failed
-  twice. *Why: a "separate weekly limit" label read as free capacity would have moved refuters onto a model
-  that drains the shared weekly quota faster for similar results.* *(Practice — not yet validated: the premium model's draw per unit was never measured.)*
-  **When a person owns the quota, each premium dispatch needs their explicit approval**: name the task, why the
-  everyday tier is not enough and what it will draw, and wait for a yes for THAT dispatch; one approval never carries to
-  the next. Ration it to the work that truly benefits, because the premium unit costs far more and the premium row caps
-  it at a share of the whole weekly quota. *Why: the owner of a long campaign set this rule on 2026-10-02 after the
-  quota turned out to be shared with another project that had used the premium model the same day.* *(Practice — not yet validated: adopted as an owner rule; no measurement of premium spend avoided.)*
+  can burn billions of tokens for single-digit movement.*
+- **The tier and the effort follow the ROLE, set in the role definition**, in the three tiers
+  [`role-agents.md`](../../automating-agent-guardrails/references/role-agents.md) defines. Judgment roles
+  (implementer, finisher, analyst, refuter, reviewer) run the **worker tier** at effort `medium`, raised only for a
+  role where a measurement shows a gain. Mechanical roles run the **mechanical tier** at `low`: chores that write
+  (filing notes, doc sweeps) and READ-ONLY lookups (code sites, orientation and cluster summaries, measurements). A
+  mechanical agent that hits a judgment call returns `NEEDS-ESCALATION` for that item. The **orchestrator tier**
+  plans and judges the hard cases. A per-call `model` overrides the role's, so a role whose definition names a
+  model gets one per call only as a per-item choice (`rolling-wave.js`'s per-group `model`, sized to that group's
+  work), and a blanket per-call model (its `args.model`) only for roles that inherit (`model: inherit`). *Why: a
+  per-call model passed to every agent runs the mechanical role on the expensive tier, and a lookup pass that
+  judges nothing costs what a judgment pass costs.*
+- **An orchestrator-tier dispatch is an exception, never a default, unless its quota is truly separate.** Read the
+  plan's terms, not the usage page's labels. On a plan where that model "draws from your plan's regular weekly usage
+  limits" and uses them faster, with its own row only a CEILING on its share, every unit of its work costs more of
+  the same pool. Use it only as a per-item escalation, for one item the worker tier has failed twice.
+  **When a person owns the quota, each orchestrator-tier dispatch needs their explicit approval**: name the task,
+  why the worker tier is not enough and what it will draw, and wait for a yes for THAT dispatch; one approval never
+  carries to the next. *Why: the weekly pool is shared, possibly with other projects of the same owner, so only the
+  owner can weigh one dispatch against the rest of the week.*
 - **Precompute discovery.** If most of a fleet's turns are spent searching, build a dossier once and hand it to
-  every agent. *(Practice — not yet validated: no like-for-like cost before and after.)*
+  every agent.
 - **Self-review before a large review fleet.** *Why: a large share of what the fleet finds are defects that the
-  same wave introduced.* The form that lasted is each implementer's self-review of its own diff, plus a
-  read-only reviewer's pass over the whole branch when it is DONE (it was the lander's review of the merged batch
-  until 2026-10-11, when review moved onto the branch). *(Validated 2026-09-28; the branch position is practice,
-  not yet validated.)*
+  same wave introduced.* The form: each implementer's self-review of its own diff, plus a read-only reviewer's pass
+  over the whole branch when it is DONE (the `merge-queue-landing` skill).

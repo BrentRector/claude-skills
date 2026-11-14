@@ -9,8 +9,8 @@
 
   "roles": {
     "dir": ".claude/agents",
-    "required": ["implementer", "finisher", "refuter", "analyst", "chore"],
-    "readonly": ["refuter", "analyst"],
+    "required": ["implementer", "finisher", "refuter", "analyst", "chore", "locator"],
+    "readonly": ["refuter", "analyst", "locator"],
     "long_wait": ["implementer", "finisher", "refuter", "analyst"]
   },
 

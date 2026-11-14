@@ -34,7 +34,7 @@ variants of this bug").
 | 6. Report the sweep | Fill in the sweep template: the mechanism, the dispatch arms, the rule copies, and a table of every query run verbatim with its scope, hit count and classification. Include a calibration line showing the query hit the original instance before the fix, and a regression guard. File each confirmed or latent variant in the project's work register. |
 
 The skill closes with three worked examples (a .NET `Math.Round` midpoint bug, a grammar that fixes the order of
-clauses the language allows in any order, and a pagination off-by-one) and a list of the seven reasons hunts fail.
+clauses the language allows in any order, and a pagination off-by-one) and the seven ways a hunt fails, each mapped to the part of the sweep record that exposes it.
 
 [`references/search-recipes.md`](references/search-recipes.md) holds throwaway starting points for the structural
 and semantic levels:
@@ -85,8 +85,8 @@ codebase.
 
 How it composes with sibling skills:
 
-- **engineering-standards** is the bar. Its "every bug is a pattern", "two-arm dispatch" and "one rule in one place"
-  rules are Steps 1 to 4 here, and its root-cause rule forbids calling a variant "a quirk" or working around it.
+- The bar: every bug is a pattern, a two-arm dispatch has its other arm checked, and one rule lives in one place
+  (Steps 1 to 4 here); a variant is fixed at its root cause, never worked around.
 - **review** runs this skill in its sibling-sweep step for each confirmed finding.
 - **roslyn-analysis** provides symbol sweeps and structural clone detection for C# codebases.
 
